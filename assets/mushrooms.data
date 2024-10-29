@@ -1,0 +1,56 @@
+mukhomor
+geometry
+quad
+-0.8 0.8
+-1 0.8
+-0.8 1
+-1 1
+texture
+mukhomor
+moving
+0 -0.001
+layer
+2
+collider
+mushroom_catch_handler
+collider
+mushroom_fall_handler
+mukhomor
+
+lisi4ka
+geometry
+quad
+-0.8 0.8
+-1 0.8
+-0.8 1
+-1 1
+texture
+lisi4ka
+moving
+0.01 -0.001
+layer
+2
+collider
+mushroom_catch_handler
+collider
+mushroom_fall_handler
+lisi4ka
+
+borovik
+geometry
+quad
+-0.8 0.8
+-1 0.8
+-0.8 1
+-1 1
+texture
+borovik
+moving
+0.0005 -0.001
+layer
+2
+collider
+mushroom_catch_handler
+collider
+mushroom_fall_handler
+borovik
