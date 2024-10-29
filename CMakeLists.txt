@@ -40,10 +40,25 @@ set(freetype-gl_WITH_GLEW_DEFAULT OFF CACHE BOOL "" FORCE)
 set(freetype-gl_BUILD_MAKEFONT OFF CACHE BOOL "" FORCE)
 add_subdirectory(${CMAKE_SOURCE_DIR}/3rd-party/freetype-gl)
 
+set(IMGUI_DIR "${CMAKE_SOURCE_DIR}/3rd-party/imgui")
+include_directories(${IMGUI_DIR})
+
+# Add ImGui source files
+set(IMGUI_SOURCES
+    ${IMGUI_DIR}/imgui.cpp
+    ${IMGUI_DIR}/imgui_demo.cpp
+    ${IMGUI_DIR}/imgui_draw.cpp
+    ${IMGUI_DIR}/imgui_tables.cpp
+    ${IMGUI_DIR}/imgui_widgets.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_sdl2.cpp
+)
+add_compile_options("-DIMGUI_IMPL_OPENGL_ES3")
+add_library(imgui STATIC ${IMGUI_SOURCES})
+
 include_directories(${CMAKE_SOURCE_DIR}/3rd-party)
 include_directories(${PROJECT_BINARY_DIR}/3rd-party/freetype-gl)
 include_directories(/usr/include/freetype2  -I/usr/local/include/freetype2  -I/usr/include/libpng16)
-
 
 set(EXE_SOURCES
 	src/main.cpp
@@ -63,7 +78,7 @@ include_directories(${SDL2_INCLUDE_DIRS})
 include_directories(${CMAKE_SOURCE_DIR}/src)
 
 if (EMSCRIPTEN)
-		SET(CMAKE_EXE_LINKER_FLAGS "-s LLD_REPORT_UNDEFINED -sNO_DISABLE_EXCEPTION_CATCHING -s MAX_WEBGL_VERSION=2 -s MIN_WEBGL_VERSION=2 --preload-file ${PROJECT_SOURCE_DIR}/assets@/assets --preload-file ${PROJECT_SOURCE_DIR}/shaders@/shaders")
+		SET(CMAKE_EXE_LINKER_FLAGS "-s LLD_REPORT_UNDEFINED -sNO_DISABLE_EXCEPTION_CATCHING -s MAX_WEBGL_VERSION=2 -s MIN_WEBGL_VERSION=2 --preload-file ${PROJECT_SOURCE_DIR}/assets@/assets --preload-file ${PROJECT_SOURCE_DIR}/shaders@/shaders -sUSE_SDL=2 -sUSE_WEBGL2=1 -sWASM=1")
 		set_target_properties(LostNFound PROPERTIES RUNTIME_OUTPUT_DIRECTORY build)
 		configure_file(${PROJECT_SOURCE_DIR}/index.html ${PROJECT_BINARY_DIR}/build/index.html COPYONLY)
 else()
@@ -77,4 +92,6 @@ endif()
 target_link_libraries(LostNFound PRIVATE ${SDL2_LIBRARIES})
 target_link_libraries(LostNFound PRIVATE stb_image)
 target_link_libraries(LostNFound PRIVATE freetype)
+target_link_libraries(LostNFound PRIVATE imgui)
 
+target_compile_options(LostNFound PRIVATE)

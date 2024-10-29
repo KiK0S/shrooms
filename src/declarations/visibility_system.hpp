@@ -4,7 +4,6 @@
 #include "components/blocking_object.hpp"
 #include "components/dynamic_object.hpp"
 #include "components/gpu_program.hpp"
-#include "game_objects/fog.hpp"
 #include <string>
 
 namespace visibility {

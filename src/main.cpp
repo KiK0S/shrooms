@@ -3,8 +3,8 @@
 #include "declarations/all_components.hpp"
 #include "declarations/all_systems.hpp"
 #include "utils/file_system.hpp"
-#include "game_objects/player.hpp"
-#include "game_objects/camera.hpp"
+#include "world/player.hpp"
+#include "world/camera.hpp"
 #include "world/mushroom_catcher.hpp"
 #include <optional>
 

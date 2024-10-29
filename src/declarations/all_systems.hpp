@@ -27,3 +27,4 @@
 #include "../declarations/dynamic_system.hpp"
 #include "../declarations/render_system.hpp"
 #include "../declarations/animation_system.hpp"
+#include "../declarations/imgui_system.hpp"

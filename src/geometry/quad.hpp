@@ -1,6 +1,5 @@
 #pragma once
 #include "../definitions/components/animated_object.hpp"
-#include "../definitions/components/controllable_object.hpp"
 #include "../definitions/systems/render_system.hpp"
 #include "../utils/file_system.hpp"
 #include <functional>

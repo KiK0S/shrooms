@@ -51,10 +51,11 @@ MapTextureInit minimap_texture_init;
 render::CombinedUniforms minimap_uniforms{{&minimap_model_matrix, &minimap_no_view_matrix}};
 
 struct OpenMapAction: public input::ControllableObject {
- OpenMapAction(): input::ControllableObject() {
+	OpenMapAction(): input::ControllableObject() {
 
- }
+	}
 	void handle_user_action(SDL_Event e) {
+		if (e.type != SDL_KEYDOWN) return;
 		if (e.key.keysym.scancode == SDL_SCANCODE_SPACE) {
 			auto comp = get_entity()->get<render::HiddenObject>();
 			comp->switch_state();

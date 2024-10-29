@@ -1,13 +1,11 @@
 #pragma once
-#include "../definitions/components/animated_object.hpp"
-#include "../definitions/components/shader_object.hpp"
-#include "../definitions/components/controllable_object.hpp"
-#include "game_objects/camera.hpp"
-#include "../definitions/systems/render_system.hpp"
-#include "../definitions/systems/easy_drawable_system.hpp"
-#include "../definitions/systems/geometry_system.hpp"
-#include "../definitions/systems/color_system.hpp"
-#include "../utils/file_system.hpp"
+#include "animated_object.hpp"
+#include "shader_object.hpp"
+#include "../systems/render_system.hpp"
+#include "../systems/easy_drawable_system.hpp"
+#include "../systems/geometry_system.hpp"
+#include "../systems/color_system.hpp"
+#include "../../utils/file_system.hpp"
 #include <functional>
 #include <string>
 
@@ -52,12 +50,12 @@ namespace sprite {
 		}
 
 		bool hide() {
-			glm::vec2 pos = get_transform()->get_pos();
-			transform::TransformObject* camera_transform = camera::camera.get<transform::TransformObject>();
-			glm::vec2 camera_pos = camera_transform->get_pos();
-			pos -= camera_pos;
-			if (pos.x <= -1.2 || pos.x >= 1.2 || pos.y >= 1.2 || pos.y <= -1.2)
-				return true;
+			// glm::vec2 pos = get_transform()->get_pos();
+			// transform::TransformObject* camera_transform = camera::camera.get<transform::TransformObject>();
+			// glm::vec2 camera_pos = camera_transform->get_pos();
+			// pos -= camera_pos;
+			// if (pos.x <= -1.2 || pos.x >= 1.2 || pos.y >= 1.2 || pos.y <= -1.2)
+			// 	return true;
 			return false;
 		}
 		transform::NoRotationTransform transform;

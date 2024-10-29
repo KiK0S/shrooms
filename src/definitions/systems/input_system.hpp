@@ -32,9 +32,9 @@ struct Input: public dynamic::DynamicObject {
 			if (SDL_PollEvent(&event) == 0) {
 					break;
 			}
+			fire_event(event);
 			switch (event.type) {
 			case SDL_KEYDOWN: {
-				fire_event(event);
 				if (std::string(SDL_GetKeyName(event.key.keysym.sym)) == "Q") game_over::success();
 				break;
 			}

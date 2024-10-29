@@ -7,3 +7,6 @@
 [submodule "3rd-party/delaunay-cpp"]
 	path = 3rd-party/delaunay-cpp
 	url = git@github.com:jbegaint/delaunay-cpp.git
+[submodule "3rd-party/imgui"]
+	path = 3rd-party/imgui
+	url = git@github.com:ocornut/imgui.git
