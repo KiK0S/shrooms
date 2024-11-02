@@ -200,7 +200,7 @@ void init(SDL_Window *window) {
 	std::cout << "opengl version " << version << '\n';
 	
 	// todo: fix quad, polygon
-	// glEnable(GL_CULL_FACE);
+	glEnable(GL_CULL_FACE);
 
 	GLenum glewStatus = glewInit();
 	if (glewStatus != GLEW_OK) {

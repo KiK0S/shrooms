@@ -21,12 +21,13 @@ std::unique_ptr<texture::IntTextureObject> text_texture;
 std::map<std::string, geometry::GeometryObject*> geometries;
 
 struct TextSystem: public init::UnInitializedObject {
-	TextSystem(): init::UnInitializedObject() {}
+	TextSystem(): init::UnInitializedObject(5) {}
 
 	void init() {
+		std::cerr << "init text system\n";
 		atlas = texture_atlas_new( 512, 512, 4 );
 		std::string filename = file::asset("Vera.ttf");
-		char * text = "abcdefghijklmnopqrstuvwxyz ";
+		char * text = "abcdefghijklmnopqrstuvwxyz 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ:;.,!?";
 		int font_idx = 0;
 		std::cerr << filename << '\n';
 		font = texture_font_new_from_file( atlas, 80, filename.c_str() );
@@ -40,7 +41,7 @@ struct TextSystem: public init::UnInitializedObject {
 	void init(text::TextObject* t) {
 		std::string text = t->get_text();
 		auto geom = arena::create<TextGeometry>(text);
-		glm::vec2 pen(0.0, 0.0);
+		glm::vec2 pen(0.0, font->height);
 		float max_y = 0.0;
 		for (int i = 0; i < text.size(); i++) {
 			char c = text[i];
@@ -53,7 +54,7 @@ struct TextSystem: public init::UnInitializedObject {
 				}
 				pen.x += kerning;
 				int x0  = (int)( pen.x + glyph->offset_x );
-				int y0  = (int)( pen.y + glyph->offset_y );
+				int y0  = (int)( pen.y );
 				int x1  = (int)( x0 + glyph->width );
 				int y1  = (int)( y0 + glyph->height );
 				max_y = std::max(max_y, (float)y1);
@@ -61,17 +62,22 @@ struct TextSystem: public init::UnInitializedObject {
 				float t0 = glyph->t0;
 				float s1 = glyph->s1;
 				float t1 = glyph->t1;
+				std::cout << "Glyph '" << c << "' metrics:\n"
+						  << "Position: (" << x0 << "," << y0 << ") -> (" << x1 << "," << y1 << ")\n"
+						  << "UV: (" << s0 << "," << t0 << ") -> (" << s1 << "," << t1 << ")\n"
+						  << "Width: " << glyph->width << " Height: " << glyph->height << "\n"
+						  << "Offsets: " << glyph->offset_x << "," << glyph->offset_y << "\n";
 				geom->pos.push_back({x0, y0});
-				geom->uv.push_back({s0, t0});
-				geom->pos.push_back({x0, y1});
 				geom->uv.push_back({s0, t1});
 				geom->pos.push_back({x1, y1});
-				geom->uv.push_back({s1, t1});
-				geom->pos.push_back({x0, y0});
+				geom->uv.push_back({s1, t0});
+				geom->pos.push_back({x0, y1});
 				geom->uv.push_back({s0, t0});
-				geom->pos.push_back({x1, y1});
-				geom->uv.push_back({s1, t1});
+				geom->pos.push_back({x0, y0});
+				geom->uv.push_back({s0, t1});
 				geom->pos.push_back({x1, y0});
+				geom->uv.push_back({s1, t1});
+				geom->pos.push_back({x1, y1});
 				geom->uv.push_back({s1, t0});
 				pen.x += glyph->advance_x;
 			}
@@ -83,8 +89,10 @@ struct TextSystem: public init::UnInitializedObject {
 			v.y *= 2.0 / max_y;
 			v.y -= 1.0;
 		}
+		std::cerr << "add to frame new geom\n";
 		render_system::add_to_frame(geom);
 		geometries[text] = geom;
+		t->get_entity()->add(geom);
 	}
 };
 
