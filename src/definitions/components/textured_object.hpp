@@ -7,7 +7,7 @@ namespace texture {
 
 struct TexturedObject;
 
-inline std::vector<TexturedObject*> textured;
+COMPONENT_VECTOR(TexturedObject, textured);
 
 struct TexturedObject : public ecs::Component {
 	TexturedObject() : ecs::Component() {
@@ -16,6 +16,7 @@ struct TexturedObject : public ecs::Component {
 	virtual ~TexturedObject() {}
 
 	virtual GLuint get_texture() = 0;
+	DETACH_VECTOR(TexturedObject, textured)
 };
 
 }

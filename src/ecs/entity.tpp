@@ -39,4 +39,3 @@ T* Entity::get_checked() const {
     if (!res) throw std::runtime_error("Component not found: " + std::string(typeid(T).name()));
     return res;
 }
-

@@ -4,12 +4,13 @@
 #include "glm/glm/mat4x4.hpp"
 #include "glm/ext/matrix_transform.hpp"
 #include "../../ecs/component.hpp"
+#include <iostream>
 
 namespace transform {
 
 struct TransformObject;
 
-inline std::vector<TransformObject*> transforms;
+COMPONENT_VECTOR(TransformObject, transforms);
 
 struct TransformObject : public ecs::Component {
 	TransformObject() : ecs::Component() {
@@ -25,9 +26,10 @@ struct TransformObject : public ecs::Component {
 	virtual glm::mat4 get_model_matrix() = 0;
 	virtual void rotate(float angle) = 0;
 	virtual glm::vec2 transform_point(const glm::vec2& point) {
-        glm::vec4 transformed = get_model_matrix() * glm::vec4(point, 0.0f, 1.0f);
-        return glm::vec2(transformed);
+        glm::vec4 transformed = glm::transpose(get_model_matrix()) * glm::vec4(point, 0.0f, 1.0f);
+		return glm::vec2(transformed);
     }
+	DETACH_VECTOR(TransformObject, transforms)
 };
 
 

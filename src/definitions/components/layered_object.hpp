@@ -8,7 +8,7 @@ namespace layers {
 
 struct LayeredObject;
 
-std::vector<LayeredObject*> layereds;
+COMPONENT_VECTOR(LayeredObject, layereds);
 
 struct LayeredObject: public ecs::Component {
 	LayeredObject(): ecs::Component() {
@@ -17,6 +17,7 @@ struct LayeredObject: public ecs::Component {
 	virtual ~LayeredObject() {}
 
 	virtual int get_layer() const = 0;
+	DETACH_VECTOR(LayeredObject, layereds)
 };
 
 struct ConstLayer: public LayeredObject {

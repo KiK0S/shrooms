@@ -6,7 +6,7 @@ namespace dynamic {
 
 struct DynamicObject;
 
-std::vector<DynamicObject*> dynamics;
+COMPONENT_VECTOR(DynamicObject, dynamics);
 
 struct DynamicObject : public ecs::Component {
     DynamicObject(int priority = 0): priority(priority), ecs::Component() {
@@ -18,6 +18,7 @@ struct DynamicObject : public ecs::Component {
         return priority;
     }
     int priority = 0;
+	DETACH_VECTOR(DynamicObject, dynamics)
 };
 
 }

@@ -5,7 +5,7 @@
 
 namespace text {
 	struct TextObject;
-	inline std::vector<TextObject*> texts;
+	COMPONENT_VECTOR(TextObject, texts);
 
 
 	struct TextObject: public ecs::Component {
@@ -16,6 +16,7 @@ namespace text {
 			return text;
 		}
 		std::string text;
+		DETACH_VECTOR(TextObject, texts)
 	};
 
 

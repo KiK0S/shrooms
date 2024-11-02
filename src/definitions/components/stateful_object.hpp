@@ -7,7 +7,7 @@ namespace states {
 
 struct StatefulObject;
 
-std::vector<StatefulObject*> statefuls;
+COMPONENT_VECTOR(StatefulObject, statefuls);
 
 struct StatefulObject: public ecs::Component {
 	StatefulObject(): ecs::Component() {
@@ -17,6 +17,7 @@ struct StatefulObject: public ecs::Component {
 
 	virtual std::string get_state() = 0;
 	virtual void set_state(std::string) = 0;
+	DETACH_VECTOR(StatefulObject, statefuls)
 };
 
 struct StringStateful: public StatefulObject {

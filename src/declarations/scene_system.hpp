@@ -10,7 +10,7 @@ void init() {
     }
 }
 
-init::CallbackOnStart init_scenes(&init, 2);
+init::CallbackOnStart init_scenes(&init, 100);
 Scene main("main");
 
 }

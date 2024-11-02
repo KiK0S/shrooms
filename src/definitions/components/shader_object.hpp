@@ -14,7 +14,9 @@ struct ShaderUniformsObject;
 struct ProgramArgumentObject;
 struct Program;
 
+
 std::vector<Program*> programs;
+
 struct Program {
 	Program() {
 		programs.push_back(this);
@@ -27,7 +29,7 @@ struct Program {
 	virtual void reg_uniforms(GLuint program_id) = 0;
 };
 
-std::map<std::string, std::vector<ShaderUniformsObject*>> shader_uniforms;
+COMPONENT_MAP(ShaderUniformsObject, shader_uniforms);
 struct ShaderUniformsObject: public ecs::Component {
 	ShaderUniformsObject(std::vector<Program*> programs): ecs::Component() {
 		for (auto* program : programs)
@@ -36,6 +38,7 @@ struct ShaderUniformsObject: public ecs::Component {
 	virtual ~ShaderUniformsObject() {}
 
 	virtual void reg_uniforms(GLuint program_id) { }
+	DETACH_MAP(ShaderUniformsObject, shader_uniforms)
 };
 
 struct ProgramArgumentObject : public ecs::Component {

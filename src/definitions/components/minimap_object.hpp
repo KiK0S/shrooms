@@ -9,7 +9,7 @@ namespace minimap {
 
 struct MiniMapObject;
 
-inline std::vector<MiniMapObject*> minimap_objects;
+COMPONENT_VECTOR(MiniMapObject, minimap_objects);
 
 struct MiniMapObject : public ecs::Component {
 	MiniMapObject() : ecs::Component() {
@@ -19,6 +19,7 @@ struct MiniMapObject : public ecs::Component {
 	virtual ecs::Entity* get_entity() override {
 		return ecs::Component::get_entity();
 	}
+	DETACH_VECTOR(MiniMapObject, minimap_objects)
 };
 
 struct MiniMapEntity : public MiniMapObject {

@@ -6,7 +6,7 @@
 namespace animation {
 
 struct AnimatedObject;
-inline std::vector<AnimatedObject*> animateds;
+COMPONENT_VECTOR(AnimatedObject, animateds);
 
 struct AnimatedObject : public ecs::Component {
 	AnimatedObject() : ecs::Component() {
@@ -14,6 +14,7 @@ struct AnimatedObject : public ecs::Component {
 	}
 	virtual ~AnimatedObject() {}
 	virtual void update(float dt) = 0;
+	DETACH_VECTOR(AnimatedObject, animateds);
 };
 
 }

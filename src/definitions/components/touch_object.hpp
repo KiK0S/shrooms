@@ -5,7 +5,7 @@
 namespace touchscreen {
 
 struct TouchObject;
-std::vector<TouchObject*> touchables;
+COMPONENT_VECTOR(TouchObject, touchables);
 
 struct TouchObject: public ecs::Component {
 	TouchObject(): ecs::Component() {
@@ -13,6 +13,7 @@ struct TouchObject: public ecs::Component {
 	}
 	virtual ~TouchObject(){}
 	virtual void handle_touch(glm::vec2 point) = 0;
+	DETACH_VECTOR(TouchObject, touchables)
 };
 
 

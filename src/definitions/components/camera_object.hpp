@@ -9,8 +9,7 @@
 namespace camera {
 
 struct CameraObject;
-inline std::vector<CameraObject*> cameras;
-
+COMPONENT_VECTOR(CameraObject, cameras);
 struct CameraObject : public ecs::Component {
 	CameraObject() : ecs::Component() {
 		cameras.push_back(this);
@@ -29,6 +28,7 @@ struct CameraObject : public ecs::Component {
 		 ecs::Entity* e = get_entity();
 		return e->get<shaders::ShaderUniformsObject>();
 	}
+	DETACH_VECTOR(CameraObject, cameras)
 };
 
 

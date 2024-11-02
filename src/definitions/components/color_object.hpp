@@ -7,7 +7,7 @@ namespace color {
 
 struct ColoredObject;
 
-std::vector<ColoredObject*> coloreds;
+COMPONENT_VECTOR(ColoredObject, coloreds);
 
 struct ColoredObject: public ecs::Component {
 	ColoredObject(): ecs::Component() {
@@ -15,6 +15,7 @@ struct ColoredObject: public ecs::Component {
 	}
 	virtual ~ColoredObject(){}
 	virtual glm::vec4 get_color() = 0;
+	DETACH_VECTOR(ColoredObject, coloreds)
 };
 
 

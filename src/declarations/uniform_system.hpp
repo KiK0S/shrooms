@@ -3,4 +3,5 @@
 
 namespace shaders {
 NoShaderUniforms no_uniforms;
+ModelMatrix model_matrix;
 }

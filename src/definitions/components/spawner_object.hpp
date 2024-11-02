@@ -7,8 +7,7 @@ namespace spawn {
 
 struct SpawnerObject;
 
-std::vector<SpawnerObject*> spawners;
-
+COMPONENT_VECTOR(SpawnerObject, spawners);
 
 struct SpawningRule {
 	double density;
@@ -20,7 +19,7 @@ struct SpawnerObject: public ecs::Component {
 		spawners.push_back(this);
 	}
 	virtual ~SpawnerObject() {}
-
+	DETACH_VECTOR(SpawnerObject, spawners)
 	virtual std::vector<SpawningRule> get_rules() = 0;
 };
 

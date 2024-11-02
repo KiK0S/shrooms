@@ -9,8 +9,8 @@ namespace collision {
 struct ColliderObject;
 struct TriggerObject;
 
-inline std::map<std::string, std::vector<ColliderObject*>> collider_objects;
-inline std::map<std::string, std::vector<TriggerObject*>> trigger_objects;
+COMPONENT_MAP(ColliderObject, collider_objects);
+COMPONENT_MAP(TriggerObject, trigger_objects);
 
 struct ColliderObject : public ecs::Component {
     ColliderObject(std::string type) : ecs::Component(), type(type) {
@@ -19,6 +19,7 @@ struct ColliderObject : public ecs::Component {
     virtual ~ColliderObject() {}
 
     std::string type;
+	DETACH_MAP(ColliderObject, collider_objects)
 };
 
 typedef std::function<void(ecs::Entity*, ColliderObject*)> TriggerCallback;
@@ -31,6 +32,7 @@ struct TriggerObject : public ecs::Component {
 
     std::string type;
     TriggerCallback callback;
+	DETACH_MAP(TriggerObject, trigger_objects)
 };
 
 }

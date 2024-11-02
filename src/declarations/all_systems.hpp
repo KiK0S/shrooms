@@ -28,3 +28,5 @@
 #include "../declarations/render_system.hpp"
 #include "../declarations/animation_system.hpp"
 #include "../declarations/imgui_system.hpp"
+#include "../declarations/cleanup_system.hpp"
+#include "../declarations/periodic_spawner_system.hpp"

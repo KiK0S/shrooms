@@ -9,7 +9,7 @@ namespace geometry {
 
 struct GeometryObject;
 
-inline std::vector<GeometryObject*> geometry_objects;
+COMPONENT_VECTOR(GeometryObject, geometry_objects);
 
 struct GeometryObject : public ecs::Component {
 	GeometryObject() : ecs::Component() {
@@ -21,6 +21,7 @@ struct GeometryObject : public ecs::Component {
 	virtual int get_size() = 0;
 	virtual std::vector<glm::vec2> get_uv() = 0;
 	virtual std::string get_name() const = 0;
+	DETACH_VECTOR(GeometryObject, geometry_objects)
 };
 
 }

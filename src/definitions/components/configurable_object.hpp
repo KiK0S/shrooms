@@ -7,7 +7,7 @@
 namespace config {
 
 struct ConfigurableObject;
-inline std::vector<ConfigurableObject*> configurables;
+COMPONENT_VECTOR(ConfigurableObject, configurables);
 
 struct ConfigurableObject : public ecs::Component {
     ConfigurableObject() : ecs::Component() {
@@ -15,6 +15,7 @@ struct ConfigurableObject : public ecs::Component {
     }
     virtual ~ConfigurableObject() {}
     virtual void register_imgui() = 0;
+	DETACH_VECTOR(ConfigurableObject, configurables)
 };
 
 struct FloatParameter : public ConfigurableObject {

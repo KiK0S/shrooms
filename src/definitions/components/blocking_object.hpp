@@ -6,8 +6,7 @@
 
 namespace visibility {
 struct BlockingObject;
-inline std::vector<BlockingObject*> blocking_objects;
-
+COMPONENT_VECTOR(BlockingObject, blocking_objects);
 struct BlockingObject : public ecs::Component {
 	BlockingObject(): ecs::Component() {
 		blocking_objects.push_back(this);
@@ -16,6 +15,7 @@ struct BlockingObject : public ecs::Component {
 		return ecs::Component::get_entity();
 	}
 	virtual ~BlockingObject() {}
+	DETACH_VECTOR(BlockingObject, blocking_objects)
 };
 
 
