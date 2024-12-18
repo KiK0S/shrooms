@@ -21,7 +21,7 @@ sprite::AnimatedSprite player_sprite("witch", {-0.1f, -0.1f}, {0.1f, 0.1f}, 2, {
 collision::TriggerObject mushroom_trigger("mushroom_catch_handler", 
     [](ecs::Entity* player, collision::ColliderObject* mushroom) {
         // Handle mushroom collection
-        std::cout << "Collected mushroom!" << std::endl;
+        LOG_IF(logger::enable_collision_system_logging, "Collected mushroom!");
         mushroom->get_entity()->mark_deleted();
         scoreboard::update_score(scoreboard::score + 1);
     }

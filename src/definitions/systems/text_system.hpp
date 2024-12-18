@@ -11,6 +11,8 @@
 #include <map>
 #include <glm/glm.hpp>
 #include "freetype-gl/freetype-gl.h"
+#include "../../utils/logger.hpp"
+#include "../../declarations/logger_system.hpp"
 
 namespace text {
 
@@ -62,11 +64,11 @@ struct TextSystem: public init::UnInitializedObject {
 				float t0 = glyph->t0;
 				float s1 = glyph->s1;
 				float t1 = glyph->t1;
-				std::cout << "Glyph '" << c << "' metrics:\n"
+				LOG_IF(logger::enable_text_system_logging, "Glyph '" << c << "' metrics:\n"
 						  << "Position: (" << x0 << "," << y0 << ") -> (" << x1 << "," << y1 << ")\n"
 						  << "UV: (" << s0 << "," << t0 << ") -> (" << s1 << "," << t1 << ")\n"
 						  << "Width: " << glyph->width << " Height: " << glyph->height << "\n"
-						  << "Offsets: " << glyph->offset_x << "," << glyph->offset_y << "\n";
+						  << "Offsets: " << glyph->offset_x << "," << glyph->offset_y);
 				geom->pos.push_back({x0, y0});
 				geom->uv.push_back({s0, t1});
 				geom->pos.push_back({x1, y1});
@@ -89,7 +91,7 @@ struct TextSystem: public init::UnInitializedObject {
 			v.y *= 2.0 / max_y;
 			v.y -= 1.0;
 		}
-		std::cerr << "add to frame new geom\n";
+		LOG_IF(logger::enable_text_system_logging, "add to frame new geom");
 		render_system::add_to_frame(geom);
 		geometries[text] = geom;
 		t->get_entity()->add(geom);
