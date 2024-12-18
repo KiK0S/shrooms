@@ -51,6 +51,7 @@ struct NoRotationTransform: public transform::TransformObject {
 	}
 	virtual void scale(glm::vec2 x) {	
 		scale_ *= x;
+		pos *= x;
 	}
 	virtual glm::mat4 get_model_matrix() {
 		return {

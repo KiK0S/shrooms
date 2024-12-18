@@ -4,6 +4,7 @@
 #include "geometry_system.hpp"
 #include "../components/moving_object.hpp"
 #include "../components/collider_object.hpp"
+#include "../components/periodic_spawner_object.hpp"
 #include <iostream>
 #include <vector>
 #include <string>
@@ -116,15 +117,43 @@ minimap::MiniMapObject* parse_minimap(std::istream& in) {
 	return arena::create<minimap::MiniMapEntityPtr>(e);
 }
 
+periodic_spawn::PeriodicSpawnerObject* parse_periodic_spawner(std::istream& in) {
+	float period;
+	double density;
+	in >> period >> density;
+	
+	auto desc = parse_entity_description(in);
+	return arena::create<periodic_spawn::PeriodicSpawnerObject>(
+		period,
+		spawn::SpawningRule{
+			density,
+			[=](glm::vec2 pos) {
+				std::cerr << pos.x << " " << pos.y << std::endl;
+				std::istringstream new_e_desc(desc);
+				auto new_e = parse_entity(new_e_desc);
+				new_e->get<transform::TransformObject>()->scale({0.1f, 0.1f});
+				new_e->get<transform::TransformObject>()->translate(pos);
+				new_e->add(&geometry::quad);
+				
+				auto scene = arena::create<scene::SceneObject>("main");
+				new_e->add(scene);
+				new_e->bind();
+				return new_e;
+			}
+		}
+	);
+}
+
 ecs::Entity* parse_entity(std::istream& in, shaders::Program* program) {
 	std::string name;
 
 	if (!(in >> name)) return nullptr;
 	ecs::Entity* e = arena::create<ecs::Entity>();
 	std::string comp;
-	
+	// std::cerr << "parsing entity " << name << std::endl;
 	while (in >> comp) {
 		if (comp == name) break;
+		// std::cerr << "parsed component " << comp << std::endl;
 		if (comp == "geometry") e->add(parse_geometry(in, name));
 		if (comp == "texture") e->add(parse_texture(in));
 		if (comp == "color") e->add(parse_color(in));
@@ -132,8 +161,11 @@ ecs::Entity* parse_entity(std::istream& in, shaders::Program* program) {
 		if (comp == "minimap") e->add(parse_minimap(in));
 		if (comp == "spawner") e->add(parse_spawner(in));
 		if (comp == "moving") e->add(parse_moving(in));
-		if (comp == "collider") e->add(parse_collider(in));  // Add this line
+		if (comp == "collider") e->add(parse_collider(in));
+		if (comp == "periodic_spawner") e->add(parse_periodic_spawner(in));
 	}
+
+	// std::cerr << "parsed entity " << name << std::endl;
 	auto model_matrix = arena::create<shaders::ModelMatrix>();
 	e->add(model_matrix);
 	auto translate = arena::create<transform::NoRotationTransform>();

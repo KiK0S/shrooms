@@ -23,8 +23,9 @@ void Loop() {
         return;
     }
 
-    for (auto dynamic : dynamic::dynamics)
-        dynamic->update();
+    for (int i = 0; i < dynamic::dynamics.size(); i++) {
+        dynamic::dynamics[i]->update();
+    }
     
     #ifdef __EMSCRIPTEN__
     } catch(...) {
