@@ -51,7 +51,12 @@ void reg_component(Entity* e, Component* c);
 
 class Component {
 public:
-    virtual ~Component() = default;
+    Component() {
+        component_count++;
+    }
+    virtual ~Component() {
+        component_count--;
+    }
     virtual void bind(Entity* entity) {
         this->entity = entity;
         reg_component(entity, this);
@@ -63,5 +68,9 @@ public:
         throw std::runtime_error("Component not found: " + std::string(typeid(*this).name()));
     }
     Entity* entity = nullptr;
+    static size_t get_component_count() { return component_count; }
+
+private:
+    static inline size_t component_count = 0;
 };
 }

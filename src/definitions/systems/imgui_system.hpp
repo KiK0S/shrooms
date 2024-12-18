@@ -1,5 +1,6 @@
 #pragma once
 #include "../components/configurable_object.hpp"
+#include "../components/observable_object.hpp"
 #include "../components/dynamic_object.hpp"
 #include "../components/controllable_object.hpp"
 #include "imgui/imgui.h"
@@ -29,6 +30,13 @@ struct ImGuiSystem : public dynamic::DynamicObject,  public input::ControllableO
         if (ImGui::Begin("Configuration")) {
             for (auto* configurable : config::configurables) {
                 configurable->register_imgui();
+            }
+        }
+        ImGui::End();
+
+        if (ImGui::Begin("Debug Info")) {
+            for (auto* observable : debug::observables) {
+                observable->register_imgui();
             }
         }
         ImGui::End();

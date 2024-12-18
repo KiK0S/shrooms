@@ -11,8 +11,11 @@ class Entity {
 public:
 	Entity() {
 		entities.push_back(this);
+		entity_count++;
 	}
-	virtual ~Entity() {}
+	virtual ~Entity() {
+		entity_count--;
+	}
 
 	Entity& add(Component* comp) {
 		comp->bind(this);
@@ -55,10 +58,13 @@ public:
 		comp->detach();
 	}
 
+	static size_t get_entity_count() { return entity_count; }
+
 private:
 	bool to_delete = false;
 	std::vector<Component*> pre_bind_components;
 	std::vector<Component*> components;
+	static inline size_t entity_count = 0;
 };
 
 void reg_component(Entity* e, Component* c) {

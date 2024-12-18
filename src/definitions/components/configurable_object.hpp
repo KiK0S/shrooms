@@ -32,4 +32,21 @@ struct FloatParameter : public ConfigurableObject {
     float max_val;
 };
 
+struct BoolParameter : public ConfigurableObject {
+    BoolParameter(const std::string& name, bool* value)
+        : name(name), value(value) {}
+
+    void register_imgui() override {
+        ImGui::Checkbox(name.c_str(), value);
+    }
+
+    operator bool() const {
+        return *value;
+    }
+
+    std::string name;
+    bool* value;
+};
+
+
 } // namespace config 

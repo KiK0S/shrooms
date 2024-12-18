@@ -30,3 +30,5 @@
 #include "../declarations/imgui_system.hpp"
 #include "../declarations/cleanup_system.hpp"
 #include "../declarations/periodic_spawner_system.hpp"
+#include "../declarations/debug_system.hpp"
+#include "../declarations/logger_system.hpp"
