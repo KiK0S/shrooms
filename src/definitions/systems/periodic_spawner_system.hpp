@@ -1,6 +1,7 @@
 #pragma once
 #include "../components/periodic_spawner_object.hpp"
 #include "../components/dynamic_object.hpp"
+#include "scene_system.hpp"
 #include <chrono>
 
 namespace periodic_spawn {
@@ -12,6 +13,9 @@ struct PeriodicSpawnerSystem : public dynamic::DynamicObject {
     }
 
     void update() override {
+        if (scene::is_current_scene_paused()) {
+            return;
+        }
         std::chrono::time_point<std::chrono::system_clock> now = std::chrono::system_clock::now();
         if (last_update == std::nullopt) {
             last_update = now;

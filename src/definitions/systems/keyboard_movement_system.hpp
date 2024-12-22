@@ -16,6 +16,9 @@ struct KeyboardMovement : public dynamic::DynamicObject {
     float velocity = 0.02f;
 
     void update() {
+        if (scene::is_current_scene_paused()) {
+            return;
+        }
         ecs::Entity* e = get_entity();
         glm::vec2 d{0.0f, 0.0f};
 

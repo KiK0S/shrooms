@@ -6,7 +6,7 @@
 #include "../components/dynamic_object.hpp"
 #include "../components/controllable_object.hpp"
 #include "../../utils/exit.hpp"
-
+#include "scene_system.hpp"
 namespace input {
 
 std::map<SDL_Scancode, bool> is_pressed;
@@ -38,6 +38,7 @@ struct Input: public dynamic::DynamicObject {
 			switch (event.type) {
 			case SDL_KEYDOWN: {
 				if (std::string(SDL_GetKeyName(event.key.keysym.sym)) == "Q") game_over::success();
+				if (std::string(SDL_GetKeyName(event.key.keysym.sym)) == "P") scene::toggle_pause();
 				break;
 			}
 			case SDL_KEYUP: {
