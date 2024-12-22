@@ -74,6 +74,17 @@ collision::ColliderObject* parse_collider(std::istream& in) {
 	return arena::create<collision::ColliderObject>(handler_name);
 }
 
+collision::TriggerObject* parse_trigger(std::istream& in) {
+	std::string handler_name;
+	in >> handler_name;
+	auto callback = collision::TriggerCallbackRegistry::get_callback(handler_name);
+	if (!callback) {
+		std::cerr << "Warning: No trigger callback registered for name: " << handler_name << std::endl;
+		callback = [](ecs::Entity*, collision::ColliderObject*) {}; // Empty callback as fallback
+	}
+	return arena::create<collision::TriggerObject>(handler_name, callback);
+}
+
 color::ColoredObject* parse_color(std::istream& in) {
 	int r;
 	int g;
@@ -162,6 +173,7 @@ ecs::Entity* parse_entity(std::istream& in, shaders::Program* program) {
 		if (comp == "spawner") e->add(parse_spawner(in));
 		if (comp == "moving") e->add(parse_moving(in));
 		if (comp == "collider") e->add(parse_collider(in));
+		if (comp == "trigger") e->add(parse_trigger(in));
 		if (comp == "periodic_spawner") e->add(parse_periodic_spawner(in));
 	}
 

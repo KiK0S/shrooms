@@ -52,3 +52,17 @@ collider
 mushroom_fall_handler
 borovik_spawned
 sky
+floor
+geometry
+quad
+-1 -1
+1 -1
+-1 -0.65
+1 -0.65
+texture
+fire
+layer
+0
+trigger
+mushroom_fall_handler
+floor
