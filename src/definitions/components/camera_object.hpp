@@ -14,7 +14,9 @@ struct CameraObject : public ecs::Component {
 	CameraObject() : ecs::Component() {
 		cameras.push_back(this);
 	}
-	virtual ~CameraObject() {}
+	virtual ~CameraObject() {
+		Component::component_count--;
+	}
 
 	virtual transform::TransformObject* get_transform() {
 		ecs::Entity* e = get_entity();

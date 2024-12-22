@@ -16,8 +16,12 @@ namespace sprite {
 		Sprite(std::string name, glm::vec2 top_left, glm::vec2 bottom_right, int layer):
 		 transform(top_left, bottom_right),
 		 layer(layer),
-		 texture(name), ecs::Component() {}
-		~Sprite() {}
+		 texture(name), ecs::Component() {
+			Component::component_count--;
+		 }
+		~Sprite() {
+			
+		}
 		geometry::GeometryObject* get_geometry() {
 			return &geometry::quad;
 		}
@@ -43,6 +47,7 @@ namespace sprite {
 		virtual void bind(ecs::Entity* entity) {
 			get_geometry()->bind(entity);
 			get_transform()->bind(entity);
+			get_color()->bind(entity);
 			get_layer()->bind(entity);
 			get_texture()->bind(entity);
 			get_uniform()->bind(entity);

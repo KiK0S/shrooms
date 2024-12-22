@@ -51,6 +51,9 @@ GLuint get_texture_impl(std::string path) {
 
 struct OneTextureObject: public TexturedObject {
 	OneTextureObject(std::string name): TexturedObject(), name(name) {}
+	virtual ~OneTextureObject() {
+		Component::component_count--;
+	}
 	GLuint get_texture() {
 		return get_texture_impl(file::asset(name + ".png"));
 	}
@@ -59,6 +62,9 @@ struct OneTextureObject: public TexturedObject {
 
 struct IntTextureObject: public TexturedObject {
 	IntTextureObject(GLuint texture): TexturedObject(), texture(texture) {}
+	virtual ~IntTextureObject() {
+		Component::component_count--;
+	}
 	GLuint get_texture() {
 		return texture;
 	}
@@ -66,7 +72,12 @@ struct IntTextureObject: public TexturedObject {
 };
 
 struct NoTextureObject: public TexturedObject {
-	NoTextureObject(): TexturedObject() {}
+	NoTextureObject(): TexturedObject() {
+		global = true;
+	}
+	virtual ~NoTextureObject() {
+		Component::component_count--;
+	}
 	GLuint get_texture() {
 		return get_texture_impl("");
 	}
@@ -74,7 +85,9 @@ struct NoTextureObject: public TexturedObject {
 
 struct AnimationTimer : public animation::AnimatedObject {
 	AnimationTimer() : animation::AnimatedObject() {}
-
+	virtual ~AnimationTimer() {
+		Component::component_count--;
+	}
 	void update(float dt) {
 		time += dt;
 	}
@@ -83,6 +96,9 @@ struct AnimationTimer : public animation::AnimatedObject {
 
 struct StateReset : public states::StringStateful {
 	StateReset(std::function<void()>&& reset, std::string s): reset(std::move(reset)), states::StringStateful(s) {}
+	virtual ~StateReset() {
+		Component::component_count--;
+	}
 	void set_state(std::string state) {
 		if (get_state() == state) return;
 		states::StringStateful::set_state(state);
@@ -93,7 +109,9 @@ struct StateReset : public states::StringStateful {
 
 struct AnimatedTexture : public TexturedObject {
 	AnimatedTexture(std::string name, std::map<std::string, std::vector<float>> data): name(name), TexturedObject(), animation(), state(std::bind(&AnimatedTexture::reset, this), data.begin()->first), durations(data) {}
-	~AnimatedTexture() {}
+	virtual ~AnimatedTexture() {
+		Component::component_count--;
+	}
 	GLuint get_texture() {
 		while (durations[state.get_state()][current_index] <= animation.time) {
 			animation.time -= durations[state.get_state()][current_index];

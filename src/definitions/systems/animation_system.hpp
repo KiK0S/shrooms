@@ -12,6 +12,9 @@ std::optional<std::chrono::time_point<std::chrono::system_clock>> m_time = {};
 
 struct Animation : public dynamic::DynamicObject {
 	Animation(): dynamic::DynamicObject() {}
+	virtual ~Animation() {
+		Component::component_count--;
+	}
 	void update() {
 		std::chrono::time_point<std::chrono::system_clock> now = std::chrono::system_clock::now();
 		if (m_time == std::nullopt) {

@@ -22,6 +22,10 @@ struct SolidDrawable : public ecs::Component {
 	SolidDrawable(geometry::GeometryObject* geometry, shaders::Program* program): program(program), geometry(geometry), layer(1),
 		uniforms({&model_matrix}), ecs::Component() {}
 
+	virtual ~SolidDrawable() {
+		Component::component_count--;
+	}
+
 	virtual geometry::GeometryObject* get_geometry() {
 		return geometry;
 	}
@@ -56,6 +60,7 @@ struct SolidDrawable : public ecs::Component {
 		get_layer()->bind(entity);
 		get_uniform()->bind(entity);
 		get_color()->bind(entity);
+		get_texture()->bind(entity);
 		arena::create<shaders::ProgramArgumentObject>(get_program())->bind(entity);
 	}
 

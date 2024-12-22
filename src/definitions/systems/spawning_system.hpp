@@ -36,7 +36,9 @@ std::vector<glm::vec2> spawn_points(glm::vec2 a, glm::vec2 b, glm::vec2 c, doubl
 
 struct SpawnerSystem: public init::UnInitializedObject {
 	SpawnerSystem(): init::UnInitializedObject(1) {}
-
+	virtual ~SpawnerSystem() {
+		Component::component_count--;
+	}
 	void init() {
 		ecs::Entity* e = get_entity();
 		for (auto* obj : spawn::spawners) {

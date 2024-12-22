@@ -27,7 +27,9 @@ struct RenderTarget {
 
 struct FramebufferTexture : public texture::TexturedObject {
 	FramebufferTexture(): texture::TexturedObject() {}
-	~FramebufferTexture() {}
+	~FramebufferTexture() {
+		Component::component_count--;
+	}
 
 	RenderTarget render_texture;
 	GLuint get_texture() {	

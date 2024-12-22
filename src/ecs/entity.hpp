@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <typeindex>
 #include <stdexcept>
+#include "../utils/logger.hpp"
 namespace ecs {
 
 class Entity {
@@ -14,6 +15,19 @@ public:
 		entity_count++;
 	}
 	virtual ~Entity() {
+		LOG_IF(enable_ecs_logging_, "Deleting entity with components: ");
+		for (Component* c : components) {
+			LOG_IF(enable_ecs_logging_, typeid(*c).name() << " ");
+		}
+		for (Component* c : components) {
+			c->detach();
+		}
+		for (Component* c : pre_bind_components) {
+			LOG_IF(enable_ecs_logging_, typeid(*c).name() << " ");
+		}
+		for (Component* c : pre_bind_components) {
+			c->detach();
+		}
 		entity_count--;
 	}
 
@@ -22,6 +36,10 @@ public:
 		return *this;
 	}
 	Entity& bind() {
+		LOG_IF(enable_ecs_logging_, "Binding entity with components: ");
+		for (Component* c : components) {
+			LOG_IF(enable_ecs_logging_, typeid(*c).name() << " ");
+		}
 		for (Component* c : pre_bind_components) {
 			c->bind(this);
 		}
@@ -60,7 +78,7 @@ public:
 
 	static size_t get_entity_count() { return entity_count; }
 
-private:
+// private:
 	bool to_delete = false;
 	std::vector<Component*> pre_bind_components;
 	std::vector<Component*> components;

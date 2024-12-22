@@ -34,7 +34,7 @@ void init() {
 	            .add(arena::create<shaders::ProgramArgumentObject>(&shaders::static_object_program))
                 .add(&score_transform)
                 .add(&color::white)
-                .add(text::text_texture.get())
+                .add(text::text_texture)
                 .bind();
     text::text_loader.init(score_text);
 }

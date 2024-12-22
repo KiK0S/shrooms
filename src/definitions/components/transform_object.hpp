@@ -16,7 +16,9 @@ struct TransformObject : public ecs::Component {
 	TransformObject() : ecs::Component() {
 		transforms.push_back(this);
 	}
-	virtual ~TransformObject() {}
+	virtual ~TransformObject() {
+		Component::component_count--;
+	}
 
 	virtual glm::vec2 get_pos() {
 		return glm::vec2(get_model_matrix() * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
@@ -39,7 +41,9 @@ struct NoRotationTransform: public transform::TransformObject {
 		scale((bottom_right - top_left) / 2.0f);
 		translate(top_left + scale_);
 	}
-	virtual ~NoRotationTransform() {}
+	virtual ~NoRotationTransform() {
+		Component::component_count--;
+	}
 
 	glm::vec2 pos;
 	glm::vec2 scale_;
@@ -70,6 +74,9 @@ struct Transform2d: public TransformObject {
 	Transform2d(glm::vec2 top_left, glm::vec2 bottom_right): Transform2d() {
 		scale(bottom_right - top_left);
 		translate(top_left);
+	}
+	virtual ~Transform2d() {
+		Component::component_count--;
 	}
 	glm::mat4 get_model_matrix() {
 		return mat;

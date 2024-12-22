@@ -18,7 +18,9 @@ struct SceneObject : public ecs::Component {
 	SceneObject(std::string scene_name) : ecs::Component() {
 		scene_objects[scene_name].push_back(this);
 	}
-	virtual ~SceneObject() {}
+	virtual ~SceneObject() {
+		Component::component_count--;
+	}
 	DETACH_MAP(SceneObject, scene_objects)
 };
 

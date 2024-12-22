@@ -13,7 +13,9 @@ struct TexturedObject : public ecs::Component {
 	TexturedObject() : ecs::Component() {
 		textured.push_back(this);
 	}
-	virtual ~TexturedObject() {}
+	virtual ~TexturedObject() {
+		Component::component_count--;
+	}
 
 	virtual GLuint get_texture() = 0;
 	DETACH_VECTOR(TexturedObject, textured)

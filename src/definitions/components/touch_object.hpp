@@ -11,7 +11,9 @@ struct TouchObject: public ecs::Component {
 	TouchObject(): ecs::Component() {
 		touchables.push_back(this);
 	}
-	virtual ~TouchObject(){}
+	virtual ~TouchObject() {
+		Component::component_count--;
+	}
 	virtual void handle_touch(glm::vec2 point) = 0;
 	DETACH_VECTOR(TouchObject, touchables)
 };

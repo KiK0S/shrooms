@@ -14,14 +14,18 @@ struct BlockingObject : public ecs::Component {
 	virtual ecs::Entity* get_entity() override {
 		return ecs::Component::get_entity();
 	}
-	virtual ~BlockingObject() {}
+	virtual ~BlockingObject() {
+		Component::component_count--;
+	}
 	DETACH_VECTOR(BlockingObject, blocking_objects)
 };
 
 
 struct BlockingEntity: public BlockingObject {
 	BlockingEntity(std::unique_ptr<ecs::Entity> e): e(std::move(e)), BlockingObject() {}
-	~BlockingEntity() {}
+	~BlockingEntity() {
+		Component::component_count--;
+	}
 	std::unique_ptr<ecs::Entity> e;
 	virtual ecs::Entity* get_entity() override {
 		return e.get();
@@ -30,7 +34,9 @@ struct BlockingEntity: public BlockingObject {
 
 struct BlockingEntityPtr: public BlockingObject {
 	BlockingEntityPtr(ecs::Entity* e): e(e), BlockingObject() {}
-	~BlockingEntityPtr() {}
+	~BlockingEntityPtr() {
+		Component::component_count--;
+	}
 	ecs::Entity* e;
 	virtual ecs::Entity* get_entity() override {
 		return e;

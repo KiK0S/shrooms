@@ -22,7 +22,9 @@ struct Polygon : public geometry::GeometryObject {
 			this->points[3 * i + 2] = glm::vec2{res.triangles[i].p2.x, res.triangles[i].p2.y};
 		}
 	}
-	~Polygon() {}
+	~Polygon() {
+		Component::component_count--;
+	}
 	Polygon(std::string name, std::vector<glm::vec2> points, std::vector<spawn::SpawningRule> rules): Polygon(name, points) {}
 	std::vector<glm::vec2> get_pos() {
 		return points;

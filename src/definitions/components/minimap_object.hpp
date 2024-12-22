@@ -15,7 +15,9 @@ struct MiniMapObject : public ecs::Component {
 	MiniMapObject() : ecs::Component() {
 		minimap_objects.push_back(this);
 	}
-	~MiniMapObject() {}
+	~MiniMapObject() {
+		Component::component_count--;
+	}
 	virtual ecs::Entity* get_entity() override {
 		return ecs::Component::get_entity();
 	}
@@ -24,7 +26,9 @@ struct MiniMapObject : public ecs::Component {
 
 struct MiniMapEntity : public MiniMapObject {
 	MiniMapEntity(std::unique_ptr<ecs::Entity> e) : e(std::move(e)), MiniMapObject() {}
-	~MiniMapEntity() {}
+	~MiniMapEntity() {
+		Component::component_count--;
+	}
 	std::unique_ptr<ecs::Entity> e;
 	virtual ecs::Entity* get_entity() override {
 		return e.get();
@@ -33,7 +37,9 @@ struct MiniMapEntity : public MiniMapObject {
 
 struct MiniMapEntityPtr : public MiniMapObject {
 	MiniMapEntityPtr(ecs::Entity* e) : e(e), MiniMapObject() {}
-	~MiniMapEntityPtr() {}
+	~MiniMapEntityPtr() {
+		Component::component_count--;
+	}
 	ecs::Entity* e;
 	virtual ecs::Entity* get_entity() override {
 		return e;

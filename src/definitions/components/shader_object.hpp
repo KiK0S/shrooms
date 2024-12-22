@@ -35,7 +35,9 @@ struct ShaderUniformsObject: public ecs::Component {
 		for (auto* program : programs)
 			shader_uniforms[program->get_name()].push_back(this);
 	}
-	virtual ~ShaderUniformsObject() {}
+	virtual ~ShaderUniformsObject() {
+		Component::component_count--;
+	}
 
 	virtual void reg_uniforms(GLuint program_id) { }
 	DETACH_MAP(ShaderUniformsObject, shader_uniforms)
@@ -43,7 +45,9 @@ struct ShaderUniformsObject: public ecs::Component {
 
 struct ProgramArgumentObject : public ecs::Component {
 	ProgramArgumentObject(Program* program): program(program), ecs::Component() {}
-	virtual ~ProgramArgumentObject() {}
+	virtual ~ProgramArgumentObject() {
+		Component::component_count--;
+	}
 	virtual Program* get_program() {return program;}
 	Program* program;
 };

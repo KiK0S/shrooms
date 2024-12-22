@@ -7,6 +7,9 @@ namespace periodic_spawn {
 
 struct PeriodicSpawnerSystem : public dynamic::DynamicObject {
     PeriodicSpawnerSystem() : dynamic::DynamicObject() {}
+    ~PeriodicSpawnerSystem() {
+        Component::component_count--;
+    }
 
     void update() override {
         std::chrono::time_point<std::chrono::system_clock> now = std::chrono::system_clock::now();

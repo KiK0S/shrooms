@@ -11,7 +11,9 @@ namespace minimap_system {
 
 struct MapTextureInit: public init::UnInitializedObject {
 	MapTextureInit(): init::UnInitializedObject(1) {}
-	~MapTextureInit() {}
+	virtual ~MapTextureInit() {
+		Component::component_count--;
+	}
 
 	void init() {
 		std::cout << "create_map_texture\n";

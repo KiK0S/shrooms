@@ -36,25 +36,35 @@ void reg_component(Entity* e, Component* c);
     }; \
     inline name##_registrar name##_reg;
 
-#define DETACH_VECTOR(T, name) \
+#define DETACH_VECTOR(T, Name) \
     virtual void detach() override { \
+        if (entity == nullptr || global) return; \
         auto vec = static_cast<std::vector<T*>*>(ecs::component_registries[#T]); \
         vec->erase(std::remove_if(vec->begin(), vec->end(), [this](T* c) { return c == this; }), vec->end()); \
+        this->detach_specific(); \
+        LOG_IF(enable_ecs_logging_, "Detached " << typeid(*this).name() << " from " << #T); \
+        this->~T(); \
     }
 
-#define DETACH_MAP(T, name) \
+#define DETACH_MAP(T, Name) \
     virtual void detach() override { \
+        if (entity == nullptr || global) return; \
         auto map = static_cast<std::map<std::string, std::vector<T*>>*>(ecs::component_registries[#T]); \
         for (auto& [_, vec] : *map) \
             vec.erase(std::remove_if(vec.begin(), vec.end(), [this](T* c) { return c == this; }), vec.end()); \
+        LOG_IF(enable_ecs_logging_, "Detached " << typeid(*this).name() << " from " << #T); \
+        this->detach_specific(); \
+        this->~T(); \
     }
 
 class Component {
 public:
     Component() {
+        LOG_IF(enable_ecs_logging_, "created " << typeid(*this).name());
         component_count++;
     }
     virtual ~Component() {
+        LOG_IF(enable_ecs_logging_, "deleted " << typeid(*this).name());
         component_count--;
     }
     virtual void bind(Entity* entity) {
@@ -64,13 +74,17 @@ public:
     virtual ecs::Entity* get_entity() {
         return entity;
     }
+    virtual void detach_specific() {}
     virtual void detach() {
-        throw std::runtime_error("Component not found: " + std::string(typeid(*this).name()));
+        if (entity != nullptr && !global) {
+            this->~Component();
+        }
     }
     Entity* entity = nullptr;
+    bool global = false;
     static size_t get_component_count() { return component_count; }
 
-private:
+protected:
     static inline size_t component_count = 0;
 };
 }

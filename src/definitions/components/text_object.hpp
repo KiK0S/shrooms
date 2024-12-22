@@ -12,6 +12,9 @@ namespace text {
 		TextObject(std::string text): text(text), ecs::Component() {
 			texts.push_back(this);
 		}
+		virtual ~TextObject() {
+			Component::component_count--;
+		}
 		virtual std::string get_text() {
 			return text;
 		}
@@ -22,6 +25,9 @@ namespace text {
 
 	struct TextGeometry : public geometry::GeometryObject {
 		TextGeometry(std::string name): name(name), geometry::GeometryObject() {}
+		virtual ~TextGeometry() {
+			Component::component_count--;
+		}
 		std::vector<glm::vec2> get_pos() {
 			return pos;
 		}

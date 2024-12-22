@@ -12,7 +12,9 @@ struct AnimatedObject : public ecs::Component {
 	AnimatedObject() : ecs::Component() {
 		animateds.push_back(this);
 	}
-	virtual ~AnimatedObject() {}
+	virtual ~AnimatedObject() {
+		Component::component_count--;
+	}
 	virtual void update(float dt) = 0;
 	DETACH_VECTOR(AnimatedObject, animateds);
 };

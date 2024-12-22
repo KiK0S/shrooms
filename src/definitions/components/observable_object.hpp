@@ -2,22 +2,20 @@
 #include <string>
 #include <vector>
 #include <variant>
+#include "ecs/component.hpp"
 
 namespace debug {
 
 class ObservableObject;
 static std::vector<ObservableObject*> observables;
 
-class ObservableObject {
+class ObservableObject : public ecs::Component {
 public:
-    ObservableObject() {
+    ObservableObject() : ecs::Component() {
         observables.push_back(this);
     }
     virtual ~ObservableObject() {
-        auto it = std::find(observables.begin(), observables.end(), this);
-        if (it != observables.end()) {
-            observables.erase(it);
-        }
+        Component::component_count--;
     }
 
     virtual void register_imgui() = 0;

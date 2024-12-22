@@ -13,7 +13,9 @@ struct ConfigurableObject : public ecs::Component {
     ConfigurableObject() : ecs::Component() {
         configurables.push_back(this);
     }
-    virtual ~ConfigurableObject() {}
+    virtual ~ConfigurableObject() {
+        Component::component_count--;
+    }
     virtual void register_imgui() = 0;
 	DETACH_VECTOR(ConfigurableObject, configurables)
 };
@@ -21,6 +23,10 @@ struct ConfigurableObject : public ecs::Component {
 struct FloatParameter : public ConfigurableObject {
     FloatParameter(const std::string& name, float* value, float min_val, float max_val) 
         : name(name), value(value), min_val(min_val), max_val(max_val) {}
+
+    virtual ~FloatParameter() {
+        Component::component_count--;
+    }
 
     void register_imgui() override {
         ImGui::SliderFloat(name.c_str(), value, min_val, max_val);
@@ -35,7 +41,9 @@ struct FloatParameter : public ConfigurableObject {
 struct BoolParameter : public ConfigurableObject {
     BoolParameter(const std::string& name, bool* value)
         : name(name), value(value) {}
-
+    virtual ~BoolParameter() {
+        Component::component_count--;
+    }
     void register_imgui() override {
         ImGui::Checkbox(name.c_str(), value);
     }

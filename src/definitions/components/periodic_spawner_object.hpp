@@ -14,7 +14,9 @@ struct PeriodicSpawnerObject : public ecs::Component {
         periodic_spawners.push_back(this);
     }
     
-    virtual ~PeriodicSpawnerObject() {}
+    virtual ~PeriodicSpawnerObject() {
+        Component::component_count--;
+    }
     DETACH_VECTOR(PeriodicSpawnerObject, periodic_spawners)
 
     float period;  // Time between spawns in seconds

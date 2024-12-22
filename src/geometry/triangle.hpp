@@ -5,7 +5,9 @@ namespace geometry {
 struct Triangle : public geometry::GeometryObject {
 
 	Triangle(): geometry::GeometryObject() {}
-	~Triangle() {}
+	~Triangle() {
+		Component::component_count--;
+	}
 	virtual std::vector<glm::vec2> get_pos() {
 		return {
 			glm::vec2{0.0f, 0.0f}, // Vertex 1: top left

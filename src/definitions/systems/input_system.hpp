@@ -24,7 +24,9 @@ glm::vec2 get_touch() {
 
 struct Input: public dynamic::DynamicObject {
 	Input(): dynamic::DynamicObject(-1) {}
-	~Input(){}
+	~Input(){
+		Component::component_count--;
+	}
 	void update() {
 		is_pressed.clear();
 		while (true) {

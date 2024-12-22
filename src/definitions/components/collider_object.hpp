@@ -16,7 +16,9 @@ struct ColliderObject : public ecs::Component {
     ColliderObject(std::string type) : ecs::Component(), type(type) {
         collider_objects[type].push_back(this);
     }
-    virtual ~ColliderObject() {}
+    virtual ~ColliderObject() {
+        Component::component_count--;
+    }
 
     std::string type;
 	DETACH_MAP(ColliderObject, collider_objects)
@@ -28,7 +30,9 @@ struct TriggerObject : public ecs::Component {
     TriggerObject(std::string type, TriggerCallback callback) : ecs::Component(), type(type), callback(callback) {
         trigger_objects[type].push_back(this);
     }
-    virtual ~TriggerObject() {}
+    virtual ~TriggerObject() {
+        Component::component_count--;
+    }
 
     std::string type;
     TriggerCallback callback;

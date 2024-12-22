@@ -3,7 +3,9 @@
 
 namespace hidden {
 struct HiddenObject : public ecs::Component {
-	HiddenObject() : ecs::Component() {}
+	HiddenObject() : ecs::Component() {
+		Component::component_count--;
+	}
 	void hide() {
 		visible = false;
 	}

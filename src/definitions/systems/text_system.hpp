@@ -19,11 +19,15 @@ namespace text {
 
 texture_atlas_t *atlas = 0;
 texture_font_t *font = 0;
-std::unique_ptr<texture::IntTextureObject> text_texture;
+texture::IntTextureObject* text_texture;
 std::map<std::string, geometry::GeometryObject*> geometries;
 
 struct TextSystem: public init::UnInitializedObject {
 	TextSystem(): init::UnInitializedObject(5) {}
+
+	virtual ~TextSystem() {
+		Component::component_count--;
+	}
 
 	void init() {
 		std::cerr << "init text system\n";
@@ -34,7 +38,7 @@ struct TextSystem: public init::UnInitializedObject {
 		std::cerr << filename << '\n';
 		font = texture_font_new_from_file( atlas, 80, filename.c_str() );
 		texture_font_load_glyphs( font, text );
-		text_texture = std::make_unique<texture::IntTextureObject>(texture::create_texture(atlas->width, atlas->height, atlas->data, GL_RGBA, GL_NEAREST));
+		text_texture = arena::create<texture::IntTextureObject>(texture::create_texture(atlas->width, atlas->height, atlas->data, GL_RGBA, GL_NEAREST));
 		for (auto text_obj : text::texts) {
 			init(text_obj);
 		}

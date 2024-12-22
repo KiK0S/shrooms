@@ -8,6 +8,9 @@ class CleanupSystem : public dynamic::DynamicObject {
 public:
     CleanupSystem() : dynamic::DynamicObject(10000) {} // High priority to run last
 
+    virtual ~CleanupSystem() {
+        Component::component_count--;
+    }
     void update() override {
         // Remove from global entity list
         auto& entities = ecs::Entity::entities;
@@ -47,6 +50,7 @@ private:
                 }
             }
         }
+        entity->~Entity();
     }
 };
 

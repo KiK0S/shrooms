@@ -13,7 +13,9 @@ struct ColoredObject: public ecs::Component {
 	ColoredObject(): ecs::Component() {
 		coloreds.push_back(this);
 	}
-	virtual ~ColoredObject(){}
+	virtual ~ColoredObject() {
+		Component::component_count--;
+	}
 	virtual glm::vec4 get_color() = 0;
 	DETACH_VECTOR(ColoredObject, coloreds)
 };

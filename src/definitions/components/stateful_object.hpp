@@ -13,7 +13,9 @@ struct StatefulObject: public ecs::Component {
 	StatefulObject(): ecs::Component() {
 		statefuls.push_back(this);
 	}
-	virtual ~StatefulObject() {}
+	virtual ~StatefulObject() {
+		Component::component_count--;
+	}
 
 	virtual std::string get_state() = 0;
 	virtual void set_state(std::string) = 0;
@@ -23,7 +25,9 @@ struct StatefulObject: public ecs::Component {
 struct StringStateful: public StatefulObject {
 	StringStateful(std::string state): StatefulObject(), state(state) {
 	}
-	virtual ~StringStateful() {}
+	virtual ~StringStateful() {
+		Component::component_count--;
+	}
 
 	std::string state;
 	virtual std::string get_state() {

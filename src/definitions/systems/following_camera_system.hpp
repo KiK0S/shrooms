@@ -11,7 +11,9 @@ struct PlayerFollowingSystem : public dynamic::DynamicObject {
         : dynamic::DynamicObject(), 
           player_entity(player),
           camera_entity(camera) {}
-
+    virtual PlayerFollowingSystem {
+        Component::component_count--;
+    }
     void update() override {
         transform::TransformObject* camera = camera_entity->get<transform::TransformObject>();
         transform::TransformObject* player = player_entity->get<transform::TransformObject>();

@@ -18,7 +18,9 @@ struct UnInitializedObject: public ecs::Component {
 	UnInitializedObject(int priority = 0): ecs::Component(), priority(priority) {
 		initializable.push_back(this);
 	}
-	virtual ~UnInitializedObject() {}
+	virtual ~UnInitializedObject() {
+		Component::component_count--;
+	}
 	void bind(ecs::Entity*) {}
 	virtual void init() = 0;
 	int get_priority() {
@@ -43,7 +45,9 @@ void init() {
 
 struct CallbackOnStart: public UnInitializedObject {
 	CallbackOnStart(std::function<void()>&& callback, int priority = 0): UnInitializedObject(priority), callback(std::move(callback)) {	}
-	virtual ~CallbackOnStart() {}
+	virtual ~CallbackOnStart() {
+		Component::component_count--;
+	}
 	void init() {
 		callback();
 	}

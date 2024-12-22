@@ -15,6 +15,8 @@ struct Scene: public dynamic::DynamicObject {
 	Scene(std::string name): name(name), dynamic::DynamicObject(10) {
 		scene::scenes[name] = this;
 		is_active = false;
+	virtual ~Scene() {
+		Component::component_count--;
 	}
 	std::string get_name() {
 		return name;
@@ -22,6 +24,8 @@ struct Scene: public dynamic::DynamicObject {
 	void update() {
 		if (!is_active)
 			return;
+		
+		LOG_IF(logger::enable_scene_system_logging, "scene " << get_name() << " has " << scene_objects[get_name()].size() << " objects");
 		for (auto* object : scene_objects[get_name()]) {
 			render_system::display(object->get_entity(), object->get_entity()->get<shaders::ProgramArgumentObject>()->get_program());
 		}

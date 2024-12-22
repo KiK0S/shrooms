@@ -18,11 +18,14 @@ namespace imgui_system {
 
 struct ImGuiSystem : public dynamic::DynamicObject,  public input::ControllableObject {
     ImGuiSystem() : dynamic::DynamicObject(999), input::ControllableObject() {} // High priority to render after everything else
-    
+    virtual ~ImGuiSystem() {
+        Component::component_count--;
+    }
     void handle_user_action(SDL_Event event) override {
         ImGui_ImplSDL2_ProcessEvent(&event);
     }
     void update() {
+        #ifndef __EMSCRIPTEN__
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
@@ -43,6 +46,7 @@ struct ImGuiSystem : public dynamic::DynamicObject,  public input::ControllableO
 
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        #endif
     }
 };
 

@@ -14,8 +14,11 @@ COMPONENT_VECTOR(GeometryObject, geometry_objects);
 struct GeometryObject : public ecs::Component {
 	GeometryObject() : ecs::Component() {
 		geometry_objects.push_back(this);
+		global = true;
 	}
-	virtual ~GeometryObject() {}
+	virtual ~GeometryObject() {
+		Component::component_count--;
+	}
 
 	virtual std::vector<glm::vec2> get_pos() = 0;
 	virtual int get_size() = 0;

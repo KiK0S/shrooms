@@ -10,7 +10,9 @@ namespace keyboard_movement {
 
 struct KeyboardMovement : public dynamic::DynamicObject {
     KeyboardMovement(): dynamic::DynamicObject() {}
-    ~KeyboardMovement(){}
+    virtual ~KeyboardMovement() {
+        Component::component_count--;
+    }
     float velocity = 0.02f;
 
     void update() {

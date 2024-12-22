@@ -28,7 +28,9 @@ namespace geometry {
 				glm::vec2{-1.0f, 1.0f}, // Vertex 3: bottom left
 				glm::vec2{1.0f, 1.0f},  // Vertex 6: bottom right
 			}) {}
-		~Quad() {}
+		~Quad() {
+			Component::component_count--;
+		}
 		virtual std::vector<glm::vec2> get_pos() {
 			return pos;
 		}

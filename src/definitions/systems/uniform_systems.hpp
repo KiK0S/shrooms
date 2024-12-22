@@ -3,8 +3,12 @@
 
 namespace shaders {
 struct ModelMatrix : public ShaderUniformsObject {
-	ModelMatrix(): ShaderUniformsObject({}) {}
-	~ModelMatrix(){}
+	ModelMatrix(): ShaderUniformsObject({}) {
+		global = true;
+	}
+	~ModelMatrix(){
+		Component::component_count--;
+	}
 
 	void reg_uniforms(GLuint program_id) {
 		ecs::Entity* e = get_entity();
@@ -18,14 +22,21 @@ struct ModelMatrix : public ShaderUniformsObject {
 
 
 struct NoShaderUniforms: public ShaderUniformsObject {
-	NoShaderUniforms(): ShaderUniformsObject({}) {}
-
+	NoShaderUniforms(): ShaderUniformsObject({}) {
+		global = true;
+	}
+	~NoShaderUniforms() {
+		Component::component_count--;
+	}
 	void reg_uniforms(GLuint program_id) { }
 };
 
 
 struct MiniMapUniforms: public ShaderUniformsObject {
 	MiniMapUniforms(): ShaderUniformsObject({}) {}
+	~MiniMapUniforms() {
+		Component::component_count--;
+	}
 	void reg_uniforms(GLuint p) {
 		glUniform1i(glGetUniformLocation(p, "toView"), false);
 	}
@@ -35,6 +46,10 @@ struct MiniMapUniforms: public ShaderUniformsObject {
 
 struct CombinedUniforms: public ShaderUniformsObject {
 	CombinedUniforms(std::vector<ShaderUniformsObject*> uniforms): uniforms(std::move(uniforms)), ShaderUniformsObject({}) {}
+
+	virtual ~CombinedUniforms() {
+		Component::component_count -= uniforms.size();
+	}
 
 	void reg_uniforms(GLuint program_id) {
 		for (const auto& obj : uniforms) {
@@ -54,7 +69,9 @@ struct CombinedUniforms: public ShaderUniformsObject {
 
 struct ViewMatrix : public ShaderUniformsObject {
 	ViewMatrix() : ShaderUniformsObject({&static_object_program, &raycast_program,  &bezier_raycast_program, &bezier_program, &visibility_program}) {}
-	
+	virtual ~ViewMatrix() {
+		Component::component_count--;
+	}
 	void reg_uniforms(GLuint program) {
 
 		ecs::Entity* e = get_entity();

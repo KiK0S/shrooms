@@ -10,6 +10,9 @@ namespace collision {
 
 struct CollisionSystem: public dynamic::DynamicObject {
 	CollisionSystem(): dynamic::DynamicObject() {}
+	virtual ~CollisionSystem() {
+		Component::component_count--;
+	}
 	void update() {
 		for (auto [name, triggers] : trigger_objects) {
 			for (auto trigger : triggers) {
