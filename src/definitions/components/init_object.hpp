@@ -35,10 +35,6 @@ void init() {
 	std::sort(initializable.begin(), initializable.end(), cmp());
 	for (auto x : initializable) {
 		std::cerr << "init " << typeid(*x).name() << '\n';
-		// x->init();
-	}
-	for (auto x : initializable) {
-		// std::cerr << "init " << typeid(*x).name() << '\n';
 		x->init();
 	}
 }
@@ -57,8 +53,6 @@ struct CallbackOnStart: public UnInitializedObject {
 
 
 bool cmp::operator()(UnInitializedObject* a, UnInitializedObject* b) const {
-	std::cerr << "cmp " << typeid(*a).name() << " " << typeid(*b).name() << '\n';
-	std::cerr << a->get_priority() << " " << b->get_priority() << '\n';
 	return a->get_priority() < b->get_priority();
 }
 

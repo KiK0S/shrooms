@@ -61,7 +61,9 @@ struct OneTextureObject: public TexturedObject {
 };
 
 struct IntTextureObject: public TexturedObject {
-	IntTextureObject(GLuint texture): TexturedObject(), texture(texture) {}
+	IntTextureObject(GLuint texture): TexturedObject(), texture(texture) {
+		global = true;
+	}
 	virtual ~IntTextureObject() {
 		Component::component_count--;
 	}

@@ -7,6 +7,7 @@
 #include <functional>
 #include <stdexcept>
 #include "../../utils/file_system.hpp"
+#include "../../declarations/logger_system.hpp"
 
 namespace shaders {
 
@@ -16,7 +17,7 @@ char errorLog[1024];
 
 void init() {
 	for (Program* program_ptr : shaders::programs) {
-		std::cout << "load_program " << ' ' << program_ptr->get_name() << std::endl;
+		LOG_IF(logger::enable_gpu_program_system_logging, "load_program " << program_ptr->get_name());
 		GLuint vertexShader = load_shader(program_ptr->vertex_shader(), GL_VERTEX_SHADER);
 		GLuint fragmentShader = load_shader(program_ptr->fragment_shader(), GL_FRAGMENT_SHADER);
 		GLuint program = glCreateProgram();
@@ -55,7 +56,7 @@ void init() {
 // GL_VERTEX_SHADER
 // GL_FRAGMENT_SHADER
 GLuint load_shader(std::string source, GLenum shader_type) {
-	std::cout << "load_shader " << shader_type << " loading" << std::endl;
+	LOG_IF(logger::enable_gpu_program_system_logging, "load_shader " << shader_type << " loading");
 	GLuint glShader = glCreateShader(shader_type);
 	GLchar const *files[] = {source.c_str()};
 	GLint lengths[] = {GLint(source.size())};
@@ -78,7 +79,7 @@ GLuint load_shader(std::string source, GLenum shader_type) {
 			glDeleteShader(glShader);
 			throw std::runtime_error("can't compile shader");
 	}
-	std::cout << "load_shader " << shader_type << " loaded" << std::endl;
+	LOG_IF(logger::enable_gpu_program_system_logging, "load_shader " << shader_type << " loaded");
 	return glShader;
 }
 

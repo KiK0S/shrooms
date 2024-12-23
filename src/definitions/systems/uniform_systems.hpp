@@ -3,9 +3,7 @@
 
 namespace shaders {
 struct ModelMatrix : public ShaderUniformsObject {
-	ModelMatrix(): ShaderUniformsObject({}) {
-		global = true;
-	}
+	ModelMatrix(): ShaderUniformsObject({}) {}
 	~ModelMatrix(){
 		Component::component_count--;
 	}
