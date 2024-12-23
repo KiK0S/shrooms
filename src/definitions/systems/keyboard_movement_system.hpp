@@ -43,6 +43,12 @@ struct KeyboardMovement : public dynamic::DynamicObject {
 
         transform::TransformObject* t = e->get<transform::TransformObject>();
         t->translate(d);
+        if (t->get_pos().x < -1.0f) {
+            t->translate(-d);
+        }
+        if (t->get_pos().x > 1.0f) {
+            t->translate(-d);
+        }
 
         if (d.x >= 0) {
             a->set_state("right");
