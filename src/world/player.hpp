@@ -22,9 +22,9 @@ sprite::AnimatedSprite player_sprite("witch", {-0.1f, -0.1f + player_level}, {0.
 collision::TriggerObject mushroom_trigger("mushroom_catch_handler", 
     [](ecs::Entity* player, collision::ColliderObject* mushroom) {
         // Handle mushroom collection
-        LOG_IF(logger::enable_collision_system_logging, "Collected mushroom!");
+        LOG_IF(logger::enable_collision_system_logging, "Collected mushroom " << mushroom->get_entity()->get_checked<texture::OneTextureObject>()->name << "!");
         mushroom->get_entity()->mark_deleted();
-        scoreboard::update_score(scoreboard::score + 1);
+        scoreboard::update_score(mushroom->get_entity()->get_checked<texture::OneTextureObject>()->name, scoreboard::eaten_mushrooms[mushroom->get_entity()->get_checked<texture::OneTextureObject>()->name] + 1);
     }
 );
 

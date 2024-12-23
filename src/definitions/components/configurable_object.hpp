@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include "imgui.h"
+#include <glm/glm.hpp>
 
 namespace config {
 
@@ -56,5 +57,37 @@ struct BoolParameter : public ConfigurableObject {
     bool* value;
 };
 
+class Vec2Parameter : public ConfigurableObject {
+private:
+    glm::vec2* value;
+    glm::vec2 min_value;
+    glm::vec2 max_value;
+    std::string name;
+
+public:
+    Vec2Parameter(const std::string& param_name, glm::vec2* param_value, 
+                 glm::vec2 min_val, glm::vec2 max_val)
+        : value(param_value)
+        , min_value(min_val)
+        , max_value(max_val)
+        , name(param_name) {
+    }
+
+    void register_imgui() override {
+        ImGui::DragFloat2(name.c_str(), &((*value)[0]), 0.01f, 
+                         min_value.x, max_value.x, "%.3f");
+    }
+};
+
+struct ButtonParameter : public ConfigurableObject {
+    ButtonParameter(const std::string& name, std::function<void()> callback) : name(name), callback(callback) {}
+    void register_imgui() override {
+        if (ImGui::Button(name.c_str())) {
+            callback();
+        }
+    }
+    std::string name;
+    std::function<void()> callback;
+};
 
 } // namespace config 
