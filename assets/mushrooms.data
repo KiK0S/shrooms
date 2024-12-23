@@ -16,6 +16,8 @@ texture
 mukhomor
 moving
 0 -0.005
+rotating
+random 0.05 -0.05
 layer
 2
 collider
@@ -30,6 +32,8 @@ texture
 lisi4ka
 moving
 0 -0.005
+rotating
+random 0.05 -0.05
 layer
 2
 collider
@@ -44,6 +48,8 @@ texture
 borovik
 moving
 0 -0.005
+rotating
+random 0.05 -0.05
 layer
 2
 collider

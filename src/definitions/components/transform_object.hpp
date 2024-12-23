@@ -68,6 +68,23 @@ struct NoRotationTransform: public transform::TransformObject {
 	virtual void rotate(float angle) {}
 };
 
+struct LocalRotationTransform: public NoRotationTransform {
+	LocalRotationTransform(): NoRotationTransform(), angle(0.0f) {}
+	LocalRotationTransform(glm::vec2 top_left, glm::vec2 bottom_right): NoRotationTransform(top_left, bottom_right) {}
+
+	virtual ~LocalRotationTransform() {
+		Component::component_count--;
+	}
+	float angle = 0;
+	virtual glm::mat4 get_model_matrix() {
+		auto pre_rotation = NoRotationTransform::get_model_matrix();
+		auto rotation = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0.0f, 0.0f, 1.0f));
+		return rotation * pre_rotation;
+	}
+	virtual void rotate(float angle) {
+		this->angle += angle;
+	}
+};
 
 struct Transform2d: public TransformObject {
 	Transform2d(): TransformObject() {}

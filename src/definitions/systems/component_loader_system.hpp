@@ -5,6 +5,7 @@
 #include "../components/moving_object.hpp"
 #include "../components/collider_object.hpp"
 #include "../components/periodic_spawner_object.hpp"
+#include "../components/rotating_object.hpp"
 #include <iostream>
 #include <vector>
 #include <string>
@@ -49,10 +50,26 @@ geometry::GeometryObject* parse_geometry(std::istream& in, std::string name) {
 	}
 }
 
+float parse_float(std::istream& in) {
+	std::string token;
+	in >> token;
+	if (token == "random") {
+		float a, b;
+		in >> a >> b;
+		return rnd::get_double(a, b);
+	}
+	return std::stof(token);
+}
+
 dynamic::MovingObject* parse_moving(std::istream& in) {
 	glm::vec2 point;
 	in >> point.x >> point.y;
 	return arena::create<dynamic::MovingObject>(point);
+}
+
+dynamic::RotatingObject* parse_rotating(std::istream& in) {
+	float angle = parse_float(in);
+	return arena::create<dynamic::RotatingObject>(angle);
 }
 
 texture::TexturedObject* parse_texture(std::istream& in) {
@@ -139,7 +156,6 @@ periodic_spawn::PeriodicSpawnerObject* parse_periodic_spawner(std::istream& in) 
 		spawn::SpawningRule{
 			density,
 			[=](glm::vec2 pos) {
-				std::cerr << pos.x << " " << pos.y << std::endl;
 				std::istringstream new_e_desc(desc);
 				auto new_e = parse_entity(new_e_desc);
 				new_e->get<transform::TransformObject>()->scale({0.1f, 0.1f});
@@ -172,6 +188,7 @@ ecs::Entity* parse_entity(std::istream& in, shaders::Program* program) {
 		if (comp == "minimap") e->add(parse_minimap(in));
 		if (comp == "spawner") e->add(parse_spawner(in));
 		if (comp == "moving") e->add(parse_moving(in));
+		if (comp == "rotating") e->add(parse_rotating(in));
 		if (comp == "collider") e->add(parse_collider(in));
 		if (comp == "trigger") e->add(parse_trigger(in));
 		if (comp == "periodic_spawner") e->add(parse_periodic_spawner(in));
@@ -180,7 +197,7 @@ ecs::Entity* parse_entity(std::istream& in, shaders::Program* program) {
 	// std::cerr << "parsed entity " << name << std::endl;
 	auto model_matrix = arena::create<shaders::ModelMatrix>();
 	e->add(model_matrix);
-	auto translate = arena::create<transform::NoRotationTransform>();
+	auto translate = arena::create<transform::LocalRotationTransform>();
 	e->add(translate);
 	e->add(arena::create<shaders::ProgramArgumentObject>(program));
 	e->bind();
