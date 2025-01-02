@@ -15,5 +15,8 @@ namespace logger {
     bool enable_gpu_program_system_logging_ = false;
     inline config::BoolParameter enable_gpu_program_system_logging{"Enable gpu program system logging", &enable_gpu_program_system_logging_};
  
+    bool enable_lives_system_logging_ = false;
+    inline config::BoolParameter enable_lives_system_logging{"Enable lives system logging", &enable_lives_system_logging_};
+
     inline config::BoolParameter enable_ecs_logging{"Enable ecs logging", &enable_ecs_logging_};
 }
