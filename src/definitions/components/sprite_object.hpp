@@ -17,11 +17,8 @@ namespace sprite {
 		 transform(top_left, bottom_right),
 		 layer(layer),
 		 texture(name), ecs::Component() {
-			Component::component_count--;
 		 }
-		~Sprite() {
-			
-		}
+		~Sprite() {}
 		geometry::GeometryObject* get_geometry() {
 			return &geometry::quad;
 		}
