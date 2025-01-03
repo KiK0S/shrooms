@@ -54,16 +54,16 @@ void init() {
                        .set_parent(&player)
                        .bind();
 
-    trigger_transform.scale_ = glm::vec2(0.5f, 0.2f);
-    trigger_transform.translate(glm::vec2(-0.3f, 1.0f));
+    trigger_transform.scale_ = glm::vec2(0.7f, 0.2f);
+    trigger_transform.translate(glm::vec2(-0.1f, 1.0f));
     player_trigger_entity.add(&trigger_transform)
                         .add(&player_trigger)
                         .add(&geometry::quad)
-                        .add(&color::red)
-                        .add(arena::create<layers::ConstLayer>(1))
-                        .add(arena::create<shaders::ModelMatrix>())
-                        .add(arena::create<shaders::ProgramArgumentObject>(&shaders::static_object_program))
-                        .add(arena::create<scene::SceneObject>("main"))
+                        // .add(&color::red)
+                        // .add(arena::create<layers::ConstLayer>(1))
+                        // .add(arena::create<shaders::ModelMatrix>())
+                        // .add(arena::create<shaders::ProgramArgumentObject>(&shaders::static_object_program))
+                        // .add(arena::create<scene::SceneObject>("main"))
                         .set_parent(&player)
                         .bind();
 }
