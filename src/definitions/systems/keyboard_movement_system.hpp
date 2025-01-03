@@ -14,6 +14,7 @@ struct KeyboardMovement : public dynamic::DynamicObject {
         Component::component_count--;
     }
     float velocity = 0.02f;
+    glm::vec2 last_movement{0.0f, 0.0f};  // Store last movement direction
 
     void update() {
         if (scene::is_current_scene_paused()) {
@@ -31,11 +32,10 @@ struct KeyboardMovement : public dynamic::DynamicObject {
         }
 
         d += touchscreen::joystick_update.joystick_info;
-        states::StatefulObject* a = e->get<states::StatefulObject>();
 
         double len = glm::length(d);
         if (len == 0) {
-            a->set_state("left");
+            last_movement = {0.0f, 0.0f};
             return;
         }
         double k = velocity / len;
@@ -50,12 +50,35 @@ struct KeyboardMovement : public dynamic::DynamicObject {
             t->translate(-d);
         }
 
-        if (d.x >= 0) {
-            a->set_state("right");
+        last_movement = d;  // Store the movement
+    }
+};
+
+// New sprite state update component
+struct SpriteStateUpdate : public dynamic::DynamicObject {
+    SpriteStateUpdate(KeyboardMovement* movement): movement(movement), dynamic::DynamicObject(1) {}
+    virtual ~SpriteStateUpdate() {
+        Component::component_count--;
+    }
+
+    void update() {
+        if (scene::is_current_scene_paused()) {
+            return;
+        }
+        
+        auto stateful = get_entity()->get<states::StatefulObject>();
+        if (!stateful) return;
+
+        if (movement->last_movement.x == 0) {
+            stateful->set_state("left");
+        } else if (movement->last_movement.x >= 0) {
+            stateful->set_state("right");
         } else {
-            a->set_state("left");
+            stateful->set_state("left");
         }
     }
+
+    KeyboardMovement* movement;
 };
 
 } // namespace keyboard_movement
