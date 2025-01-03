@@ -79,6 +79,28 @@ public:
     }
 };
 
+class Vec4Parameter : public ConfigurableObject {
+private:
+    glm::vec4* value;
+    glm::vec4 min_value;
+    glm::vec4 max_value;
+    std::string name;
+
+public:
+    Vec4Parameter(const std::string& param_name, glm::vec4* param_value, 
+                 glm::vec4 min_val, glm::vec4 max_val)
+        : value(param_value)
+        , min_value(min_val)
+        , max_value(max_val)
+        , name(param_name) {
+    }
+
+    void register_imgui() override {
+        ImGui::DragFloat4(name.c_str(), &((*value)[0]), 0.01f, 
+                         min_value.x, max_value.x, "%.3f");
+    }
+};
+
 struct ButtonParameter : public ConfigurableObject {
     ButtonParameter(const std::string& name, std::function<void()> callback) : name(name), callback(callback) {}
     void register_imgui() override {

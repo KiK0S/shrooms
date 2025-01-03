@@ -21,6 +21,8 @@ namespace logger {
     bool enable_blinking_system_logging_ = false;
     inline config::BoolParameter enable_blinking_system_logging{"Enable blinking system logging", &enable_blinking_system_logging_};
 
+    bool enable_pause_menu_logging_ = false;
+    inline config::BoolParameter enable_pause_menu_logging{"Enable pause menu logging", &enable_pause_menu_logging_};
 
     inline config::BoolParameter enable_ecs_logging{"Enable ecs logging", &enable_ecs_logging_};
 }

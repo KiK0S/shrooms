@@ -7,6 +7,7 @@
 #include "world/camera.hpp"
 #include "world/scoreboard.hpp"
 #include "world/mushroom_catcher.hpp"
+#include "world/pause_menu.hpp"
 #include <optional>
 
 

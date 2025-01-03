@@ -38,7 +38,7 @@ struct Input: public dynamic::DynamicObject {
 			switch (event.type) {
 			case SDL_KEYDOWN: {
 				if (std::string(SDL_GetKeyName(event.key.keysym.sym)) == "Q") game_over::success();
-				if (std::string(SDL_GetKeyName(event.key.keysym.sym)) == "P") scene::toggle_pause();
+				// if (std::string(SDL_GetKeyName(event.key.keysym.sym)) == "P") scene::toggle_pause();
 				break;
 			}
 			case SDL_KEYUP: {
