@@ -32,3 +32,5 @@
 #include "../declarations/periodic_spawner_system.hpp"
 #include "../declarations/debug_system.hpp"
 #include "../declarations/logger_system.hpp"
+#include "../declarations/blinking_system.hpp"
+#include "../declarations/deferred_system.hpp"

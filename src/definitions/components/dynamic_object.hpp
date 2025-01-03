@@ -23,4 +23,12 @@ struct DynamicObject : public ecs::Component {
 	DETACH_VECTOR(DynamicObject, dynamics)
 };
 
+struct DynamicFunction : public DynamicObject {
+    DynamicFunction(std::function<void()> func, int priority = 0): func(func), DynamicObject(priority) {}
+    std::function<void()> func;
+    void update() {
+        func();
+    }
+};
+
 }

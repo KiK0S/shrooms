@@ -18,5 +18,9 @@ namespace logger {
     bool enable_lives_system_logging_ = false;
     inline config::BoolParameter enable_lives_system_logging{"Enable lives system logging", &enable_lives_system_logging_};
 
+    bool enable_blinking_system_logging_ = false;
+    inline config::BoolParameter enable_blinking_system_logging{"Enable blinking system logging", &enable_blinking_system_logging_};
+
+
     inline config::BoolParameter enable_ecs_logging{"Enable ecs logging", &enable_ecs_logging_};
 }

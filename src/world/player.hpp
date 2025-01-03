@@ -3,6 +3,7 @@
 #include "../definitions/components/collider_object.hpp"
 #include "../definitions/systems/keyboard_movement_system.hpp"
 #include "../definitions/systems/scene_system.hpp"
+#include "../definitions/components/blinking_object.hpp"
 #include <glm/glm/vec2.hpp>
 #include "scoreboard.hpp"
 
@@ -12,6 +13,8 @@ keyboard_movement::KeyboardMovement player_control;
 scene::SceneObject player_scene("main");
 ecs::Entity player;
 config::FloatParameter player_speed("Player speed", &player_control.velocity, 0.0f, 0.05f);
+blinking::BlinkingObject player_blink;
+hidden::HiddenObject player_hidden;
 
 const float player_level = -0.6f;
 sprite::AnimatedSprite player_sprite("witch", {-0.1f, -0.1f + player_level}, {0.1f, 0.1f + player_level}, 2, {
@@ -35,6 +38,8 @@ void init() {
           .add(&player_scene)
           .add(&player_speed)
           .add(&mushroom_trigger)
+          .add(&player_blink)
+          .add(&player_hidden)
           .bind();
 }
 

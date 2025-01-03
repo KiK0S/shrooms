@@ -22,7 +22,10 @@ struct HiddenObject : public ecs::Component {
 			show();
 		}
 	}
+	void set_visible(bool visible) {
+		this->visible = visible;
+	}
 
-	bool visible = false;
+	bool visible = true;
 };
 }

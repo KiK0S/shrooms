@@ -10,7 +10,6 @@
 
 namespace scene {
 
-std::map<std::string, Scene*> scenes;
 
 struct Scene: public dynamic::DynamicObject {
 	Scene(std::string name): name(name), dynamic::DynamicObject(10) {
