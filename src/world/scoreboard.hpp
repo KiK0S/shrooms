@@ -54,7 +54,7 @@ config::ButtonParameter reset_button("Reset", []() {
         eaten_mushrooms[mushroom_names[i]] = 0;
         mushroom_icons[i]->add(&geometry::quad);
         mushroom_icons[i]->add(arena::create<layers::ConstLayer>(5));
-        mushroom_icons[i]->add(arena::create<texture::OneTextureObject>(file::asset(mushroom_names[i])));
+        mushroom_icons[i]->add(arena::create<texture::OneTextureObject>(mushroom_names[i]));
         mushroom_icons[i]->add(arena::create<shaders::ProgramArgumentObject>(&shaders::static_object_program));
         mushroom_icons[i]->add(transform_icon);
         mushroom_icons[i]->add(arena::create<shaders::ModelMatrix>());
@@ -113,7 +113,7 @@ void init() {
         eaten_mushrooms[mushroom_names[i]] = 0;
         mushroom_icons[i]->add(&geometry::quad);
         mushroom_icons[i]->add(arena::create<layers::ConstLayer>(5));
-        mushroom_icons[i]->add(arena::create<texture::OneTextureObject>(file::asset(mushroom_names[i])));
+        mushroom_icons[i]->add(arena::create<texture::OneTextureObject>(mushroom_names[i]));
         mushroom_icons[i]->add(arena::create<shaders::ProgramArgumentObject>(&shaders::static_object_program));
         mushroom_icons[i]->add(transform_icon);
         mushroom_icons[i]->add(arena::create<shaders::ModelMatrix>());

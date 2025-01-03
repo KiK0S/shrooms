@@ -44,7 +44,7 @@ void reset_lives() {
         
         heart_icons[i]->add(&geometry::quad);
         heart_icons[i]->add(arena::create<layers::ConstLayer>(5));
-        heart_icons[i]->add(arena::create<texture::OneTextureObject>(file::asset("heart")));
+        heart_icons[i]->add(arena::create<texture::OneTextureObject>("heart"));
         heart_icons[i]->add(arena::create<shaders::ProgramArgumentObject>(&shaders::static_object_program));
         heart_icons[i]->add(transform);
         heart_icons[i]->add(arena::create<shaders::ModelMatrix>());
