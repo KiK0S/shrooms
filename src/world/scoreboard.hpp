@@ -8,9 +8,9 @@
 namespace scoreboard {
 
 struct Config {
-    glm::vec2 icon_scale = glm::vec2(0.1f, 0.1f);
-    glm::vec2 score_scale = glm::vec2(0.09f, 0.09f);
-    glm::vec2 base_icon_position = glm::vec2(0.6f, 0.4f);
+    glm::vec2 icon_scale = glm::vec2(0.05f, 0.05f);
+    glm::vec2 score_scale = glm::vec2(0.05f, 0.05f);
+    glm::vec2 base_icon_position = glm::vec2(0.6f, 0.37f);
     glm::vec2 base_score_position = glm::vec2(0.75f, 0.35f);
     float vertical_spacing_1 = 0.10f;
     float vertical_spacing_2 = 0.10f;
@@ -25,10 +25,10 @@ std::map<std::string, int> eaten_mushrooms;
 
 
 // ImGui configurable parameters
-config::Vec2Parameter icon_scale_param("Icon Scale", &config.icon_scale, glm::vec2(0.08f), glm::vec2(0.11f));
-config::Vec2Parameter score_scale_param("Score Scale", &config.score_scale, glm::vec2(0.06f), glm::vec2(0.11f));
-config::Vec2Parameter icon_pos_param("Icon Base Position", &config.base_icon_position, glm::vec2(0.5f, 0.4f), glm::vec2(0.8f, 0.8f));
-config::Vec2Parameter score_pos_param("Score Base Position", &config.base_score_position, glm::vec2(0.6f, 0.4f), glm::vec2(0.9f, 0.8f));
+config::Vec2Parameter icon_scale_param("Icon Scale", &config.icon_scale, glm::vec2(0.01f), glm::vec2(0.21f));
+config::Vec2Parameter score_scale_param("Score Scale", &config.score_scale, glm::vec2(0.01f), glm::vec2(0.21f));
+config::Vec2Parameter icon_pos_param("Icon Base Position", &config.base_icon_position, glm::vec2(0.5f, 0.3f), glm::vec2(0.8f, 0.8f));
+config::Vec2Parameter score_pos_param("Score Base Position", &config.base_score_position, glm::vec2(0.6f, 0.3f), glm::vec2(0.9f, 0.8f));
 config::FloatParameter spacing_param("Vertical Spacing", &config.vertical_spacing_1, 0.07f, 0.13f);
 config::FloatParameter spacing_param_2("Vertical Spacing 2", &config.vertical_spacing_2, 0.07f, 0.13f);
 config::ButtonParameter reset_button("Reset", []() {
