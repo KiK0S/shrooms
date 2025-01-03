@@ -31,25 +31,26 @@ public:
 
 private:
     static void cleanup_entity(ecs::Entity* entity) {
-        for (auto& pair : ecs::component_registries) {
-            if (ecs::container_is_vector[pair.first]) {
-                auto vec = static_cast<std::vector<ecs::Component*>*>(pair.second);
-                vec->erase(
-                    std::remove_if(vec->begin(), vec->end(),
-                        [entity](ecs::Component* c) { return c->get_entity() == entity; }),
-                    vec->end()
-                );
-            } else {
-                auto map = static_cast<std::map<std::string, std::vector<ecs::Component*>>*>(pair.second);
-                for (auto& pair : *map) {
-                    pair.second.erase(
-                        std::remove_if(pair.second.begin(), pair.second.end(),
-                            [entity](ecs::Component* c) { return c->get_entity() == entity; }),
-                        pair.second.end()
-                    );
-                }
-            }
-        }
+        // is the same as detach in component.hpp
+        // for (auto& pair : ecs::component_registries) {
+        //     if (ecs::container_is_vector[pair.first]) {
+        //         auto vec = static_cast<std::vector<ecs::Component*>*>(pair.second);
+        //         vec->erase(
+        //             std::remove_if(vec->begin(), vec->end(),
+        //                 [entity](ecs::Component* c) { return c->get_entity() == entity; }),
+        //             vec->end()
+        //         );
+        //     } else {
+        //         auto map = static_cast<std::map<std::string, std::vector<ecs::Component*>>*>(pair.second);
+        //         for (auto& pair : *map) {
+        //             pair.second.erase(
+        //                 std::remove_if(pair.second.begin(), pair.second.end(),
+        //                     [entity](ecs::Component* c) { return c->get_entity() == entity; }),
+        //                 pair.second.end()
+        //             );
+        //         }
+        //     }
+        // }
         entity->~Entity();
     }
 };

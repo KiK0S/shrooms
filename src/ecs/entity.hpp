@@ -6,6 +6,7 @@
 #include <typeindex>
 #include <stdexcept>
 #include "../utils/logger.hpp"
+#include "../utils/arena.hpp"
 namespace ecs {
 
 class Entity {
@@ -20,13 +21,15 @@ public:
 			LOG_IF(enable_ecs_logging_, typeid(*c).name() << " ");
 		}
 		for (Component* c : components) {
-			c->detach();
+			if (arena::is_from_arena(c)) c->detach();
+			else c->entity = nullptr;
 		}
 		for (Component* c : pre_bind_components) {
 			LOG_IF(enable_ecs_logging_, typeid(*c).name() << " ");
 		}
 		for (Component* c : pre_bind_components) {
-			c->detach();
+			if (arena::is_from_arena(c)) c->detach();
+			else c->entity = nullptr;
 		}
 		entity_count--;
 	}
@@ -77,6 +80,13 @@ public:
 	}
 
 	static size_t get_entity_count() { return entity_count; }
+
+	Entity& set_parent(Entity* parent) {
+		this->parent = parent;
+		return *this;
+	}
+
+	Entity* get_parent() const { return parent; }
 
 // private:
 	bool to_delete = false;
