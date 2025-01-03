@@ -21,16 +21,26 @@ struct TransformObject : public ecs::Component {
 	}
 
 	virtual glm::vec2 get_pos() {
-		return glm::vec2(get_model_matrix() * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+		return glm::vec2(get_world_matrix() * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 	}
 	virtual void translate(glm::vec2) = 0;
 	virtual void scale(glm::vec2) = 0;
 	virtual glm::mat4 get_model_matrix() = 0;
 	virtual void rotate(float angle) = 0;
 	virtual glm::vec2 transform_point(const glm::vec2& point) {
-        glm::vec4 transformed = glm::transpose(get_model_matrix()) * glm::vec4(point, 0.0f, 1.0f);
+        glm::vec4 transformed = glm::transpose(get_world_matrix()) * glm::vec4(point, 0.0f, 1.0f);
 		return glm::vec2(transformed);
     }
+	virtual glm::mat4 get_world_matrix() {
+		glm::mat4 local_matrix = get_model_matrix();
+		
+		if (entity && entity->get_parent()) {
+			if (auto parent_transform = entity->get_parent()->get<TransformObject>()) {
+				return local_matrix * parent_transform->get_world_matrix();
+			}
+		}
+		return local_matrix;
+	}
 	DETACH_VECTOR(TransformObject, transforms)
 };
 

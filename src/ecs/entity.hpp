@@ -83,6 +83,7 @@ public:
 	std::vector<Component*> pre_bind_components;
 	std::vector<Component*> components;
 	static inline size_t entity_count = 0;
+	Entity* parent = nullptr;
 };
 
 void reg_component(Entity* e, Component* c) {

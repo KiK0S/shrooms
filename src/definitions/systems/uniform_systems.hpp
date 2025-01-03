@@ -12,7 +12,7 @@ struct ModelMatrix : public ShaderUniformsObject {
 		ecs::Entity* e = get_entity();
 		transform::TransformObject* t = e->get<transform::TransformObject>();
 		auto modelLocation = glGetUniformLocation(program_id, "uModelMatrix");
-		glm::mat4 modelMatrix = t->get_model_matrix();
+		glm::mat4 modelMatrix = t->get_world_matrix();
 		glUniformMatrix4fv(modelLocation, 1, GL_TRUE, glm::value_ptr(modelMatrix));
 	}
 
@@ -76,7 +76,7 @@ struct ViewMatrix : public ShaderUniformsObject {
 		transform::TransformObject* tr = e->get<transform::TransformObject>();
 
 		auto viewLocation = glGetUniformLocation(program, "uViewMatrix");
-		glm::mat4 viewMatrix = tr->get_model_matrix();
+		glm::mat4 viewMatrix = tr->get_world_matrix();
 		viewMatrix[0][3] *= -1;
 		viewMatrix[1][3] *= -1;
 		glUniformMatrix4fv(viewLocation, 1, GL_TRUE, glm::value_ptr(viewMatrix));
