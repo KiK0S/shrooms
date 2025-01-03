@@ -56,6 +56,7 @@ void create_pause_menu() {
     menu_window->add(arena::create<scene::SceneObject>("main"));
     menu_window->add(arena::create<color::OneColor>(config.menu_color));
     menu_window->add(arena::create<hidden::HiddenObject>());
+    menu_window->add(arena::create<texture::OneTextureObject>("pause_menu"));
     menu_window->get<hidden::HiddenObject>()->hide();
 
     menu_window->bind();
@@ -71,9 +72,7 @@ void show_digit_callback(int digit) {
     digit_sprite = nullptr;
     if (digit == 0) {
         auto overlay_hidden = overlay->get<hidden::HiddenObject>();
-        auto menu_hidden = menu_window->get<hidden::HiddenObject>();
         overlay_hidden->hide();
-        menu_hidden->hide();
         scene::toggle_pause();
         return;
     }
@@ -105,6 +104,8 @@ struct TogglePauseMenu: public input::ControllableObject {
             auto scene_object = overlay->get<scene::SceneObject>();
             if (scene_object->get_scene()->is_paused_state()) {
                 LOG_IF(logger::enable_pause_menu_logging, "show pause menu");
+                auto menu_hidden = menu_window->get<hidden::HiddenObject>();
+                menu_hidden->hide();
                 show_digit_callback(3);
             } else {
                 if (!overlay_hidden->is_visible()) {
