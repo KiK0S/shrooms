@@ -8,7 +8,7 @@
 namespace lives {
 
 struct Config {
-    glm::vec2 heart_scale = glm::vec2(0.08f, 0.08f);
+    glm::vec2 heart_scale = glm::vec2(0.04f, 0.04f);
     glm::vec2 base_position = glm::vec2(0.6f, 0.7f);
     float horizontal_spacing = 0.10f;
 } config;

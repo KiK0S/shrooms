@@ -14,7 +14,7 @@ namespace pause_menu {
 
 struct Config {
     glm::vec2 overlay_scale = glm::vec2(2.0f, 2.0f);
-    glm::vec2 menu_scale = glm::vec2(0.5f, 0.3f);
+    glm::vec2 menu_scale = glm::vec2(0.15f, 0.15f);
     glm::vec2 menu_position = glm::vec2(0.0f, 0.0f);
     glm::vec4 overlay_color = glm::vec4(0.0f, 0.0f, 0.0f, 0.33f);
     glm::vec4 menu_color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -84,7 +84,7 @@ void show_digit_callback(int digit) {
     digit_sprite->add(arena::create<color::OneColor>(glm::vec4(1.0f, 1.0f, 1.0f, 1.0f)));
     auto digit_transform = arena::create<transform::NoRotationTransform>();
     digit_transform->translate(glm::vec3(0.0f, 0.0f, 0.0f));
-    digit_transform->scale(glm::vec3(0.3f, 0.3f, 1.0f));
+    digit_transform->scale(glm::vec3(0.15f, 0.15f, 1.0f));
     digit_sprite->add(digit_transform);
     digit_sprite->add(arena::create<shaders::ModelMatrix>());
     digit_sprite->add(arena::create<texture::OneTextureObject>(std::string("digits_") + std::to_string(digit)));
