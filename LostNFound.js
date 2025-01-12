@@ -35,7 +35,7 @@ if (ENVIRONMENT_IS_NODE) {
 
 // --pre-jses are emitted after the Module integration code, so that they can
 // refer to Module (if they choose; they can also define Module)
-// include: /tmp/tmp_wlndq0u.js
+// include: /tmp/tmpbgkoql52.js
 
   Module['expectedDataFileDownloads'] ??= 0;
   Module['expectedDataFileDownloads']++;
@@ -213,25 +213,25 @@ Module['FS_createPath']("/", "shaders", true, true);
     }
 
     }
-    loadPackage({"files": [{"filename": "/assets/Vera.ttf", "start": 0, "end": 65932}, {"filename": "/assets/borovik.png", "start": 65932, "end": 70506}, {"filename": "/assets/digits_1.png", "start": 70506, "end": 78255}, {"filename": "/assets/digits_2.png", "start": 78255, "end": 86311}, {"filename": "/assets/digits_3.png", "start": 86311, "end": 93732}, {"filename": "/assets/fire.png", "start": 93732, "end": 231498}, {"filename": "/assets/heart.png", "start": 231498, "end": 237995}, {"filename": "/assets/lisi4ka.png", "start": 237995, "end": 242770}, {"filename": "/assets/mukhomor.png", "start": 242770, "end": 248285}, {"filename": "/assets/mushrooms.data", "start": 248285, "end": 249031}, {"filename": "/assets/pause_menu.png", "start": 249031, "end": 358143}, {"filename": "/assets/witch_left_0.png", "start": 358143, "end": 371382}, {"filename": "/assets/witch_left_1.png", "start": 371382, "end": 384355}, {"filename": "/assets/witch_right_0.png", "start": 384355, "end": 397509}, {"filename": "/assets/witch_right_1.png", "start": 397509, "end": 410392}, {"filename": "/shaders/bezier_2d_f.glsl", "start": 410392, "end": 410643}, {"filename": "/shaders/bezier_2d_v.glsl", "start": 410643, "end": 412113}, {"filename": "/shaders/bezier_raycast_2d_f.glsl", "start": 412113, "end": 412980}, {"filename": "/shaders/raycast_2d_f.glsl", "start": 412980, "end": 413920}, {"filename": "/shaders/raycast_2d_v.glsl", "start": 413920, "end": 414351}, {"filename": "/shaders/texture_2d_f.glsl", "start": 414351, "end": 414597}, {"filename": "/shaders/texture_2d_v.glsl", "start": 414597, "end": 415235}, {"filename": "/shaders/texture_camera_2d_v.glsl", "start": 415235, "end": 415811}], "remote_package_size": 415811});
+    loadPackage({"files": [{"filename": "/assets/Vera.ttf", "start": 0, "end": 65932}, {"filename": "/assets/borovik.png", "start": 65932, "end": 70506}, {"filename": "/assets/digits_1.png", "start": 70506, "end": 84453}, {"filename": "/assets/digits_2.png", "start": 84453, "end": 104357}, {"filename": "/assets/digits_3.png", "start": 104357, "end": 123710}, {"filename": "/assets/fire.png", "start": 123710, "end": 261476}, {"filename": "/assets/heart.png", "start": 261476, "end": 277843}, {"filename": "/assets/lisi4ka.png", "start": 277843, "end": 282618}, {"filename": "/assets/mukhomor.png", "start": 282618, "end": 288133}, {"filename": "/assets/mushrooms.data", "start": 288133, "end": 288879}, {"filename": "/assets/pause_menu.png", "start": 288879, "end": 317384}, {"filename": "/assets/witch_left_0.png", "start": 317384, "end": 330623}, {"filename": "/assets/witch_left_1.png", "start": 330623, "end": 343596}, {"filename": "/assets/witch_right_0.png", "start": 343596, "end": 356750}, {"filename": "/assets/witch_right_1.png", "start": 356750, "end": 369633}, {"filename": "/shaders/bezier_2d_f.glsl", "start": 369633, "end": 369884}, {"filename": "/shaders/bezier_2d_v.glsl", "start": 369884, "end": 371354}, {"filename": "/shaders/bezier_raycast_2d_f.glsl", "start": 371354, "end": 372221}, {"filename": "/shaders/raycast_2d_f.glsl", "start": 372221, "end": 373161}, {"filename": "/shaders/raycast_2d_v.glsl", "start": 373161, "end": 373592}, {"filename": "/shaders/texture_2d_f.glsl", "start": 373592, "end": 373838}, {"filename": "/shaders/texture_2d_v.glsl", "start": 373838, "end": 374476}, {"filename": "/shaders/texture_camera_2d_v.glsl", "start": 374476, "end": 375052}], "remote_package_size": 375052});
 
   })();
 
-// end include: /tmp/tmp_wlndq0u.js
-// include: /tmp/tmpte4rnbu5.js
+// end include: /tmp/tmpbgkoql52.js
+// include: /tmp/tmpxpc6gm_3.js
 
     // All the pre-js content up to here must remain later on, we need to run
     // it.
     if (Module['$ww'] || (typeof ENVIRONMENT_IS_PTHREAD != 'undefined' && ENVIRONMENT_IS_PTHREAD)) Module['preRun'] = [];
     var necessaryPreJSTasks = Module['preRun'].slice();
-  // end include: /tmp/tmpte4rnbu5.js
-// include: /tmp/tmpvg9h5ard.js
+  // end include: /tmp/tmpxpc6gm_3.js
+// include: /tmp/tmpt5y2ho4y.js
 
     if (!Module['preRun']) throw 'Module.preRun should exist because file support used it; did a pre-js delete it?';
     necessaryPreJSTasks.forEach((task) => {
       if (Module['preRun'].indexOf(task) < 0) throw 'All preRun tasks that exist before user pre-js code should remain after; did you replace Module or modify Module.preRun?';
     });
-  // end include: /tmp/tmpvg9h5ard.js
+  // end include: /tmp/tmpt5y2ho4y.js
 
 
 // Sometimes an existing Module object exists with properties
