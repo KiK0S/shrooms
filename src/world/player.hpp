@@ -5,7 +5,7 @@
 #include "../definitions/systems/scene_system.hpp"
 #include "../definitions/components/blinking_object.hpp"
 #include <glm/glm/vec2.hpp>
-#include "scoreboard.hpp"
+#include "level_manager.hpp"
 
 namespace player {
 
@@ -25,11 +25,14 @@ sprite::AnimatedSprite player_sprite("witch", {-1.0f, -1.0f}, {1.0f, 1.0f}, 2, {
 ecs::Entity player_sprite_entity;
 ecs::Entity player_trigger_entity;
 
-collision::TriggerObject player_trigger("mushroom_catch_handler", 
+collision::TriggerObject player_trigger("mushroom_catch_handler",
     [](ecs::Entity* _player, collision::ColliderObject* mushroom) {
-        LOG_IF(logger::enable_collision_system_logging, "Collected mushroom " << mushroom->get_entity()->get_checked<texture::OneTextureObject>()->name << "!");
-        mushroom->get_entity()->mark_deleted();
-        scoreboard::update_score(mushroom->get_entity()->get_checked<texture::OneTextureObject>()->name, scoreboard::eaten_mushrooms[mushroom->get_entity()->get_checked<texture::OneTextureObject>()->name] + 1);
+        auto* entity = mushroom->get_entity();
+        auto* texture = entity->get_checked<texture::OneTextureObject>();
+        std::string mushroom_type = texture ? texture->name : "";
+        LOG_IF(logger::enable_collision_system_logging, "Collected mushroom " << mushroom_type << "!");
+        levels::on_mushroom_caught(mushroom_type, entity);
+        entity->mark_deleted();
     }
 );
 

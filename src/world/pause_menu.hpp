@@ -9,7 +9,15 @@
 #include "../definitions/components/configurable_object.hpp"
 #include "../definitions/components/scene_object.hpp"
 #include "../definitions/components/controllable_object.hpp"
+#include "../definitions/components/text_object.hpp"
+#include "../definitions/components/layered_object.hpp"
+#include "../definitions/components/textured_object.hpp"
 #include "../definitions/systems/deferred_system.hpp"
+#include "../declarations/text_system.hpp"
+#include "../declarations/color_system.hpp"
+#include "level_manager.hpp"
+#include "lives.hpp"
+#include <utility>
 namespace pause_menu {
 
 struct Config {
@@ -28,6 +36,13 @@ config::Vec4Parameter menu_color_param("Menu Color", &config.menu_color, glm::ve
 
 ecs::Entity* overlay = nullptr;
 ecs::Entity* menu_window = nullptr;
+ecs::Entity* restart_button = nullptr;
+ecs::Entity* restart_text = nullptr;
+hidden::HiddenObject* restart_button_hidden = nullptr;
+hidden::HiddenObject* restart_text_hidden = nullptr;
+transform::NoRotationTransform* restart_button_transform = nullptr;
+transform::NoRotationTransform* restart_text_transform = nullptr;
+text::TextObject* restart_text_object = nullptr;
 
 void create_pause_menu() {
     overlay = arena::create<ecs::Entity>();
@@ -60,9 +75,64 @@ void create_pause_menu() {
     menu_window->get<hidden::HiddenObject>()->hide();
 
     menu_window->bind();
+
+    restart_button = arena::create<ecs::Entity>();
+    restart_button->add(&geometry::quad);
+    restart_button->add(arena::create<layers::ConstLayer>(102));
+    restart_button->add(arena::create<shaders::ProgramArgumentObject>(&shaders::static_object_program));
+    restart_button_transform = arena::create<transform::NoRotationTransform>();
+    restart_button_transform->scale(glm::vec2(0.25f, 0.08f));
+    restart_button_transform->translate(config.menu_position + glm::vec2(0.0f, -0.2f));
+    restart_button->add(restart_button_transform);
+    restart_button->add(arena::create<shaders::ModelMatrix>());
+    restart_button->add(arena::create<scene::SceneObject>("main"));
+    restart_button->add(arena::create<color::OneColor>(glm::vec4(0.15f, 0.15f, 0.15f, 0.95f)));
+    restart_button_hidden = arena::create<hidden::HiddenObject>();
+    restart_button->add(restart_button_hidden);
+    restart_button_hidden->hide();
+    restart_button->bind();
+
+    restart_text = arena::create<ecs::Entity>();
+    restart_text->add(arena::create<shaders::ProgramArgumentObject>(&shaders::static_object_program));
+    restart_text_transform = arena::create<transform::NoRotationTransform>();
+    restart_text_transform->scale(glm::vec2(0.05f, 0.05f));
+    restart_text_transform->translate(config.menu_position + glm::vec2(0.0f, -0.2f));
+    restart_text->add(restart_text_transform);
+    restart_text->add(arena::create<shaders::ModelMatrix>());
+    restart_text->add(arena::create<layers::ConstLayer>(103));
+    restart_text->add(arena::create<scene::SceneObject>("main"));
+    restart_text->add(&color::white);
+    restart_text->add(text::text_texture);
+    restart_text_object = arena::create<text::TextObject>("Restart");
+    restart_text->add(restart_text_object);
+    restart_text_hidden = arena::create<hidden::HiddenObject>();
+    restart_text->add(restart_text_hidden);
+    restart_text_hidden->hide();
+    restart_text->bind();
+    text::text_loader.init(restart_text_object);
 }
 
 ecs::Entity* digit_sprite = nullptr;
+
+void set_restart_visibility(bool visible) {
+    if (!restart_button_hidden || !restart_text_hidden) return;
+    if (visible) {
+        restart_button_hidden->show();
+        restart_text_hidden->show();
+    } else {
+        restart_button_hidden->hide();
+        restart_text_hidden->hide();
+    }
+}
+
+std::pair<glm::vec2, glm::vec2> restart_button_bounds() {
+    if (!restart_button_transform) {
+        return {glm::vec2(0.0f), glm::vec2(0.0f)};
+    }
+    glm::vec2 center = restart_button_transform->get_pos();
+    glm::vec2 half_extent = restart_button_transform->scale_;
+    return {center - half_extent, center + half_extent};
+}
 
 void show_digit_callback(int digit) {
     LOG_IF(logger::enable_pause_menu_logging, "show digit callback " << digit);
@@ -70,6 +140,7 @@ void show_digit_callback(int digit) {
         digit_sprite->mark_deleted();
     }
     digit_sprite = nullptr;
+    set_restart_visibility(false);
     if (digit == 0) {
         auto overlay_hidden = overlay->get<hidden::HiddenObject>();
         overlay_hidden->hide();
@@ -106,11 +177,13 @@ struct TogglePauseMenu: public input::ControllableObject {
                 LOG_IF(logger::enable_pause_menu_logging, "show pause menu");
                 auto menu_hidden = menu_window->get<hidden::HiddenObject>();
                 menu_hidden->hide();
+                set_restart_visibility(false);
                 show_digit_callback(3);
             } else {
                 if (!overlay_hidden->is_visible()) {
                     overlay_hidden->show();
                     menu_hidden->show();
+                    set_restart_visibility(true);
                 }
                 scene::toggle_pause();
             }
@@ -118,6 +191,50 @@ struct TogglePauseMenu: public input::ControllableObject {
     }
 };
 TogglePauseMenu pause_menu_toggle_controllable;
+
+struct RestartButtonHandler : public input::ControllableObject {
+    RestartButtonHandler() : input::ControllableObject() {}
+
+    void handle_user_action(SDL_Event e) override {
+        if (e.type != SDL_MOUSEBUTTONDOWN) return;
+        if (e.button.button != SDL_BUTTON_LEFT) return;
+        if (!scene::is_current_scene_paused()) return;
+        if (!restart_button_hidden || !restart_button_hidden->is_visible()) return;
+
+        SDL_Window* window = SDL_GetWindowFromID(e.button.windowID);
+        int width = 0;
+        int height = 0;
+        if (window) {
+            SDL_GetWindowSize(window, &width, &height);
+        }
+        if (width == 0 || height == 0) {
+            return;
+        }
+
+        float norm_x = (static_cast<float>(e.button.x) / static_cast<float>(width)) * 2.0f - 1.0f;
+        float norm_y = 1.0f - (static_cast<float>(e.button.y) / static_cast<float>(height)) * 2.0f;
+        auto [min_bound, max_bound] = restart_button_bounds();
+        if (norm_x < min_bound.x || norm_x > max_bound.x || norm_y < min_bound.y || norm_y > max_bound.y) {
+            return;
+        }
+
+        if (digit_sprite) {
+            digit_sprite->mark_deleted();
+            digit_sprite = nullptr;
+        }
+        levels::restart_level();
+        lives::reset_lives();
+        set_restart_visibility(false);
+        auto overlay_hidden = overlay->get<hidden::HiddenObject>();
+        auto menu_hidden = menu_window->get<hidden::HiddenObject>();
+        overlay_hidden->hide();
+        menu_hidden->hide();
+        if (scene::is_current_scene_paused()) {
+            scene::toggle_pause();
+        }
+    }
+};
+RestartButtonHandler restart_button_handler;
 
 void init() {
     std::cout << "init pause menu\n";

@@ -26,6 +26,9 @@ struct PeriodicSpawnerSystem : public dynamic::DynamicObject {
         last_update = now;
 
         for (auto* spawner : periodic_spawners) {
+            if (!spawner->enabled || spawner->is_depleted()) {
+                continue;
+            }
             spawner->timer -= dt;
             // std::cerr << "spawner " << spawner->get_name() << " timer " << spawner->timer << std::endl;
             if (spawner->timer <= 0) {
@@ -39,10 +42,15 @@ struct PeriodicSpawnerSystem : public dynamic::DynamicObject {
                 
                 auto points = geom_ptr->get_pos();
                 for (int i = 0; i < geom_ptr->get_size(); i += 3) {
+                    if (!spawner->can_spawn_more()) break;
                     std::vector<glm::vec2> new_points = spawning_system::spawn_points(points[i], points[i + 1], points[i + 2],
                                                                         spawner->rule.density);
                     for (auto point : new_points) {
-                        point_objects.push_back(spawner->rule.spawn(point));
+                        if (!spawner->can_spawn_more()) break;
+                        if (auto* spawned = spawner->rule.spawn(point)) {
+                            spawner->spawned_count++;
+                            point_objects.push_back(spawned);
+                        }
                     }
                 }
             }
