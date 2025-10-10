@@ -15,9 +15,14 @@ struct KeyboardMovement : public dynamic::DynamicObject {
     }
     float velocity = 0.02f;
     glm::vec2 last_movement{0.0f, 0.0f};  // Store last movement direction
+    bool enabled = true;
 
     void update() {
         if (scene::is_current_scene_paused()) {
+            return;
+        }
+        if (!enabled) {
+            last_movement = {0.0f, 0.0f};
             return;
         }
         ecs::Entity* e = get_entity();

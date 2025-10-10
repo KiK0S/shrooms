@@ -43,6 +43,8 @@ namespace text {
 		std::string name;
 		std::vector<glm::vec2> pos;
 		std::vector<glm::vec2> uv;
+		float logical_width = 0.0f;
+		float logical_height = 0.0f;
 	};
 
  

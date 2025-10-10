@@ -9,7 +9,13 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <sstream>
 #include <glm/glm.hpp>
+
+namespace levels {
+void register_spawner(periodic_spawn::PeriodicSpawnerObject* spawner);
+void on_mushroom_spawned(const std::string& type, ecs::Entity* entity);
+}
 
 namespace level_loader {
 
@@ -145,30 +151,55 @@ minimap::MiniMapObject* parse_minimap(std::istream& in) {
 	return arena::create<minimap::MiniMapEntityPtr>(e);
 }
 
+std::string extract_texture_name(const std::string& desc) {
+        std::istringstream stream(desc);
+        std::string token;
+        if (!(stream >> token)) {
+                return "";
+        }
+        while (stream >> token) {
+                if (token == "texture") {
+                        std::string texture_name;
+                        stream >> texture_name;
+                        return texture_name;
+                }
+        }
+        return "";
+}
+
 periodic_spawn::PeriodicSpawnerObject* parse_periodic_spawner(std::istream& in) {
-	float period;
-	double density;
-	in >> period >> density;
-	
-	auto desc = parse_entity_description(in);
-	return arena::create<periodic_spawn::PeriodicSpawnerObject>(
-		period,
-		spawn::SpawningRule{
-			density,
-			[=](glm::vec2 pos) {
-				std::istringstream new_e_desc(desc);
-				auto new_e = parse_entity(new_e_desc);
-				new_e->get<transform::TransformObject>()->scale({0.1f, 0.1f});
-				new_e->get<transform::TransformObject>()->translate(pos);
-				new_e->add(&geometry::quad);
-				
-				auto scene = arena::create<scene::SceneObject>("main");
-				new_e->add(scene);
-				new_e->bind();
-				return new_e;
-			}
-		}
-	);
+        float period;
+        double density;
+        in >> period >> density;
+
+        auto desc = parse_entity_description(in);
+        auto texture_name = extract_texture_name(desc);
+        auto spawner = arena::create<periodic_spawn::PeriodicSpawnerObject>(
+                period,
+                spawn::SpawningRule{
+                        density,
+                        [=](glm::vec2 pos) {
+                                std::istringstream new_e_desc(desc);
+                                auto new_e = parse_entity(new_e_desc);
+                                if (!new_e) return static_cast<ecs::Entity*>(nullptr);
+                                new_e->get<transform::TransformObject>()->scale({0.1f, 0.1f});
+                                new_e->get<transform::TransformObject>()->translate(pos);
+                                new_e->add(&geometry::quad);
+
+                                auto scene = arena::create<scene::SceneObject>("main");
+                                new_e->add(scene);
+                                new_e->bind();
+                                levels::on_mushroom_spawned(texture_name, new_e);
+                                return new_e;
+                        }
+                },
+                texture_name
+        );
+        spawner->enabled = false;
+        spawner->max_spawn_count = 0;
+        spawner->spawned_count = 0;
+        levels::register_spawner(spawner);
+        return spawner;
 }
 
 ecs::Entity* parse_entity(std::istream& in, shaders::Program* program) {

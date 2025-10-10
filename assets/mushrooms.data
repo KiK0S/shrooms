@@ -24,6 +24,8 @@ collider
 mushroom_catch_handler
 collider
 mushroom_fall_handler
+collider
+bone_projectile_handler
 mukhomor_spawned
 periodic_spawner
 2.5 0.75
@@ -40,6 +42,8 @@ collider
 mushroom_catch_handler
 collider
 mushroom_fall_handler
+collider
+bone_projectile_handler
 lisi4ka_spawned
 periodic_spawner
 2.5 0.75
@@ -56,6 +60,8 @@ collider
 mushroom_catch_handler
 collider
 mushroom_fall_handler
+collider
+bone_projectile_handler
 borovik_spawned
 sky
 floor
