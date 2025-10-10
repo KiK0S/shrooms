@@ -6,6 +6,7 @@
 #include "world/player.hpp"
 #include "world/camera.hpp"
 #include "world/scoreboard.hpp"
+#include "world/menu.hpp"
 #include "world/mushroom_catcher.hpp"
 #include "world/pause_menu.hpp"
 #include <optional>
@@ -21,6 +22,8 @@ int main() {
 	render_system::init(window);
 	level_loader::load(file::asset("mushrooms.data"));
 	init::init();
-	scene::main.activate();
+	scene::menu.activate();
+	scene::menu.set_pause(true);
+	scene::main.set_pause(true);
 	game_loop::startLoop();
 }

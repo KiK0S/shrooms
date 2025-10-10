@@ -18,7 +18,7 @@ namespace scoreboard {
 
 struct Config {
     glm::vec2 icon_scale = glm::vec2(0.05f, 0.05f);
-    glm::vec2 score_scale = glm::vec2(0.05f, 0.05f);
+    glm::vec2 score_scale = glm::vec2(0.1f, 0.05f);
     glm::vec2 base_icon_position = glm::vec2(0.6f, 0.37f);
     glm::vec2 base_score_position = glm::vec2(0.75f, 0.35f);
     float vertical_spacing_1 = 0.10f;
@@ -70,11 +70,12 @@ void update_entry_text(Entry& entry) {
     if (entry.text_object) {
         entry.text_entity->detach(entry.text_object);
     }
-    auto geom = entry.text_entity->get_checked<text::TextGeometry>();
+    auto geom = entry.text_entity->get<text::TextGeometry>();
     if (geom) {
         entry.text_entity->detach(geom);
     }
-    entry.text_object = arena::create<text::TextObject>(std::to_string(entry.current) + "/" + std::to_string(entry.target));
+    std::string formatted = entry.name + ": " + std::to_string(entry.current) + "/" + std::to_string(entry.target);
+    entry.text_object = arena::create<text::TextObject>(formatted);
     entry.text_entity->add(entry.text_object);
     text::text_loader.init(entry.text_object);
 }

@@ -14,6 +14,7 @@
 #include "../definitions/components/periodic_spawner_object.hpp"
 #include "../definitions/components/scene_object.hpp"
 #include "../definitions/systems/level_loader_system.hpp"
+#include "../definitions/components/textured_object.hpp"
 #include "../utils/file_system.hpp"
 #include "scoreboard.hpp"
 
@@ -38,7 +39,11 @@ std::vector<LevelDefinition> parsed_levels;
 std::unordered_map<std::string, periodic_spawn::PeriodicSpawnerObject*> spawners_by_type;
 std::unordered_map<std::string, std::unordered_set<ecs::Entity*>> active_entities;
 std::unordered_map<std::string, int> collected_counts;
+std::unordered_map<std::string, int> sorted_counts;
 size_t current_level_index = 0;
+size_t last_played_level_index = 0;
+std::string last_game_status = "No games yet";
+bool last_game_success = false;
 bool level_failed = false;
 bool level_finished = false;
 
@@ -153,6 +158,23 @@ void on_mushroom_missed(const std::string& type, ecs::Entity* entity) {
     check_completion();
 }
 
+void on_mushroom_sorted(ecs::Entity* entity) {
+    if (!entity) return;
+    if (!current_level()) {
+        entity->mark_deleted();
+        return;
+    }
+    auto* texture = entity->get_checked<texture::OneTextureObject>();
+    std::string type = texture ? texture->name : "";
+    auto active_it = active_entities.find(type);
+    if (active_it != active_entities.end()) {
+        active_it->second.erase(entity);
+    }
+    sorted_counts[type] += 1;
+    entity->mark_deleted();
+    check_completion();
+}
+
 void configure_spawners_for_level(const LevelDefinition& level) {
     for (auto& [type, spawner] : spawners_by_type) {
         if (!spawner) continue;
@@ -184,9 +206,14 @@ void start_level(size_t index) {
     reset_active_entities();
 
     const auto& level = parsed_levels[current_level_index];
+    last_played_level_index = current_level_index;
+    last_game_status = "Playing " + level.id;
+    last_game_success = false;
     collected_counts.clear();
+    sorted_counts.clear();
     for (const auto& [type, target] : level.recipe_order) {
         collected_counts[type] = 0;
+        sorted_counts[type] = 0;
     }
     scoreboard::init_with_targets(level.recipe_order);
     configure_spawners_for_level(level);
@@ -241,20 +268,50 @@ void check_completion() {
         }
     }
 
+    int total_sorted = 0;
+    for (const auto& [type, sorted] : sorted_counts) {
+        total_sorted += sorted;
+    }
+
+    int total_collected = 0;
+    for (const auto& [type, collected] : collected_counts) {
+        total_collected += collected;
+    }
+
     if (success) {
         std::cout << "Level " << level->id << " completed successfully!" << std::endl;
-        advance_level();
+        last_game_status = "Completed " + level->id + " (collected " + std::to_string(total_collected) +
+                           ", sorted " + std::to_string(total_sorted) + ")";
+        last_game_success = true;
     } else {
         std::cout << "Level " << level->id << " failed." << std::endl;
-        restart_level();
+        last_game_status = "Failed " + level->id + " (collected " + std::to_string(total_collected) +
+                           ", sorted " + std::to_string(total_sorted) + ")";
+        last_game_success = false;
     }
+
+    for (auto& [type, spawner] : spawners_by_type) {
+        if (spawner) {
+            spawner->enabled = false;
+        }
+    }
+    reset_active_entities();
 }
 
 void initialize() {
     parse_levels(file::asset("levels.data"));
-    if (!parsed_levels.empty()) {
-        start_level(0);
+    level_finished = true;
+    level_failed = false;
+    current_level_index = 0;
+    active_entities.clear();
+    collected_counts.clear();
+    sorted_counts.clear();
+    if (parsed_levels.empty()) {
+        last_game_status = "No levels configured";
+    } else {
+        last_game_status = "Select a level to begin";
     }
+    last_game_success = false;
 }
 
 init::CallbackOnStart level_manager_init(&initialize, 7);

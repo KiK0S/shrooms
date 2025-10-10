@@ -151,6 +151,22 @@ minimap::MiniMapObject* parse_minimap(std::istream& in) {
 	return arena::create<minimap::MiniMapEntityPtr>(e);
 }
 
+std::string extract_texture_name(const std::string& desc) {
+        std::istringstream stream(desc);
+        std::string token;
+        if (!(stream >> token)) {
+                return "";
+        }
+        while (stream >> token) {
+                if (token == "texture") {
+                        std::string texture_name;
+                        stream >> texture_name;
+                        return texture_name;
+                }
+        }
+        return "";
+}
+
 periodic_spawn::PeriodicSpawnerObject* parse_periodic_spawner(std::istream& in) {
         float period;
         double density;
@@ -229,19 +245,3 @@ std::vector<ecs::Entity*> parse(std::istream& in) {
 }
 
 }
-std::string extract_texture_name(const std::string& desc) {
-        std::istringstream stream(desc);
-        std::string token;
-        if (!(stream >> token)) {
-                return "";
-        }
-        while (stream >> token) {
-                if (token == "texture") {
-                        std::string texture_name;
-                        stream >> texture_name;
-                        return texture_name;
-                }
-        }
-        return "";
-}
-

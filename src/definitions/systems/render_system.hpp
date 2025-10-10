@@ -2,6 +2,7 @@
 
 #include "../components/textured_object.hpp"
 #include "../components/dynamic_object.hpp"
+#include "../components/text_object.hpp"
 #include "gpu_program_system.hpp"
 #include "../components/hidden_object.hpp"
 #include "../../declarations/color_system.hpp"
@@ -172,8 +173,18 @@ void display(ecs::Entity* entity, shaders::Program* program_ptr) {
 			uniforms_comp->reg_uniforms(program);
 		}
 
-		glDrawArrays(GL_TRIANGLES, 0, entity->get<geometry::GeometryObject>()->get_size());
-	});
+        bool has_text = entity->get<text::TextGeometry>() != nullptr;
+        GLboolean cull_enabled = glIsEnabled(GL_CULL_FACE);
+        if (has_text && cull_enabled) {
+            glDisable(GL_CULL_FACE);
+        }
+
+        glDrawArrays(GL_TRIANGLES, 0, entity->get<geometry::GeometryObject>()->get_size());
+
+        if (has_text && cull_enabled) {
+            glEnable(GL_CULL_FACE);
+        }
+    });
 
 }
 
