@@ -73,9 +73,14 @@ set(EXE_SOURCES
 
 add_executable(LostNFound ${EXE_SOURCES})
 
-find_package(SDL2 REQUIRED)
-include_directories(${SDL2_INCLUDE_DIRS})
 include_directories(${CMAKE_SOURCE_DIR}/src)
+
+if (EMSCRIPTEN)
+    set(SDL2_LIBRARIES "")
+else()
+    find_package(SDL2 REQUIRED)
+    include_directories(${SDL2_INCLUDE_DIRS})
+endif()
 
 if (EMSCRIPTEN)
 		SET(CMAKE_EXE_LINKER_FLAGS "-s LLD_REPORT_UNDEFINED -sNO_DISABLE_EXCEPTION_CATCHING -s MAX_WEBGL_VERSION=2 -s MIN_WEBGL_VERSION=2 --preload-file ${PROJECT_SOURCE_DIR}/assets@/assets --preload-file ${PROJECT_SOURCE_DIR}/shaders@/shaders -sUSE_SDL=2 -sUSE_WEBGL2=1 -sWASM=1")
@@ -86,10 +91,12 @@ else()
 		set(CMAKE_CXX_FLAGS  "-fsanitize=undefined -fsanitize=bounds -fsanitize=address")
 		find_package(GLEW REQUIRED)
 		include_directories(${GLEW_INCLUDE_DIRS})
-		target_link_libraries(LostNFound PRIVATE ${SDL2_LIBRARIES} ${GLEW_LIBRARIES} GL)
+                target_link_libraries(LostNFound PRIVATE ${SDL2_LIBRARIES} ${GLEW_LIBRARIES} GL)
 endif()
 
-target_link_libraries(LostNFound PRIVATE ${SDL2_LIBRARIES})
+if (NOT EMSCRIPTEN)
+    target_link_libraries(LostNFound PRIVATE ${SDL2_LIBRARIES})
+endif()
 target_link_libraries(LostNFound PRIVATE stb_image)
 target_link_libraries(LostNFound PRIVATE freetype)
 target_link_libraries(LostNFound PRIVATE imgui)
