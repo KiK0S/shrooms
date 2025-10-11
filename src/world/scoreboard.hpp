@@ -16,13 +16,13 @@
 namespace scoreboard {
 
 struct Config {
-    glm::vec2 icon_scale = glm::vec2(0.03f, 0.02f);
-    glm::vec2 score_scale = glm::vec2(0.035f, 0.02f);
-    glm::vec2 base_icon_position = glm::vec2(0.55f, 0.45f);
-    glm::vec2 base_score_position = glm::vec2(0.72f, 0.43f);
+    glm::vec2 icon_scale = glm::vec2(0.07f, 0.07f);
+    glm::vec2 score_scale = glm::vec2(0.035f, 0.035f);
+    glm::vec2 base_icon_position = glm::vec2(0.55f, 0.220f);
+    glm::vec2 base_score_position = glm::vec2(0.75f, 0.20f);
     float vertical_spacing_1 = 0.08f;
-    float vertical_spacing_2 = 0.08f;
-    float char_spacing = 0.08f;
+    float vertical_spacing_2 = 0.1f;
+    float char_spacing = 0.025f;
 } config;
 
 struct Entry {
