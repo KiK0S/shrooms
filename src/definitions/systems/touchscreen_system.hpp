@@ -5,16 +5,35 @@
 #include "../components/touch_object.hpp"
 #include <SDL2/SDL.h>
 #include <glm/glm.hpp>
+#include <memory>
 #include <vector>
+#include <cmath>
+#include "../../utils/arena.hpp"
+#include "../../geometry/circle.hpp"
+#include "../../geometry/quad.hpp"
 #include "../../declarations/uniform_system.hpp"
+#include "../../declarations/shader_system.hpp"
+#include "../../declarations/texture_system.hpp"
+#include "../../declarations/color_system.hpp"
+#include "../../declarations/scene_system.hpp"
+#include "../components/transform_object.hpp"
+#include "../components/layered_object.hpp"
+#include "../components/shader_object.hpp"
+#include "../components/textured_object.hpp"
+#include "../components/scene_object.hpp"
 
 namespace touchscreen {
 
+struct TouchKeyboardButton;
 
 
 std::unique_ptr<ecs::Entity> joystick;
 std::unique_ptr<ecs::Entity> joystick_inner;
 shaders::MiniMapUniforms joystick_uniform;
+std::unique_ptr<ecs::Entity> fire_button;
+std::unique_ptr<TouchKeyboardButton> fire_button_touch;
+const glm::vec2 fire_button_center(0.75f, -0.6f);
+const glm::vec2 fire_button_half_extent(0.13f, 0.13f);
 
 
 
@@ -29,15 +48,11 @@ struct JoystickUpdate: public TouchObject {
 	}
 
 	void handle_touch(glm::vec2 point) {
-		double dx = point.x + 0.6;
-		double dy = point.y + 0.6;
-		if (abs(dx) > 0.5 || abs(dy) > 0.5) {
-			joystick_info = {0.0f, 0.0f};
-			update_joystick();
+		if (!is_within_bounds(point)) {
 			return;
 		}
-		dx /= 0.25;
-		dy /= 0.25;
+		double dx = (point.x + 0.6) / 0.25;
+		double dy = (point.y + 0.6) / 0.25;
 		joystick_info = {dx, dy};
 		if (dx < -1) joystick_info /= -dx;
 		if (dx > 1) joystick_info /= dx;
@@ -45,6 +60,20 @@ struct JoystickUpdate: public TouchObject {
 		if (dy > 1) joystick_info /= dy;
 		update_joystick();
 		joystick_info.y *= -1;
+	}
+
+	bool is_within_bounds(glm::vec2 point) const {
+		double dx = point.x + 0.6;
+		double dy = point.y + 0.6;
+		return std::abs(dx) <= 0.5 && std::abs(dy) <= 0.5;
+	}
+
+	void reset() {
+		if (joystick_info == glm::vec2(0.0f, 0.0f)) {
+			return;
+		}
+		joystick_info = {0.0f, 0.0f};
+		update_joystick();
 	}
 };
 JoystickUpdate joystick_update;
@@ -71,6 +100,27 @@ void init_joystick() {
 	joystick_inner->add(joystick_inner_drawable);
 	joystick_inner->add(joystick_inner_scene);
 	joystick_inner->bind();
+}
+
+void init_fire_button() {
+	glm::vec2 top_left = fire_button_center - fire_button_half_extent;
+	glm::vec2 bottom_right = fire_button_center + fire_button_half_extent;
+	fire_button_touch = std::make_unique<TouchKeyboardButton>(SDL_SCANCODE_W, top_left, bottom_right);
+
+	fire_button = std::make_unique<ecs::Entity>();
+	fire_button->add(&geometry::quad);
+	fire_button->add(arena::create<layers::ConstLayer>(6));
+	fire_button->add(arena::create<shaders::ProgramArgumentObject>(&shaders::static_object_program));
+
+	auto transform = arena::create<transform::NoRotationTransform>();
+	transform->scale(fire_button_half_extent);
+	transform->translate(fire_button_center);
+	fire_button->add(transform);
+	fire_button->add(arena::create<shaders::ModelMatrix>());
+	fire_button->add(arena::create<texture::OneTextureObject>("explosion"));
+	fire_button->add(&color::white);
+	fire_button->add(arena::create<scene::SceneObject>("main"));
+	fire_button->bind();
 }
 
 
@@ -103,21 +153,39 @@ struct TouchSystem: public dynamic::DynamicObject {
 
 	void init() {
 		touchscreen::init_joystick();
+		touchscreen::init_fire_button();
 		inited = true;
 	}
 
 	void update() {
 		if (!inited && SDL_GetNumTouchDevices() > 0) init();
 		if (!inited) return;
-		glm::vec2 point = input::get_touch() * 2.0f - glm::vec2(1.0f, 1.0f);
-		if (point.x == -1 && point.y == -1) {
-			joystick_update.joystick_info = {0.0f, 0.0f};
-			joystick_update.update_joystick();
+		auto raw_touches = input::get_touches();
+		if (raw_touches.empty()) {
+			joystick_update.reset();
 			return;
 		}
-		point.y = -0.6;
+        std::vector<glm::vec2> normalized;
+        normalized.reserve(raw_touches.size());
+        bool joystick_consumed = false;
+        for (const auto& touch : raw_touches) {
+            glm::vec2 point(touch.x * 2.0f - 1.0f, 1.0f - touch.y * 2.0f);
+            normalized.push_back(point);
+            if (!joystick_consumed && joystick_update.is_within_bounds(point)) {
+                joystick_update.handle_touch(point);
+                joystick_consumed = true;
+            }
+		}
+		if (!joystick_consumed) {
+			joystick_update.reset();
+		}
 		for (auto touch_object : touchables) {
-			touch_object->handle_touch(point);
+			if (touch_object == &joystick_update) {
+				continue;
+			}
+			for (const auto& point : normalized) {
+				touch_object->handle_touch(point);
+			}
 		}
 	}
 };

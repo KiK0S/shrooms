@@ -7,6 +7,8 @@
 #include "../definitions/components/hidden_object.hpp"
 #include "../definitions/components/layered_object.hpp"
 #include "../definitions/components/shader_object.hpp"
+#include "../definitions/components/textured_object.hpp"
+#include "../definitions/systems/geometry_system.hpp"
 #include "../declarations/color_system.hpp"
 #include "../declarations/shader_system.hpp"
 #include "../geometry/quad.hpp"
@@ -103,6 +105,23 @@ struct BoneFootProjectile : public dynamic::DynamicObject {
         }
     }
 
+    void snap_below_collider(ecs::Entity* collider_entity) {
+        if (!collider_entity) {
+            return;
+        }
+        auto* transform = get_entity()->get<transform::NoRotationTransform>();
+        if (!transform) {
+            return;
+        }
+        geometry::BoundingBox collider_bb = geometry::get_bounding_box(collider_entity);
+        glm::vec2 min_bound = collider_bb.get_min();
+        glm::vec2 max_bound = collider_bb.get_max();
+        float new_center_y = min_bound.y - transform->scale_.y - bounce_clearance;
+        transform->pos.y = new_center_y;
+        float center_x = (min_bound.x + max_bound.x) * 0.5f;
+        transform->pos.x = center_x;
+    }
+
     void start_return() {
         if (state == ProjectileState::Idle) {
             return;
@@ -143,6 +162,7 @@ struct BoneFootProjectile : public dynamic::DynamicObject {
         if (state != ProjectileState::Outbound) {
             return;
         }
+        snap_below_collider(mushroom);
         levels::on_mushroom_sorted(mushroom);
         start_return();
     }
@@ -153,6 +173,7 @@ struct BoneFootProjectile : public dynamic::DynamicObject {
     glm::vec2 origin{0.0f, 0.0f};
     glm::vec2 direction{0.0f, 1.0f};
     ProjectileState state = ProjectileState::Idle;
+    float bounce_clearance = 0.015f;
 };
 
 BoneFootProjectile projectile_logic;
@@ -220,13 +241,14 @@ void init() {
                         .set_parent(&player)
                         .bind();
 
-    projectile_transform.scale(glm::vec2(0.025f, 0.25f));
+    projectile_transform.scale(glm::vec2(0.035f, 0.105f));
     projectile_transform.pos = player_transform.get_pos() + glm::vec2(0.0f, 0.25f);
 
     auto projectile_layer = arena::create<layers::ConstLayer>(6);
     auto projectile_program = arena::create<shaders::ProgramArgumentObject>(&shaders::static_object_program);
     auto projectile_model = arena::create<shaders::ModelMatrix>();
-    auto projectile_color = arena::create<color::OneColor>(glm::vec4(0.95f, 0.95f, 0.95f, 1.0f));
+    auto projectile_color = arena::create<color::OneColor>(glm::vec4(1.0f));
+    auto projectile_texture = arena::create<texture::OneTextureObject>("bullet");
 
     projectile_entity.add(&geometry::quad)
                      .add(projectile_layer)
@@ -234,6 +256,7 @@ void init() {
                      .add(&projectile_transform)
                      .add(projectile_model)
                      .add(projectile_color)
+                     .add(projectile_texture)
                      .add(&projectile_hidden)
                      .add(&projectile_logic)
                      .add(&projectile_trigger)

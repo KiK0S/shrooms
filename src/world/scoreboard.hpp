@@ -1,14 +1,13 @@
 #pragma once
 
-#include "../definitions/components/text_object.hpp"
 #include "../definitions/components/transform_object.hpp"
 #include "../definitions/components/shader_object.hpp"
 #include "../definitions/components/textured_object.hpp"
 #include "../definitions/components/layered_object.hpp"
 #include "../definitions/systems/scene_system.hpp"
-#include "../declarations/text_system.hpp"
 #include "../declarations/color_system.hpp"
 #include "../definitions/components/configurable_object.hpp"
+#include "../geometry/quad.hpp"
 #include <unordered_map>
 #include <vector>
 #include <string>
@@ -17,12 +16,13 @@
 namespace scoreboard {
 
 struct Config {
-    glm::vec2 icon_scale = glm::vec2(0.05f, 0.05f);
-    glm::vec2 score_scale = glm::vec2(0.1f, 0.05f);
-    glm::vec2 base_icon_position = glm::vec2(0.6f, 0.37f);
-    glm::vec2 base_score_position = glm::vec2(0.75f, 0.35f);
-    float vertical_spacing_1 = 0.10f;
-    float vertical_spacing_2 = 0.10f;
+    glm::vec2 icon_scale = glm::vec2(0.03f, 0.02f);
+    glm::vec2 score_scale = glm::vec2(0.035f, 0.02f);
+    glm::vec2 base_icon_position = glm::vec2(0.55f, 0.45f);
+    glm::vec2 base_score_position = glm::vec2(0.72f, 0.43f);
+    float vertical_spacing_1 = 0.08f;
+    float vertical_spacing_2 = 0.08f;
+    float char_spacing = 0.08f;
 } config;
 
 struct Entry {
@@ -30,8 +30,8 @@ struct Entry {
     int current = 0;
     int target = 0;
     ecs::Entity* icon = nullptr;
-    ecs::Entity* text_entity = nullptr;
-    text::TextObject* text_object = nullptr;
+    size_t row_index = 0;
+    std::vector<ecs::Entity*> digits;
 };
 
 std::vector<Entry> entries;
@@ -44,17 +44,23 @@ config::Vec2Parameter icon_pos_param("Icon Base Position", &config.base_icon_pos
 config::Vec2Parameter score_pos_param("Score Base Position", &config.base_score_position, glm::vec2(0.6f, 0.3f), glm::vec2(0.9f, 0.8f));
 config::FloatParameter spacing_param("Vertical Spacing", &config.vertical_spacing_1, 0.07f, 0.13f);
 config::FloatParameter spacing_param_2("Vertical Spacing 2", &config.vertical_spacing_2, 0.07f, 0.13f);
+config::FloatParameter char_spacing_param("Character Spacing", &config.char_spacing, 0.01f, 0.12f);
+
+void destroy_digits(Entry& entry) {
+    for (auto* digit : entry.digits) {
+        if (digit) {
+            digit->mark_deleted();
+        }
+    }
+    entry.digits.clear();
+}
 
 void destroy_entry(Entry& entry) {
     if (entry.icon) {
         entry.icon->mark_deleted();
         entry.icon = nullptr;
     }
-    if (entry.text_entity) {
-        entry.text_entity->mark_deleted();
-        entry.text_entity = nullptr;
-    }
-    entry.text_object = nullptr;
+    destroy_digits(entry);
 }
 
 void clear_entries() {
@@ -65,33 +71,63 @@ void clear_entries() {
     entry_index.clear();
 }
 
-void update_entry_text(Entry& entry) {
-    if (!entry.text_entity) return;
-    if (entry.text_object) {
-        entry.text_entity->detach(entry.text_object);
+std::string texture_name_for_char(char ch) {
+    if (ch >= '0' && ch <= '9') {
+        return std::string("digits_") + ch;
     }
-    auto geom = entry.text_entity->get<text::TextGeometry>();
-    if (geom) {
-        entry.text_entity->detach(geom);
+    if (ch == '/') {
+        return "slash";
     }
-    std::string formatted = entry.name + ": " + std::to_string(entry.current) + "/" + std::to_string(entry.target);
-    entry.text_object = arena::create<text::TextObject>(formatted);
-    entry.text_entity->add(entry.text_object);
-    text::text_loader.init(entry.text_object);
+    return "digits_0";
+}
+
+glm::vec2 score_base_position(size_t row_index) {
+    return config.base_score_position + glm::vec2(0.0f, config.vertical_spacing_2 * static_cast<float>(row_index));
+}
+
+void update_entry_digits(Entry& entry) {
+    destroy_digits(entry);
+    std::string formatted = std::to_string(entry.current) + "/" + std::to_string(entry.target);
+    if (formatted.empty()) {
+        return;
+    }
+
+    glm::vec2 base_center = score_base_position(entry.row_index);
+    float char_width = config.score_scale.x * 2.0f;
+    float total_width = char_width * static_cast<float>(formatted.size());
+    if (formatted.size() > 1) {
+        total_width += config.char_spacing * static_cast<float>(formatted.size() - 1);
+    }
+    float start_x = base_center.x - total_width * 0.5f;
+
+    for (size_t i = 0; i < formatted.size(); ++i) {
+        std::string texture_name = texture_name_for_char(formatted[i]);
+        auto digit_entity = arena::create<ecs::Entity>();
+        digit_entity->add(&geometry::quad);
+        digit_entity->add(arena::create<layers::ConstLayer>(5));
+        digit_entity->add(arena::create<shaders::ProgramArgumentObject>(&shaders::static_object_program));
+        auto transform = arena::create<transform::NoRotationTransform>();
+        transform->scale(config.score_scale);
+        float center_x = start_x + (char_width * 0.5f) + static_cast<float>(i) * (char_width + config.char_spacing);
+        transform->translate(glm::vec2(center_x, base_center.y));
+        digit_entity->add(transform);
+        digit_entity->add(arena::create<shaders::ModelMatrix>());
+        digit_entity->add(arena::create<texture::OneTextureObject>(texture_name));
+        digit_entity->add(&color::white);
+        digit_entity->add(arena::create<scene::SceneObject>("main"));
+        digit_entity->bind();
+        entry.digits.push_back(digit_entity);
+    }
 }
 
 void create_entry_visuals(Entry& entry, size_t index) {
     auto transform_icon = arena::create<transform::NoRotationTransform>();
-    auto transform_score = arena::create<transform::NoRotationTransform>();
 
     transform_icon->scale(config.icon_scale);
-    transform_score->scale(config.score_scale);
 
     glm::vec2 icon_position = config.base_icon_position + glm::vec2(0.0f, config.vertical_spacing_1 * static_cast<float>(index));
-    glm::vec2 score_position = config.base_score_position + glm::vec2(0.0f, config.vertical_spacing_2 * static_cast<float>(index));
 
     transform_icon->translate(icon_position);
-    transform_score->translate(score_position);
 
     entry.icon = arena::create<ecs::Entity>();
     entry.icon->add(&geometry::quad);
@@ -103,16 +139,8 @@ void create_entry_visuals(Entry& entry, size_t index) {
     entry.icon->add(arena::create<scene::SceneObject>("main"));
     entry.icon->bind();
 
-    entry.text_entity = arena::create<ecs::Entity>();
-    entry.text_entity->add(arena::create<shaders::ProgramArgumentObject>(&shaders::static_object_program));
-    entry.text_entity->add(transform_score);
-    entry.text_entity->add(arena::create<shaders::ModelMatrix>());
-    entry.text_entity->add(arena::create<layers::ConstLayer>(5));
-    entry.text_entity->add(arena::create<scene::SceneObject>("main"));
-    entry.text_entity->add(&color::white);
-    entry.text_entity->add(text::text_texture);
-    entry.text_entity->bind();
-    update_entry_text(entry);
+    entry.row_index = index;
+    update_entry_digits(entry);
 }
 
 void rebuild_entries() {
@@ -144,7 +172,7 @@ void update_score(const std::string& name, int new_score, int target) {
     auto& entry = entries[it->second];
     entry.current = new_score;
     entry.target = target;
-    update_entry_text(entry);
+    update_entry_digits(entry);
 }
 
 void init() {

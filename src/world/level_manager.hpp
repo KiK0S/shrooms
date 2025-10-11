@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cmath>
+#include <chrono>
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -10,13 +13,185 @@
 #include <utility>
 #include <vector>
 
+#include <glm/glm.hpp>
+#include "../definitions/components/dynamic_object.hpp"
 #include "../definitions/components/init_object.hpp"
+#include "../definitions/components/layered_object.hpp"
 #include "../definitions/components/periodic_spawner_object.hpp"
 #include "../definitions/components/scene_object.hpp"
+#include "../definitions/components/shader_object.hpp"
+#include "../definitions/components/transform_object.hpp"
 #include "../definitions/systems/level_loader_system.hpp"
 #include "../definitions/components/textured_object.hpp"
+#include "../declarations/color_system.hpp"
+#include "../declarations/shader_system.hpp"
+#include "../geometry/quad.hpp"
 #include "../utils/file_system.hpp"
+#include "../utils/random.hpp"
 #include "scoreboard.hpp"
+
+namespace {
+
+using Clock = std::chrono::steady_clock;
+
+float ease_out(float t) {
+    return t * t * (3.0f - 2.0f * t);
+}
+
+glm::vec2 random_direction() {
+    glm::vec2 dir(static_cast<float>(rnd::get_double(-1.0, 1.0)),
+                  static_cast<float>(rnd::get_double(-1.0, 1.0)));
+    if (glm::length(dir) < 0.001f) {
+        dir = glm::vec2(1.0f, 0.0f);
+    }
+    return glm::normalize(dir);
+}
+
+struct SpawnAnimation : public dynamic::DynamicObject {
+    explicit SpawnAnimation(transform::NoRotationTransform* transform)
+        : dynamic::DynamicObject(5), transform(transform) {}
+
+    void update() override {
+        if (!transform || finished) {
+            return;
+        }
+        if (!initialized) {
+            start_time = Clock::now();
+            target_scale = transform->scale_;
+            transform->scale_ = target_scale * 0.05f;
+            jitter_direction = random_direction();
+            initialized = true;
+        }
+
+        auto now = Clock::now();
+        float elapsed = std::chrono::duration<float>(now - start_time).count();
+        float t = std::min(elapsed / duration, 1.0f);
+        float eased = ease_out(t);
+
+        transform->scale_ = target_scale * eased;
+
+        glm::vec2 desired_jitter = jitter_direction * std::sin(elapsed * jitter_frequency) * (1.0f - eased) * jitter_amplitude;
+        transform->pos += desired_jitter - last_jitter;
+        last_jitter = desired_jitter;
+
+        if (t >= 1.0f) {
+            transform->scale_ = target_scale;
+            transform->pos -= last_jitter;
+            last_jitter = glm::vec2(0.0f);
+            finished = true;
+        }
+    }
+
+    transform::NoRotationTransform* transform = nullptr;
+    glm::vec2 target_scale{1.0f};
+    glm::vec2 last_jitter{0.0f};
+    glm::vec2 jitter_direction{1.0f, 0.0f};
+    Clock::time_point start_time{};
+    bool initialized = false;
+    bool finished = false;
+    const float duration = 0.35f;
+    const float jitter_amplitude = 0.08f;
+    const float jitter_frequency = 18.0f;
+};
+
+struct ExplosionEffect : public dynamic::DynamicObject {
+    ExplosionEffect(transform::NoRotationTransform* transform, glm::vec2 peak_scale, glm::vec2 jitter_base)
+        : dynamic::DynamicObject(15), transform(transform), peak_scale(peak_scale), jitter_base(jitter_base) {}
+
+    void update() override {
+        if (!transform) {
+            return;
+        }
+        auto* entity = transform->get_entity();
+        if (!entity) {
+            transform = nullptr;
+            return;
+        }
+
+        auto now = Clock::now();
+        if (!initialized) {
+            start_time = now;
+            transform->scale_ = peak_scale * 0.2f;
+            initialized = true;
+        }
+
+        float elapsed = std::chrono::duration<float>(now - start_time).count();
+        if (elapsed >= total_duration) {
+            entity->mark_deleted();
+            transform = nullptr;
+            return;
+        }
+
+        float scale_factor = 0.0f;
+        if (elapsed <= growth_duration) {
+            float t = std::min(elapsed / growth_duration, 1.0f);
+            scale_factor = ease_out(t);
+        } else {
+            float t = std::min((elapsed - growth_duration) / (total_duration - growth_duration), 1.0f);
+            scale_factor = 1.0f - (t * t);
+        }
+        scale_factor = std::max(scale_factor, 0.0f);
+        transform->scale_ = peak_scale * scale_factor;
+
+        glm::vec2 desired_jitter = jitter_base * std::sin(elapsed * jitter_frequency);
+        transform->pos += desired_jitter - last_jitter;
+        last_jitter = desired_jitter;
+    }
+
+    transform::NoRotationTransform* transform = nullptr;
+    glm::vec2 peak_scale{1.0f};
+    glm::vec2 jitter_base{0.0f};
+    glm::vec2 last_jitter{0.0f};
+    bool initialized = false;
+    Clock::time_point start_time{};
+    const float growth_duration = 0.12f;
+    const float total_duration = 0.4f;
+    const float jitter_frequency = 22.0f;
+};
+
+transform::NoRotationTransform* extract_transform(ecs::Entity* entity) {
+    if (!entity) {
+        return nullptr;
+    }
+    if (auto* transform = entity->get<transform::LocalRotationTransform>()) {
+        return transform;
+    }
+    return entity->get<transform::NoRotationTransform>();
+}
+
+void attach_spawn_animation(ecs::Entity* entity) {
+    if (auto* transform = extract_transform(entity)) {
+        auto animation = arena::create<SpawnAnimation>(transform);
+        entity->add(animation);
+    }
+}
+
+void spawn_explosion_effect(const glm::vec2& position, const glm::vec2& base_scale, bool red_tint) {
+    auto explosion_entity = arena::create<ecs::Entity>();
+    explosion_entity->add(&geometry::quad);
+    explosion_entity->add(arena::create<layers::ConstLayer>(6));
+    explosion_entity->add(arena::create<shaders::ProgramArgumentObject>(&shaders::static_object_program));
+
+    auto transform = arena::create<transform::NoRotationTransform>();
+    transform->translate(position);
+    transform->scale(glm::vec2(0.001f));
+    explosion_entity->add(transform);
+
+    explosion_entity->add(arena::create<shaders::ModelMatrix>());
+    explosion_entity->add(arena::create<texture::OneTextureObject>("explosion"));
+    if (red_tint) {
+        explosion_entity->add(arena::create<color::OneColor>(glm::vec4(1.0f, 0.25f, 0.25f, 1.0f)));
+    } else {
+        explosion_entity->add(&color::white);
+    }
+    explosion_entity->add(arena::create<scene::SceneObject>("main"));
+
+    auto effect = arena::create<ExplosionEffect>(transform, base_scale * 1.4f, random_direction() * 0.05f);
+    explosion_entity->add(effect);
+    explosion_entity->bind();
+}
+
+} // namespace
 
 namespace levels {
 
@@ -126,6 +301,7 @@ void check_completion();
 void on_mushroom_spawned(const std::string& type, ecs::Entity* entity) {
     if (!current_level()) return;
     active_entities[type].insert(entity);
+    attach_spawn_animation(entity);
 }
 
 void on_mushroom_caught(const std::string& type, ecs::Entity* entity) {
@@ -155,6 +331,11 @@ void on_mushroom_missed(const std::string& type, ecs::Entity* entity) {
     if (active_it != active_entities.end()) {
         active_it->second.erase(entity);
     }
+    if (auto* transform = extract_transform(entity)) {
+        glm::vec2 pos = transform->pos;
+        glm::vec2 scale(std::max(transform->scale_.x, 0.06f), std::max(transform->scale_.y, 0.06f));
+        spawn_explosion_effect(pos, scale, true);
+    }
     check_completion();
 }
 
@@ -171,6 +352,11 @@ void on_mushroom_sorted(ecs::Entity* entity) {
         active_it->second.erase(entity);
     }
     sorted_counts[type] += 1;
+    if (auto* transform = extract_transform(entity)) {
+        glm::vec2 pos = transform->pos;
+        glm::vec2 scale(std::max(transform->scale_.x, 0.06f), std::max(transform->scale_.y, 0.06f));
+        spawn_explosion_effect(pos, scale, false);
+    }
     entity->mark_deleted();
     check_completion();
 }

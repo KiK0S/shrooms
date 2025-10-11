@@ -36,7 +36,7 @@ struct KeyboardMovement : public dynamic::DynamicObject {
             d.x += 0.01;
         }
 
-        d += touchscreen::joystick_update.joystick_info;
+        d.x += touchscreen::joystick_update.joystick_info.x;
 
         double len = glm::length(d);
         if (len == 0) {

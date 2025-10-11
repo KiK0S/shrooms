@@ -4,6 +4,7 @@
 #include <GL/glew.h>
 #include <map>
 #include <string>
+#include <utility>
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #include "../../utils/file_system.hpp"
@@ -50,13 +51,21 @@ GLuint get_texture_impl(std::string path) {
 }
 
 struct OneTextureObject: public TexturedObject {
-	OneTextureObject(std::string name): TexturedObject(), name(name) {}
+	OneTextureObject(std::string name): TexturedObject(), name(std::move(name)) {}
 	virtual ~OneTextureObject() {
 		Component::component_count--;
 	}
 	GLuint get_texture() {
-		return get_texture_impl(file::asset(name + ".png"));
+		return get_texture_impl(file::asset(resolved_name()));
 	}
+private:
+	std::string resolved_name() const {
+		if (name.find('.') != std::string::npos) {
+			return name;
+		}
+		return name + ".png";
+	}
+public:
 	std::string name;
 };
 

@@ -21,6 +21,7 @@
 #include <array>
 #include <algorithm>
 #include <limits>
+#include <optional>
 #include <string>
 
 namespace menu {
@@ -112,16 +113,16 @@ void refresh_status_line() {
 void refresh_instruction_line() {
     size_t count = available_levels();
     if (count == 0) {
-        update_text(instruction_line, "No levels available yet. Use keyboard to navigate; mouse is ignored.");
+        update_text(instruction_line, "No levels available yet. Use keyboard to navigate; tap/click is unavailable.");
         return;
     }
     std::string suffix = count == MAX_LEVEL_LINES && levels::parsed_levels.size() > MAX_LEVEL_LINES
         ? " (first 10 shown)"
         : "";
     if (count == 1) {
-        update_text(instruction_line, "Use number key 1 to start the level" + suffix + ". Mouse input is ignored.");
+        update_text(instruction_line, "Use number key 1 or tap/click the entry to start the level" + suffix + ".");
     } else {
-        update_text(instruction_line, "Use number keys 1-" + std::to_string(count) + " to start" + suffix + ". Mouse input is ignored.");
+        update_text(instruction_line, "Use number keys 1-" + std::to_string(count) + " or tap/click a level to start" + suffix + ".");
     }
 }
 
@@ -134,6 +135,45 @@ void refresh_level_lines() {
             update_text(level_lines[i], "");
         }
     }
+}
+
+std::optional<size_t> level_index_at_point(const glm::vec2& point) {
+    size_t count = active_level_lines;
+    for (size_t i = 0; i < count; ++i) {
+        const auto& line = level_lines[i];
+        const glm::vec2 center = line.transform.pos;
+        const glm::vec2 half_size = line.transform.scale_;
+        if (point.x < center.x - half_size.x || point.x > center.x + half_size.x) {
+            continue;
+        }
+        if (point.y < center.y - half_size.y || point.y > center.y + half_size.y) {
+            continue;
+        }
+        return i;
+    }
+    return std::nullopt;
+}
+
+std::optional<glm::vec2> normalized_from_mouse(const SDL_MouseButtonEvent& button) {
+    SDL_Window* window = SDL_GetWindowFromID(button.windowID);
+    if (!window) {
+        return std::nullopt;
+    }
+    int width = 0;
+    int height = 0;
+    SDL_GetWindowSize(window, &width, &height);
+    if (width <= 0 || height <= 0) {
+        return std::nullopt;
+    }
+    float norm_x = (static_cast<float>(button.x) / static_cast<float>(width)) * 2.0f - 1.0f;
+    float norm_y = 1.0f - (static_cast<float>(button.y) / static_cast<float>(height)) * 2.0f;
+    return glm::vec2(norm_x, norm_y);
+}
+
+glm::vec2 normalized_from_touch(const SDL_TouchFingerEvent& finger) {
+    float norm_x = static_cast<float>(finger.x) * 2.0f - 1.0f;
+    float norm_y = 1.0f - static_cast<float>(finger.y) * 2.0f;
+    return glm::vec2(norm_x, norm_y);
 }
 
 void handle_level_selection(size_t index) {
@@ -210,6 +250,46 @@ void MenuController::update() {
     }
 }
 
+struct MenuPointerController : public input::ControllableObject {
+    MenuPointerController() : input::ControllableObject() {}
+
+    void handle_user_action(SDL_Event event) override {
+        if (!scene::menu.is_active) {
+            return;
+        }
+        switch (event.type) {
+        case SDL_MOUSEBUTTONDOWN: {
+            if (event.button.button != SDL_BUTTON_LEFT) {
+                return;
+            }
+            auto normalized = normalized_from_mouse(event.button);
+            if (!normalized) {
+                return;
+            }
+            try_select(*normalized);
+            break;
+        }
+        case SDL_FINGERDOWN: {
+            glm::vec2 normalized = normalized_from_touch(event.tfinger);
+            try_select(normalized);
+            break;
+        }
+        default:
+            break;
+        }
+    }
+
+  private:
+    void try_select(const glm::vec2& point) const {
+        auto index = level_index_at_point(point);
+        if (!index) {
+            return;
+        }
+        handle_level_selection(*index);
+    }
+};
+MenuPointerController pointer_controller;
+
 void init_text_line(TextLine& line, glm::vec2 position, int layer, float target_height, float min_width, float max_width) {
     auto program = arena::create<shaders::ProgramArgumentObject>(&shaders::static_object_program);
     auto model = arena::create<shaders::ModelMatrix>();
@@ -257,7 +337,7 @@ void init() {
     init_text_line(instruction_line, glm::vec2(0.0f, 0.48f), 6, 0.11f, 0.9f, 1.8f);
     init_text_line(credits_line, glm::vec2(0.0f, -0.85f), 6, 0.095f, 0.9f, 1.8f);
 
-    update_text(credits_line, "Credits: Design by Kikos, code & menu by Codex.");
+    update_text(credits_line, "Game by KiK0S, art by deadmarla.");
 
     glm::vec2 base_position = glm::vec2(0.0f, 0.25f);
     float spacing = 0.14f;

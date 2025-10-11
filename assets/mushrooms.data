@@ -1,3 +1,16 @@
+background
+geometry
+quad
+-1 -1
+1 -1
+-1 1
+1 1
+texture
+backgound.jpg
+layer
+-1
+background
+
 sky
 geometry
 quad
@@ -6,7 +19,7 @@ quad
 -1 1
 1 1
 color
-153 204 230 255
+153 204 230 0
 layer
 0
 periodic_spawner
@@ -73,6 +86,8 @@ quad
 1 -0.65
 texture
 fire
+color
+255 255 255 0
 layer
 0
 trigger

@@ -1,8 +1,10 @@
 #pragma once
 #include <SDL2/SDL.h>
+#include <glm/glm.hpp>
 #include <iostream>
 #include <vector>
 #include <map>
+#include <unordered_map>
 #include "../components/dynamic_object.hpp"
 #include "../components/controllable_object.hpp"
 #include "../../utils/exit.hpp"
@@ -10,16 +12,18 @@
 namespace input {
 
 std::map<SDL_Scancode, bool> is_pressed;
+std::unordered_map<SDL_FingerID, glm::vec2> active_touches;
 
 bool get_button_state(SDL_Scancode key) {
 	const Uint8* state = SDL_GetKeyboardState(nullptr);
 	return state[key] || is_pressed[key];
 }
 
-glm::vec2 touch{0.0f, 0.0f};
-
 glm::vec2 get_touch() {
-	return touch;
+	if (active_touches.empty()) {
+		return glm::vec2(0.0f, 0.0f);
+	}
+	return active_touches.begin()->second;
 }
 
 struct Input: public dynamic::DynamicObject {
@@ -65,11 +69,11 @@ struct Input: public dynamic::DynamicObject {
 			case SDL_FINGERMOTION: {
 				double x = event.tfinger.x;
 				double y = event.tfinger.y;
-				touch = glm::vec2(x, y);
+				active_touches[event.tfinger.fingerId] = glm::vec2(x, y);
 				break;
 			}
 			case SDL_FINGERUP: {
-				touch = {0.0f, 0.0f};
+				active_touches.erase(event.tfinger.fingerId);
 				break;
 			}
 			case SDL_QUIT:
@@ -84,5 +88,15 @@ struct Input: public dynamic::DynamicObject {
 		}
 	}
 };
+
+
+std::vector<glm::vec2> get_touches() {
+	std::vector<glm::vec2> touches;
+	touches.reserve(active_touches.size());
+	for (const auto& [_, pos] : active_touches) {
+		touches.push_back(pos);
+	}
+	return touches;
+}
 
 }
