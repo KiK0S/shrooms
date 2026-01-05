@@ -34,7 +34,7 @@ struct TextSystem: public init::UnInitializedObject {
 		std::cerr << "init text system\n";
 		atlas = texture_atlas_new( 512, 512, 4 );
 		std::string filename = file::asset("Vera.ttf");
-		char * text = "abcdefghijklmnopqrstuvwxyz 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ:;.,!?/";
+		char * text = "abcdefghijklmnopqrstuvwxyz 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ:;.,!?/-";
 		int font_idx = 0;
 		std::cerr << filename << '\n';
 		font = texture_font_new_from_file( atlas, 80, filename.c_str() );
@@ -64,14 +64,14 @@ struct TextSystem: public init::UnInitializedObject {
 						kerning = texture_glyph_get_kerning( glyph, &text[i - 1] );
 				}
 				pen.x += kerning;
-			float x0  = pen.x + glyph->offset_x;
-			float y0  = pen.y + glyph->offset_y;
-			float x1  = x0 + glyph->width;
-			float y1  = y0 - glyph->height;
+				float x0  = pen.x + glyph->offset_x;
+				float y0 = pen.y - glyph->offset_y;   // top of glyph
+				float x1  = x0 + glyph->width;
+				float y1 = (pen.y + glyph->height - glyph->offset_y); // bottom of glyph
 				min_x = std::min(min_x, x0);
 				max_x = std::max(max_x, x1);
-				min_y = std::min(min_y, y1);
-				max_y = std::max(max_y, y0);
+				min_y = std::min(min_y, y0);
+				max_y = std::max(max_y, y1);
 				has_geometry = true;
 				float s0 = glyph->s0;
 				float t0 = glyph->t0;
@@ -81,20 +81,22 @@ struct TextSystem: public init::UnInitializedObject {
 						  << "Position: (" << x0 << "," << y0 << ") -> (" << x1 << "," << y1 << ")\n"
 						  << "UV: (" << s0 << "," << t0 << ") -> (" << s1 << "," << t1 << ")\n"
 						  << "Width: " << glyph->width << " Height: " << glyph->height << "\n"
+						  << "Advances: " << glyph->advance_x << ", " << glyph->advance_y << "\n"
 						  << "Offsets: " << glyph->offset_x << "," << glyph->offset_y);
-			geom->pos.push_back({x0, y0});
-			geom->uv.push_back({s0, t1});
-			geom->pos.push_back({x0, y1});
-			geom->uv.push_back({s0, t0});
-			geom->pos.push_back({x1, y0});
-			geom->uv.push_back({s1, t1});
-			geom->pos.push_back({x1, y0});
-			geom->uv.push_back({s1, t1});
-			geom->pos.push_back({x0, y1});
-			geom->uv.push_back({s0, t0});
-			geom->pos.push_back({x1, y1});
-			geom->uv.push_back({s1, t0});
+				geom->pos.push_back({x0, y0});
+				geom->uv.push_back({s0, t0});
+				geom->pos.push_back({x0, y1});
+				geom->uv.push_back({s0, t1});
+				geom->pos.push_back({x1, y0});
+				geom->uv.push_back({s1, t0});
+				geom->pos.push_back({x1, y0});
+				geom->uv.push_back({s1, t0});
+				geom->pos.push_back({x0, y1});
+				geom->uv.push_back({s0, t1});
+				geom->pos.push_back({x1, y1});
+				geom->uv.push_back({s1, t1});
 				pen.x += glyph->advance_x;
+				pen.y += glyph->advance_y;
 			}
 		}
 
@@ -105,22 +107,16 @@ struct TextSystem: public init::UnInitializedObject {
 			max_y = 1.0f;
 		}
 
-			float width = max_x - min_x;
-			float height = max_y - min_y;
-			if (width <= 0.0f) {
-				width = 1.0f;
-			}
-			if (height <= 0.0f) {
-				height = 1.0f;
-			}
+		float width = max_x - min_x;
+		float height = max_y - min_y;
 
-			for (auto& v : geom->pos) {
-				v.x = ((v.x - min_x) / width) * 2.0f - 1.0f;
-				v.y = ((max_y - v.y) / height) * 2.0f - 1.0f;
-			}
+		for (auto& v : geom->pos) {
+			v.x = ((v.x - min_x) / width) * 2.0f - 1.0f;
+			v.y = ((max_y - v.y) / height) * 2.0f - 1.0f;
+		}
 
-			geom->logical_width = width;
-			geom->logical_height = height;
+		geom->logical_width = width;
+		geom->logical_height = height;
 		LOG_IF(logger::enable_text_system_logging, "add to frame new geom");
 		render_system::add_to_frame(geom);
 		geometries[text] = geom;

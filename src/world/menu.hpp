@@ -69,7 +69,7 @@ void update_text(TextLine& line, const std::string& value) {
     line.entity.add(line.text_object);
     text::text_loader.init(line.text_object);
     if (auto* geom = line.entity.get<text::TextGeometry>()) {
-        float logical_height = std::max(geom->logical_height, 1.0f);
+        float logical_height = std::max(geom->logical_height, 0.000000000001f);
         float aspect = geom->logical_width / logical_height;
         if (aspect <= 0.0f) {
             aspect = 1.0f;
@@ -334,15 +334,15 @@ void init() {
                     .bind();
 
     init_text_line(status_line, glm::vec2(0.0f, 0.65f), 6, 0.12f, 0.9f, 1.8f);
-    init_text_line(instruction_line, glm::vec2(0.0f, 0.48f), 6, 0.11f, 0.9f, 1.8f);
+    init_text_line(instruction_line, glm::vec2(0.0f, 0.48f), 6, 0.11f, 0.1f, 1.8f);
     init_text_line(credits_line, glm::vec2(0.0f, -0.85f), 6, 0.095f, 0.9f, 1.8f);
 
     update_text(credits_line, "Game by KiK0S, art by deadmarla.");
 
-    glm::vec2 base_position = glm::vec2(0.0f, 0.25f);
-    float spacing = 0.14f;
+    glm::vec2 base_position = glm::vec2(-0.4f, 0.25f);
+    float spacing = 0.16f;
     for (size_t i = 0; i < MAX_LEVEL_LINES; ++i) {
-        init_level_line(i, base_position, spacing, 6, 0.11f, 0.8f, 1.6f);
+        init_level_line(i, base_position, spacing, 6, 0.08f, 0.1f, 1.0f);
     }
 
     refresh_status_line();
