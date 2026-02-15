@@ -113,6 +113,7 @@ inline hidden::HiddenObject* pause_toggle_icon_hidden = nullptr;
 
 inline hidden::HiddenObject* overlay_hidden = nullptr;
 inline hidden::HiddenObject* menu_hidden = nullptr;
+inline bool pause_menu_open = false;
 
 inline engine::UIColor pause_toggle_base_color{0.15f, 0.15f, 0.15f, 0.92f};
 inline engine::UIColor pause_toggle_hover_color{0.22f, 0.22f, 0.22f, 0.98f};
@@ -156,6 +157,7 @@ inline void set_action_visibility(ActionLine& action, bool visible) {
 }
 
 inline void set_pause_menu_visible(bool visible) {
+  pause_menu_open = visible;
   // Keep the pause card hidden: pause actions now follow the plain list style.
   if (menu_hidden) menu_hidden->hide();
   for (auto& action : action_lines) {
@@ -368,6 +370,9 @@ struct PauseMenuController : public dynamic::DynamicObject {
 
     set_pause_toggle_visible(false);
     apply_pause_toggle_hover(false);
+    if (!pause_menu_open) {
+      return;
+    }
 
     std::optional<size_t> hovered_index;
     if (last_pointer) {
