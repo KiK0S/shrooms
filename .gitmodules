@@ -1,12 +1,6 @@
-[submodule "3rd-party/freetype-gl"]
-	path = 3rd-party/freetype-gl
-	url = git@github.com:rougier/freetype-gl.git
 [submodule "3rd-party/glm"]
 	path = 3rd-party/glm
 	url = git@github.com:g-truc/glm.git
-[submodule "3rd-party/delaunay-cpp"]
-	path = 3rd-party/delaunay-cpp
-	url = git@github.com:jbegaint/delaunay-cpp.git
-[submodule "3rd-party/imgui"]
-	path = 3rd-party/imgui
-	url = git@github.com:ocornut/imgui.git
+[submodule "3rd-party/engine"]
+	path = 3rd-party/engine
+	url = git@github.com:KiK0S/engine-wip.git

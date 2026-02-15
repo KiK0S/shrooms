@@ -1,20 +1,36 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.20)
 
-set (CMAKE_CXX_STANDARD 17)
+project(shrooms LANGUAGES CXX)
 
-project(LostNFound VERSION 0.0.0)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
-if (EMSCRIPTEN)
-	set(CMAKE_CXX_FLAGS  "-s USE_SDL=2 -s USE_ZLIB=1 -s USE_FREETYPE=1")	
-	add_compile_options("-Wno-implicit-function-declaration")	
+option(SHROOMS_ASAN "Enable AddressSanitizer" OFF)
+
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
+endif()
+
+if(SHROOMS_ASAN)
+  add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
+  add_link_options(-fsanitize=address)
+endif()
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+  set(ENGINE_PLATFORM "web")
+  message(STATUS "Configuring for Web (Emscripten)")
+else()
+  set(ENGINE_PLATFORM "native")
+  message(STATUS "Configuring for native platform")
 endif()
 
 include(FetchContent)
 
 FetchContent_Declare(
-    stb_image
-    URL "https://raw.githubusercontent.com/nothings/stb/master/stb_image.h"
-    DOWNLOAD_NO_EXTRACT True
+  stb_image
+  URL "https://raw.githubusercontent.com/nothings/stb/master/stb_image.h"
+  DOWNLOAD_NO_EXTRACT TRUE
 )
 
 FetchContent_MakeAvailable(stb_image)
@@ -22,83 +38,56 @@ FetchContent_MakeAvailable(stb_image)
 add_library(stb_image INTERFACE)
 target_include_directories(stb_image INTERFACE ${stb_image_SOURCE_DIR})
 
-set(GLM_DIR "${CMAKE_SOURCE_DIR}/3rd-party/glm")
-add_subdirectory(${GLM_DIR})
-include_directories(${GLM_DIR})
+# Engine headers include both glm/... and glm/glm/... forms.
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rd-party)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/3rd-party/glm)
 
-set(DELAUNAY_DIR "${CMAKE_SOURCE_DIR}/3rd-party/delaunay-cpp")
-include_directories(${DELAUNAY_DIR})
+add_subdirectory(3rd-party/engine/libs/core)
+add_subdirectory(3rd-party/engine/libs/ui)
+add_subdirectory(3rd-party/engine/libs/render)
+add_subdirectory(3rd-party/engine/libs/platform)
 
-set(FREETYPE_INCLUDE_DIRS /usr/include/freetype2)
-set(FREETYPE_LIBRARY /usr/lib/x86_64-linux-gnu/libfreetype.so)
-set(freetype-gl_BUILD_APIDOC OFF CACHE BOOL "" FORCE)
-set(freetype-gl_BUILD_DEMOS OFF CACHE BOOL "" FORCE)
-set(freetype-gl_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(freetype-gl_OFF_SCREEN ON CACHE BOOL "" FORCE)
-set(freetype-gl_WITH_GLEW OFF CACHE BOOL "" FORCE)
-set(freetype-gl_WITH_GLEW_DEFAULT OFF CACHE BOOL "" FORCE)
-set(freetype-gl_BUILD_MAKEFONT OFF CACHE BOOL "" FORCE)
-add_subdirectory(${CMAKE_SOURCE_DIR}/3rd-party/freetype-gl)
-
-set(IMGUI_DIR "${CMAKE_SOURCE_DIR}/3rd-party/imgui")
-include_directories(${IMGUI_DIR})
-
-# Add ImGui source files
-set(IMGUI_SOURCES
-    ${IMGUI_DIR}/imgui.cpp
-    ${IMGUI_DIR}/imgui_demo.cpp
-    ${IMGUI_DIR}/imgui_draw.cpp
-    ${IMGUI_DIR}/imgui_tables.cpp
-    ${IMGUI_DIR}/imgui_widgets.cpp
-    ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
-    ${IMGUI_DIR}/backends/imgui_impl_sdl2.cpp
-)
-add_compile_options("-DIMGUI_IMPL_OPENGL_ES3")
-add_library(imgui STATIC ${IMGUI_SOURCES})
-
-include_directories(${CMAKE_SOURCE_DIR}/3rd-party)
-include_directories(${PROJECT_BINARY_DIR}/3rd-party/freetype-gl)
-include_directories(/usr/include/freetype2  -I/usr/local/include/freetype2  -I/usr/include/libpng16)
-
-set(EXE_SOURCES
-	src/main.cpp
-	3rd-party/freetype-gl/texture-atlas.c
-	3rd-party/freetype-gl/texture-font.c
-	3rd-party/freetype-gl/ftgl-utils.c
-	3rd-party/freetype-gl/utf8-utils.c
-	3rd-party/freetype-gl/distance-field.c
-	3rd-party/freetype-gl/edtaa3func.c
-	3rd-party/freetype-gl/vector.c
+add_executable(shrooms
+  apps/shrooms_demo/main.cpp
+  apps/shrooms_demo/shrooms_app.cpp
 )
 
-add_executable(LostNFound ${EXE_SOURCES})
+target_link_libraries(shrooms
+  PRIVATE
+    engine_core
+    engine_render
+    engine_webgl
+    engine_platform
+)
 
-include_directories(${CMAKE_SOURCE_DIR}/src)
+target_include_directories(shrooms PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/3rd-party/engine/libs
+  ${CMAKE_CURRENT_SOURCE_DIR}/apps/shrooms_demo
+)
 
-if (EMSCRIPTEN)
-    set(SDL2_LIBRARIES "")
+target_compile_features(shrooms PRIVATE cxx_std_20)
+
+add_custom_command(TARGET shrooms POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy_directory
+  ${CMAKE_CURRENT_SOURCE_DIR}/3rd-party/engine/assets
+  $<TARGET_FILE_DIR:shrooms>/assets
+)
+
+if(ENGINE_PLATFORM STREQUAL "web")
+  set_target_properties(shrooms PROPERTIES SUFFIX ".html")
+  target_link_options(shrooms PRIVATE
+    "-sWASM=1"
+    "--use-preload-plugins"
+    "-sMIN_WEBGL_VERSION=2"
+    "-sMAX_WEBGL_VERSION=2"
+    "-sUSE_WEBGL2=1"
+    "-sFULL_ES3=1"
+    "-sUSE_SDL=2"
+    "SHELL:--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/3rd-party/engine/assets@/assets"
+    "SHELL:--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/3rd-party/engine/shaders@/shaders"
+  )
 else()
-    find_package(SDL2 REQUIRED)
-    include_directories(${SDL2_INCLUDE_DIRS})
+  find_package(SDL2 REQUIRED)
+  target_link_libraries(shrooms PRIVATE SDL2::SDL2)
+  target_include_directories(shrooms PRIVATE ${SDL2_INCLUDE_DIRS})
 endif()
-
-if (EMSCRIPTEN)
-		SET(CMAKE_EXE_LINKER_FLAGS "-s LLD_REPORT_UNDEFINED -sNO_DISABLE_EXCEPTION_CATCHING -s MAX_WEBGL_VERSION=2 -s MIN_WEBGL_VERSION=2 --preload-file ${PROJECT_SOURCE_DIR}/assets@/assets --preload-file ${PROJECT_SOURCE_DIR}/shaders@/shaders -sUSE_SDL=2 -sUSE_WEBGL2=1 -sWASM=1")
-		set_target_properties(LostNFound PROPERTIES RUNTIME_OUTPUT_DIRECTORY build)
-		configure_file(${PROJECT_SOURCE_DIR}/index.html ${PROJECT_BINARY_DIR}/build/index.html COPYONLY)
-else()
-		set(CMAKE_BUILD_TYPE Debug)
-		set(CMAKE_CXX_FLAGS  "-fsanitize=undefined -fsanitize=bounds -fsanitize=address")
-		find_package(GLEW REQUIRED)
-		include_directories(${GLEW_INCLUDE_DIRS})
-                target_link_libraries(LostNFound PRIVATE ${SDL2_LIBRARIES} ${GLEW_LIBRARIES} GL)
-endif()
-
-if (NOT EMSCRIPTEN)
-    target_link_libraries(LostNFound PRIVATE ${SDL2_LIBRARIES})
-endif()
-target_link_libraries(LostNFound PRIVATE stb_image)
-target_link_libraries(LostNFound PRIVATE freetype)
-target_link_libraries(LostNFound PRIVATE imgui)
-
-target_compile_options(LostNFound PRIVATE)
