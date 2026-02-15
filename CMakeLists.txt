@@ -48,8 +48,8 @@ add_subdirectory(3rd-party/engine/libs/render)
 add_subdirectory(3rd-party/engine/libs/platform)
 
 add_executable(shrooms
-  apps/shrooms_demo/main.cpp
-  apps/shrooms_demo/shrooms_app.cpp
+  src/main/main.cpp
+  src/main/shrooms_app.cpp
 )
 
 target_link_libraries(shrooms
@@ -62,7 +62,7 @@ target_link_libraries(shrooms
 
 target_include_directories(shrooms PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/3rd-party/engine/libs
-  ${CMAKE_CURRENT_SOURCE_DIR}/apps/shrooms_demo
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/main
 )
 
 target_compile_features(shrooms PRIVATE cxx_std_20)
