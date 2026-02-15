@@ -265,16 +265,11 @@ inline std::string format_level_line(size_t index) {
 }
 
 inline void refresh_status_line() {
-  update_text(status_line, "Last game: " + levels::last_game_status);
+  update_text(status_line, "");
 }
 
 inline void refresh_instruction_line() {
-  size_t count = available_levels();
-  if (count == 0) {
-    update_text(instruction_line, "No levels available yet. Press T for tutorial.");
-    return;
-  }
-  update_text(instruction_line, "Use Up/Down + Enter. Select Difficulty to switch mode.");
+  update_text(instruction_line, "");
 }
 
 inline void refresh_difficulty_line() {
@@ -398,37 +393,12 @@ inline void refresh_name_entry_lines() {
 inline void refresh_gameover_lines() {
   if (!levels::last_result_valid) return;
   const auto& result = levels::last_result;
-  if (result.infinite_mode) {
-    show_leaderboard = true;
-    update_text(gameover_title, result.success ? "Run Complete" : "Run Over");
-    update_text(gameover_level,
-                "Infinite Mode - Round " + std::to_string(result.round_index));
-    update_text(gameover_collected, "Score: " + std::to_string(result.global_score));
-    update_text(gameover_sorted, "Rounds won: " + std::to_string(result.rounds_won));
-    if (awaiting_name_entry) {
-      update_text(gameover_hint, "Press Enter to submit your name");
-    } else {
-      update_text(gameover_hint, "Use Up/Down + Enter, or press R/M.");
-    }
-    update_text(gameover_restart, "Restart");
-    update_text(gameover_main_menu, "Main Menu");
-    refresh_name_entry_lines();
-    refresh_leaderboard_lines();
-    return;
-  }
-  show_leaderboard = false;
-  awaiting_name_entry = false;
-  if (result.tutorial_mode) {
-    update_text(gameover_title, result.success ? "Tutorial Complete" : "Tutorial Failed");
-    update_text(gameover_level, "Tutorial");
-  } else {
-    update_text(gameover_title, result.success ? "Level Complete" : "Game Over");
-    update_text(gameover_level,
-                "Level " + std::to_string(result.level_index + 1) + ": " + result.level_id);
-  }
-  update_text(gameover_collected, "Collected: " + std::to_string(result.collected));
-  update_text(gameover_sorted, "Sorted: " + std::to_string(result.sorted));
-  update_text(gameover_hint, "Use Up/Down + Enter, or press R/M.");
+  show_leaderboard = true;
+  update_text(gameover_title, result.success ? "Completed" : "Not Completed");
+  update_text(gameover_level, "");
+  update_text(gameover_collected, "");
+  update_text(gameover_sorted, "");
+  update_text(gameover_hint, "");
   update_text(gameover_restart, "Restart");
   update_text(gameover_main_menu, "Main Menu");
   refresh_name_entry_lines();
@@ -441,8 +411,8 @@ inline void set_menu_mode(MenuMode mode) {
   const bool show_objective = (mode == MenuMode::Objective);
   const bool show_game_over = (mode == MenuMode::GameOver);
 
-  set_line_visibility(status_line, show_main, false);
-  set_line_visibility(instruction_line, show_main, false);
+  set_line_visibility(status_line, false, false);
+  set_line_visibility(instruction_line, false, false);
   set_line_visibility(difficulty_line, show_main, show_main);
   set_line_visibility(tutorial_line, show_main, show_main);
   set_line_visibility(credits_line, show_main, false);
@@ -460,10 +430,10 @@ inline void set_menu_mode(MenuMode mode) {
   }
 
   set_line_visibility(gameover_title, show_game_over, false);
-  set_line_visibility(gameover_level, show_game_over, false);
-  set_line_visibility(gameover_collected, show_game_over, false);
-  set_line_visibility(gameover_sorted, show_game_over, false);
-  set_line_visibility(gameover_hint, show_game_over, false);
+  set_line_visibility(gameover_level, false, false);
+  set_line_visibility(gameover_collected, false, false);
+  set_line_visibility(gameover_sorted, false, false);
+  set_line_visibility(gameover_hint, false, false);
   const bool show_restart = show_game_over && !awaiting_name_entry;
   set_line_visibility(gameover_name_prompt, show_game_over && awaiting_name_entry, false);
   set_line_visibility(gameover_name_value, show_game_over && awaiting_name_entry, false);
