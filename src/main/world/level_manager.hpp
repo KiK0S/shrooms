@@ -394,10 +394,9 @@ inline void build_infinite_spawner_cache() {
 }
 
 inline SpawnerPlan make_easy_spawner(SpawnerPlan plan, int target) {
-  plan.period = std::max(1.55f, plan.period * 1.12f);
-  plan.density = std::max(0.16, std::min(0.62, plan.density * 0.58));
-  const int spare = std::max(1, target / 3);
-  plan.total_to_spawn = target + spare;
+  plan.period = std::clamp(plan.period * 0.65f, 0.75f, 1.4f);
+  plan.density = 1.0;
+  plan.total_to_spawn = target;
   return plan;
 }
 
@@ -745,7 +744,9 @@ inline void start_level_with_definition(const LevelDefinition& level, size_t dis
     collected_counts[type] = 0;
     sorted_counts[type] = 0;
   }
-  scoreboard::init_with_targets(level.recipe_order);
+  const std::string score_task =
+      (current_difficulty == Difficulty::Easy) ? level.objective_hint : "";
+  scoreboard::init_with_targets(level.recipe_order, score_task);
   configure_spawners_for_level(level);
   seed_spawners_for_level(level, seed_index);
   for (const auto& [type, target] : level.recipe_order) {

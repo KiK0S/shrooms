@@ -46,6 +46,7 @@ struct Entry {
 inline std::vector<Entry> entries{};
 inline std::unordered_map<std::string, size_t> entry_index{};
 inline std::vector<std::pair<std::string, int>> current_recipe{};
+inline std::string objective_word{};
 inline ecs::Entity* panel = nullptr;
 inline size_t active_rows = 0;
 
@@ -90,7 +91,9 @@ inline std::string icon_texture_name(const std::string& name) {
 }
 
 inline std::string score_text_value(const Entry& entry) {
-  return std::to_string(entry.current) + "/" + std::to_string(entry.target);
+  const std::string counter = std::to_string(entry.current) + "/" + std::to_string(entry.target);
+  if (objective_word.empty()) return counter;
+  return objective_word + "\n" + counter;
 }
 
 inline void destroy_entry(Entry& entry) {
@@ -193,7 +196,9 @@ inline void rebuild_entries() {
   }
 }
 
-inline void init_with_targets(const std::vector<std::pair<std::string, int>>& recipe) {
+inline void init_with_targets(const std::vector<std::pair<std::string, int>>& recipe,
+                              std::string task_word = "") {
+  objective_word = std::move(task_word);
   current_recipe = recipe;
   rebuild_entries();
 }
@@ -210,6 +215,7 @@ inline void update_score(const std::string& name, int new_score, int target) {
 inline void init() {
   clear_entries();
   current_recipe.clear();
+  objective_word.clear();
   reset_panel();
 }
 
