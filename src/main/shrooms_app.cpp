@@ -65,12 +65,14 @@ void ShroomsLogic::on_init() {
   system_entity->add(arena::create<deferred::DeferredSystem>());
   system_entity->add(arena::create<render_system::RenderSystem>());
 
-  if (::shrooms::scenes::menu) {
-    ::shrooms::scenes::menu->activate();
-    ::shrooms::scenes::menu->set_pause(true);
-  }
-  if (::shrooms::scenes::main) {
-    ::shrooms::scenes::main->set_pause(true);
+  if (levels::level_finished) {
+    if (::shrooms::scenes::menu) {
+      ::shrooms::scenes::menu->activate();
+      ::shrooms::scenes::menu->set_pause(true);
+    }
+    if (::shrooms::scenes::main) {
+      ::shrooms::scenes::main->set_pause(true);
+    }
   }
 }
 
