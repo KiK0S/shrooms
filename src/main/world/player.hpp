@@ -666,6 +666,7 @@ inline collision::TriggerObject* make_player_trigger() {
         auto* entity = collider->get_entity();
         if (!entity || entity->is_pending_deletion()) return;
         if (vfx::is_catch_animating(entity)) return;
+        if (entity->get<CarriedMarker>()) return;
         auto* sprite = entity->get<render_system::SpriteRenderable>();
         const std::string type = sprite ? engine::resources::texture_name(sprite->texture_id) : "";
         float catch_x = std::numeric_limits<float>::quiet_NaN();

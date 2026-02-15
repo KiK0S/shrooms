@@ -1224,6 +1224,10 @@ inline void init() {
   refresh_name_entry_lines();
 
   enter_main_menu_mode();
+  if (!levels::has_progress_save()) {
+    enter_tutorial_objective_mode();
+    start_pending_level();
+  }
 }
 
 }  // namespace menu

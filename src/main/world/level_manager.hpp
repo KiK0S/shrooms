@@ -117,6 +117,7 @@ inline int infinite_global_score = 0;
 inline bool infinite_preview_ready = false;
 inline LevelDefinition infinite_level{};
 inline LevelDefinition tutorial_level{};
+inline bool progress_save_exists = false;
 inline std::unordered_map<std::string, SpawnerPlan> base_spawner_plans{};
 inline std::vector<std::string> infinite_types{};
 inline render_system::SpriteRenderable* background_sprite = nullptr;
@@ -202,6 +203,8 @@ inline bool is_unlocked(size_t index) {
 }
 
 inline size_t unlocked_levels() { return unlocked_level_count; }
+
+inline bool has_progress_save() { return progress_save_exists; }
 
 inline int progress_for_type(const LevelDefinition& level, const std::string& type) {
   switch (level.objective_rule) {
@@ -319,6 +322,7 @@ inline void save_progress() {
 inline void load_progress() {
   unlocked_level_count = parsed_levels.empty() ? 0 : 1;
   auto saved = save::read_text(kProgressKey);
+  progress_save_exists = saved.has_value();
   if (!saved) return;
   std::istringstream in(*saved);
   size_t count = 0;
@@ -1074,6 +1078,7 @@ inline void initialize() {
   infinite_preview_ready = false;
   infinite_level = LevelDefinition{};
   tutorial_level = LevelDefinition{};
+  progress_save_exists = false;
   load_progress();
   active_entities.clear();
   collected_counts.clear();
