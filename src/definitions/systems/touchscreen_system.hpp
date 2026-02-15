@@ -21,6 +21,7 @@
 #include "../components/shader_object.hpp"
 #include "../components/textured_object.hpp"
 #include "../components/scene_object.hpp"
+#include "../components/hidden_object.hpp"
 
 namespace touchscreen {
 
@@ -34,6 +35,9 @@ std::unique_ptr<ecs::Entity> fire_button;
 std::unique_ptr<TouchKeyboardButton> fire_button_touch;
 const glm::vec2 fire_button_center(0.75f, -0.6f);
 const glm::vec2 fire_button_half_extent(0.13f, 0.13f);
+hidden::HiddenObject joystick_hidden;
+hidden::HiddenObject joystick_inner_hidden;
+hidden::HiddenObject fire_button_hidden;
 
 
 
@@ -88,6 +92,8 @@ void init_joystick() {
 	auto joystick_scene = arena::create<scene::SceneObject>("main");
 	joystick->add(joystick_drawable);
 	joystick->add(joystick_scene);
+	joystick_hidden.hide();
+	joystick->add(&joystick_hidden);
 	joystick->bind();
 
 	joystick_inner = std::make_unique<ecs::Entity>();
@@ -99,6 +105,8 @@ void init_joystick() {
 	auto joystick_inner_scene = arena::create<scene::SceneObject>("main");
 	joystick_inner->add(joystick_inner_drawable);
 	joystick_inner->add(joystick_inner_scene);
+	joystick_inner_hidden.hide();
+	joystick_inner->add(&joystick_inner_hidden);
 	joystick_inner->bind();
 }
 
@@ -120,6 +128,8 @@ void init_fire_button() {
 	fire_button->add(arena::create<texture::OneTextureObject>("explosion"));
 	fire_button->add(&color::white);
 	fire_button->add(arena::create<scene::SceneObject>("main"));
+	fire_button_hidden.hide();
+	fire_button->add(&fire_button_hidden);
 	fire_button->bind();
 }
 
@@ -150,6 +160,7 @@ struct TouchSystem: public dynamic::DynamicObject {
 	TouchSystem(): dynamic::DynamicObject(-1) {}
 
 	bool inited = false;
+	bool ui_active = false;
 
 	void init() {
 		touchscreen::init_joystick();
@@ -164,6 +175,12 @@ struct TouchSystem: public dynamic::DynamicObject {
 		if (raw_touches.empty()) {
 			joystick_update.reset();
 			return;
+		}
+		if (!ui_active) {
+			ui_active = true;
+			joystick_hidden.show();
+			joystick_inner_hidden.show();
+			fire_button_hidden.show();
 		}
         std::vector<glm::vec2> normalized;
         normalized.reserve(raw_touches.size());
