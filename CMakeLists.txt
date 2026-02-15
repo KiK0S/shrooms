@@ -72,8 +72,14 @@ add_custom_command(TARGET shrooms POST_BUILD
   ${CMAKE_CURRENT_SOURCE_DIR}/3rd-party/engine/assets
   $<TARGET_FILE_DIR:shrooms>/assets
   COMMAND ${CMAKE_COMMAND} -E copy_directory
+  ${CMAKE_CURRENT_SOURCE_DIR}/3rd-party/engine/assets
+  ${CMAKE_CURRENT_SOURCE_DIR}/assets
+  COMMAND ${CMAKE_COMMAND} -E copy_directory
   ${CMAKE_CURRENT_SOURCE_DIR}/3rd-party/engine/shaders
   $<TARGET_FILE_DIR:shrooms>/shaders
+  COMMAND ${CMAKE_COMMAND} -E copy_directory
+  ${CMAKE_CURRENT_SOURCE_DIR}/3rd-party/engine/shaders
+  ${CMAKE_CURRENT_SOURCE_DIR}/shaders
 )
 
 if(ENGINE_PLATFORM STREQUAL "web")
