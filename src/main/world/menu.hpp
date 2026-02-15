@@ -274,11 +274,11 @@ inline void refresh_instruction_line() {
     update_text(instruction_line, "No levels available yet. Press T for tutorial.");
     return;
   }
-  update_text(instruction_line, "Press T for tutorial. Press Q to toggle difficulty.");
+  update_text(instruction_line, "Use Up/Down + Enter. Select Difficulty to switch mode.");
 }
 
 inline void refresh_difficulty_line() {
-  update_text(difficulty_line, "Difficulty: " + levels::difficulty_label() + " (Q / click)");
+  update_text(difficulty_line, "Difficulty: " + levels::difficulty_label());
 }
 
 inline void refresh_tutorial_line() {
@@ -615,6 +615,10 @@ inline void enter_main_menu_mode() {
 struct MenuController : public dynamic::DynamicObject {
   MenuController() : dynamic::DynamicObject() {}
 
+  static constexpr size_t kDifficultyMainSlot = 0;
+  static constexpr size_t kTutorialMainSlot = 1;
+  static constexpr size_t kLevelMainSlotOffset = 2;
+
   void update_pointer() {
     for (const auto& evt : input::events()) {
       if (evt.kind == engine::InputKind::PointerMove ||
@@ -624,38 +628,71 @@ struct MenuController : public dynamic::DynamicObject {
     }
   }
 
+  size_t main_slot_count(size_t current_levels) const {
+    return kLevelMainSlotOffset + current_levels;
+  }
+
+  std::optional<size_t> main_slot_level_index(size_t slot, size_t current_levels) const {
+    if (slot < kLevelMainSlotOffset) return std::nullopt;
+    const size_t level_index = slot - kLevelMainSlotOffset;
+    if (level_index >= current_levels) return std::nullopt;
+    return level_index;
+  }
+
+  bool is_main_slot_selectable(size_t slot, size_t current_levels) const {
+    if (slot == kDifficultyMainSlot || slot == kTutorialMainSlot) {
+      return true;
+    }
+    const auto level_index = main_slot_level_index(slot, current_levels);
+    if (!level_index) return false;
+    return is_selectable_level(*level_index);
+  }
+
+  std::optional<size_t> main_slot_at_point(const glm::vec2& point, size_t current_levels) const {
+    if (point_hits_line(difficulty_line, point)) {
+      return kDifficultyMainSlot;
+    }
+    if (point_hits_line(tutorial_line, point)) {
+      return kTutorialMainSlot;
+    }
+    auto level_index = level_index_at_point(point);
+    if (!level_index || *level_index >= current_levels) {
+      return std::nullopt;
+    }
+    return *level_index + kLevelMainSlotOffset;
+  }
+
   void ensure_main_selection(size_t current_levels) {
-    if (current_levels == 0) {
-      selected_main_index.reset();
+    const size_t slot_count = main_slot_count(current_levels);
+    if (selected_main_slot && *selected_main_slot < slot_count &&
+        is_main_slot_selectable(*selected_main_slot, current_levels)) {
       return;
     }
-    if (selected_main_index && *selected_main_index < current_levels &&
-        is_selectable_level(*selected_main_index)) {
+    for (size_t slot = 0; slot < slot_count; ++slot) {
+      if (!is_main_slot_selectable(slot, current_levels)) continue;
+      selected_main_slot = slot;
       return;
     }
-    for (size_t i = 0; i < current_levels; ++i) {
-      if (!is_selectable_level(i)) continue;
-      selected_main_index = i;
-      return;
-    }
-    selected_main_index.reset();
+    selected_main_slot.reset();
   }
 
   void move_main_selection(int direction, size_t current_levels) {
-    if (direction == 0 || current_levels == 0) return;
+    if (direction == 0) return;
+    const size_t slot_count = main_slot_count(current_levels);
+    if (slot_count == 0) return;
     ensure_main_selection(current_levels);
-    if (!selected_main_index) return;
+    if (!selected_main_slot) return;
 
-    const int count = static_cast<int>(current_levels);
-    const int start = static_cast<int>(*selected_main_index);
+    const int count = static_cast<int>(slot_count);
+    const int start = static_cast<int>(*selected_main_slot);
     for (int step = 1; step <= count; ++step) {
       int candidate = start + direction * step;
       while (candidate < 0) {
         candidate += count;
       }
       candidate %= count;
-      if (!is_selectable_level(static_cast<size_t>(candidate))) continue;
-      selected_main_index = static_cast<size_t>(candidate);
+      if (!is_main_slot_selectable(static_cast<size_t>(candidate), current_levels)) continue;
+      selected_main_slot = static_cast<size_t>(candidate);
       return;
     }
   }
@@ -665,20 +702,52 @@ struct MenuController : public dynamic::DynamicObject {
     selected_gameover_index = (selected_gameover_index == 0) ? 1 : 0;
   }
 
-  void apply_main_visuals(std::optional<size_t> hovered_index, size_t current_levels,
-                          bool hover_tutorial, bool hover_difficulty) {
+  void toggle_difficulty() {
+    levels::cycle_difficulty();
+    refresh_level_lines();
+    refresh_instruction_line();
+    refresh_difficulty_line();
+    const size_t refreshed_levels = available_levels();
+    ensure_main_selection(refreshed_levels);
+    update_hover_state(refreshed_levels);
+  }
+
+  void handle_selected_main_action(size_t slot, size_t current_levels) {
+    if (slot == kDifficultyMainSlot) {
+      toggle_difficulty();
+      return;
+    }
+    if (slot == kTutorialMainSlot) {
+      enter_tutorial_objective_mode();
+      return;
+    }
+    const auto level_index = main_slot_level_index(slot, current_levels);
+    if (!level_index || !is_selectable_level(*level_index)) return;
+    handle_level_selection(*level_index);
+  }
+
+  void apply_main_visuals(std::optional<size_t> hovered_slot, size_t current_levels) {
+    const bool has_selection = selected_main_slot.has_value();
     for (size_t i = 0; i < kMaxLevelLines; ++i) {
       if (i >= current_levels) {
         set_line_visual_state(level_lines[i], false, false, false);
         continue;
       }
-      const bool selected = selected_main_index && i == *selected_main_index;
-      const bool hovered = hovered_index && i == *hovered_index;
-      const bool dimmed = (!selected && selected_main_index) || !is_selectable_level(i);
+      const size_t slot = i + kLevelMainSlotOffset;
+      const bool selected = selected_main_slot && slot == *selected_main_slot;
+      const bool hovered = hovered_slot && slot == *hovered_slot;
+      const bool dimmed = (!selected && has_selection) || !is_selectable_level(i);
       set_line_visual_state(level_lines[i], selected, hovered, dimmed);
     }
-    set_line_visual_state(tutorial_line, false, hover_tutorial, false);
-    set_line_visual_state(difficulty_line, false, hover_difficulty, false);
+    const bool tutorial_selected = selected_main_slot && *selected_main_slot == kTutorialMainSlot;
+    const bool tutorial_hovered = hovered_slot && *hovered_slot == kTutorialMainSlot;
+    set_line_visual_state(tutorial_line, tutorial_selected, tutorial_hovered,
+                          !tutorial_selected && has_selection);
+    const bool difficulty_selected =
+        selected_main_slot && *selected_main_slot == kDifficultyMainSlot;
+    const bool difficulty_hovered = hovered_slot && *hovered_slot == kDifficultyMainSlot;
+    set_line_visual_state(difficulty_line, difficulty_selected, difficulty_hovered,
+                          !difficulty_selected && has_selection);
     set_line_visual_state(gameover_restart, false, false, false);
     set_line_visual_state(gameover_main_menu, false, false, false);
   }
@@ -697,18 +766,18 @@ struct MenuController : public dynamic::DynamicObject {
 
   void clear_hover(size_t current_levels) {
     for (size_t i = 0; i < kMaxLevelLines; ++i) {
-      if (i < current_levels) {
-        const bool selected = selected_main_index && i == *selected_main_index;
-        const bool dimmed = (!selected && selected_main_index) || !is_selectable_level(i);
-        set_line_visual_state(level_lines[i], selected, false, dimmed);
-      } else {
-        set_line_visual_state(level_lines[i], false, false, false);
-      }
       set_line_hovered(objective_recipe_lines[i], false);
     }
-    set_line_visual_state(tutorial_line, false, false, false);
-    set_line_visual_state(difficulty_line, false, false, false);
-    if (!awaiting_name_entry) {
+    if (menu_mode == MenuMode::Main) {
+      apply_main_visuals(std::nullopt, current_levels);
+    } else {
+      for (size_t i = 0; i < kMaxLevelLines; ++i) {
+        set_line_visual_state(level_lines[i], false, false, false);
+      }
+      set_line_visual_state(tutorial_line, false, false, false);
+      set_line_visual_state(difficulty_line, false, false, false);
+    }
+    if (menu_mode == MenuMode::GameOver && !awaiting_name_entry) {
       apply_gameover_visuals(false, false);
     } else {
       set_line_visual_state(gameover_restart, false, false, false);
@@ -719,20 +788,17 @@ struct MenuController : public dynamic::DynamicObject {
   void update_hover_state(size_t current_levels) {
     if (menu_mode == MenuMode::Main) {
       ensure_main_selection(current_levels);
-      std::optional<size_t> hovered_index;
+      std::optional<size_t> hovered_slot;
       if (last_pointer) {
-        hovered_index = level_index_at_point(*last_pointer);
+        hovered_slot = main_slot_at_point(*last_pointer, current_levels);
       }
-      if (hovered_index && !is_selectable_level(*hovered_index)) {
-        hovered_index.reset();
+      if (hovered_slot && !is_main_slot_selectable(*hovered_slot, current_levels)) {
+        hovered_slot.reset();
       }
-      if (hovered_index && is_selectable_level(*hovered_index)) {
-        selected_main_index = *hovered_index;
+      if (hovered_slot) {
+        selected_main_slot = *hovered_slot;
       }
-      const bool hover_tutorial = last_pointer && point_hits_line(tutorial_line, *last_pointer);
-      const bool hover_difficulty =
-          last_pointer && point_hits_line(difficulty_line, *last_pointer);
-      apply_main_visuals(hovered_index, current_levels, hover_tutorial, hover_difficulty);
+      apply_main_visuals(hovered_slot, current_levels);
       return;
     }
 
@@ -863,15 +929,6 @@ struct MenuController : public dynamic::DynamicObject {
       for (const auto& evt : input::events()) {
         if (evt.kind != engine::InputKind::KeyDown) continue;
         const int key = input::normalize_key_code(evt.key_code);
-        if (key == 'Q') {
-          levels::cycle_difficulty();
-          refresh_level_lines();
-          refresh_instruction_line();
-          refresh_difficulty_line();
-          ensure_main_selection(available_levels());
-          update_hover_state(available_levels());
-          return;
-        }
         if (key == 'T') {
           enter_tutorial_objective_mode();
           return;
@@ -886,8 +943,8 @@ struct MenuController : public dynamic::DynamicObject {
           update_hover_state(current_levels);
           continue;
         }
-        if (is_confirm_key(key) && selected_main_index) {
-          handle_level_selection(*selected_main_index);
+        if (is_confirm_key(key) && selected_main_slot) {
+          handle_selected_main_action(*selected_main_slot, current_levels);
           return;
         }
       }
@@ -895,24 +952,11 @@ struct MenuController : public dynamic::DynamicObject {
       for (const auto& evt : input::events()) {
         if (evt.kind != engine::InputKind::PointerDown) continue;
         const glm::vec2 point{static_cast<float>(evt.x), static_cast<float>(evt.y)};
-        if (point_hits_line(difficulty_line, point)) {
-          levels::cycle_difficulty();
-          refresh_level_lines();
-          refresh_instruction_line();
-          refresh_difficulty_line();
-          ensure_main_selection(available_levels());
-          update_hover_state(available_levels());
+        auto slot = main_slot_at_point(point, current_levels);
+        if (slot && is_main_slot_selectable(*slot, current_levels)) {
+          selected_main_slot = *slot;
+          handle_selected_main_action(*slot, current_levels);
           return;
-        }
-        if (point_hits_line(tutorial_line, point)) {
-          enter_tutorial_objective_mode();
-          return;
-        }
-        auto index = level_index_at_point(point);
-        if (index && is_selectable_level(*index)) {
-          selected_main_index = *index;
-          handle_level_selection(*index);
-          break;
         }
       }
       return;
@@ -1020,7 +1064,7 @@ struct MenuController : public dynamic::DynamicObject {
   std::string cached_status;
   bool completion_acknowledged = false;
   std::optional<glm::vec2> last_pointer;
-  std::optional<size_t> selected_main_index;
+  std::optional<size_t> selected_main_slot;
   size_t selected_gameover_index = 0;
   MenuMode previous_mode = MenuMode::Main;
 };
