@@ -360,7 +360,7 @@ inline void refresh_leaderboard_lines() {
     }
     return;
   }
-  update_text(leaderboard_title, "Global Leaderboard");
+  update_text(leaderboard_title, "Infinite Leaderboard (" + levels::difficulty_label() + ")");
   const auto& entries = leaderboard::list();
   for (size_t i = 0; i < leaderboard_lines.size(); ++i) {
     if (i < entries.size()) {
@@ -393,7 +393,7 @@ inline void refresh_name_entry_lines() {
 inline void refresh_gameover_lines() {
   if (!levels::last_result_valid) return;
   const auto& result = levels::last_result;
-  show_leaderboard = true;
+  show_leaderboard = result.infinite_mode;
   update_text(gameover_title, result.success ? "Completed" : "Not Completed");
   update_text(gameover_level, "");
   update_text(gameover_collected, "");

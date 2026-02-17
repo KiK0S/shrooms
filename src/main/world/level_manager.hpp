@@ -134,8 +134,28 @@ inline TutorialCatchHook tutorial_catch_hook{};
 inline TutorialMissHook tutorial_miss_hook{};
 inline TutorialSortHook tutorial_sort_hook{};
 
-constexpr const char* kProgressKey = "shrooms_progress";
+constexpr const char* kLegacyProgressKey = "shrooms_progress";
 inline constexpr size_t kTutorialLevelIndexOffset = 1;
+
+inline const char* progress_key_for_difficulty(Difficulty difficulty) {
+  switch (difficulty) {
+    case Difficulty::Easy:
+      return "shrooms_progress_easy";
+    case Difficulty::Normal:
+    default:
+      return "shrooms_progress_normal";
+  }
+}
+
+inline leaderboard::Profile leaderboard_profile_for_difficulty(Difficulty difficulty) {
+  switch (difficulty) {
+    case Difficulty::Easy:
+      return leaderboard::Profile::Easy;
+    case Difficulty::Normal:
+    default:
+      return leaderboard::Profile::Normal;
+  }
+}
 
 inline void set_tutorial_hooks(TutorialSpawnHook spawn_hook, TutorialCatchHook catch_hook,
                                TutorialMissHook miss_hook, TutorialSortHook sort_hook) {
@@ -316,12 +336,17 @@ inline std::string loss_reason_label(const LossInfo& info) {
 
 inline void save_progress() {
   if (parsed_levels.empty()) return;
-  save::write_text(kProgressKey, std::to_string(unlocked_level_count));
+  save::write_text(progress_key_for_difficulty(current_difficulty),
+                   std::to_string(unlocked_level_count));
 }
 
 inline void load_progress() {
   unlocked_level_count = parsed_levels.empty() ? 0 : 1;
-  auto saved = save::read_text(kProgressKey);
+  auto saved = save::read_text(progress_key_for_difficulty(current_difficulty));
+  if (!saved) {
+    // Migration path from the old shared key.
+    saved = save::read_text(kLegacyProgressKey);
+  }
   progress_save_exists = saved.has_value();
   if (!saved) return;
   std::istringstream in(*saved);
@@ -453,6 +478,8 @@ inline void set_difficulty(Difficulty new_difficulty) {
   current_difficulty = new_difficulty;
   infinite_preview_ready = false;
   apply_difficulty_to_levels();
+  load_progress();
+  leaderboard::set_profile(leaderboard_profile_for_difficulty(current_difficulty));
 }
 
 inline void cycle_difficulty() {
@@ -1062,6 +1089,7 @@ inline void initialize() {
   current_difficulty = Difficulty::Normal;
   parse_levels(shrooms::asset_path("levels.data"));
   build_infinite_spawner_cache();
+  leaderboard::set_profile(leaderboard_profile_for_difficulty(current_difficulty));
   leaderboard::load_or_default();
   level_finished = true;
   level_failed = false;

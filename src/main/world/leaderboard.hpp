@@ -18,10 +18,32 @@ struct Entry {
 };
 
 constexpr int kMaxEntries = 8;
-constexpr const char* kLeaderboardKey = "shrooms_infinite_leaderboard";
+
+enum class Profile {
+  Normal,
+  Easy,
+};
 
 inline std::vector<Entry> entries{};
 inline bool loaded = false;
+inline Profile current_profile = Profile::Normal;
+
+inline const char* key_for_profile(Profile profile) {
+  switch (profile) {
+    case Profile::Easy:
+      return "shrooms_infinite_leaderboard_easy";
+    case Profile::Normal:
+    default:
+      return "shrooms_infinite_leaderboard_normal";
+  }
+}
+
+inline void set_profile(Profile profile) {
+  if (current_profile == profile) return;
+  current_profile = profile;
+  entries.clear();
+  loaded = false;
+}
 
 inline std::string sanitize_name(const std::string& raw) {
   std::string out = raw;
@@ -60,7 +82,7 @@ inline std::string serialize() {
 }
 
 inline void save() {
-  save::write_text(kLeaderboardKey, serialize());
+  save::write_text(key_for_profile(current_profile), serialize());
 }
 
 inline void build_default_entries() {
@@ -91,7 +113,7 @@ inline void build_default_entries() {
 inline void load_or_default() {
   if (loaded) return;
   entries.clear();
-  auto saved = save::read_text(kLeaderboardKey);
+  auto saved = save::read_text(key_for_profile(current_profile));
   if (saved) {
     std::istringstream lines(*saved);
     std::string line;
