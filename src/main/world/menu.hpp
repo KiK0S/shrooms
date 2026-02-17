@@ -1197,7 +1197,7 @@ inline void init() {
       shrooms::texture_sizing::from_reference_width("witch", 120.0f);
   auto* transform = arena::create<transform::NoRotationTransform>();
   transform->pos =
-      shrooms::screen::center_to_top_left(shrooms::screen::norm_to_pixels(glm::vec2{0.65f, -0.2f}),
+      shrooms::screen::center_to_top_left(shrooms::screen::norm_to_pixels(glm::vec2{0.45f, -0.2f}),
                                           character_size);
   character_entity->add(transform);
   const engine::TextureId tex_id = engine::resources::register_texture("witch");
