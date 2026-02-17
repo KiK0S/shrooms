@@ -1,42 +1,20 @@
-name: CI
+name: Build and Deploy
 
 on:
   push:
     branches:
       - master
-  pull_request:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  native:
-    name: Native (Ubuntu)
+  build-and-deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout (recursive submodules)
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-          ssh-key: ${{ secrets.SUBMODULES_SSH_KEY }}
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libsdl2-dev
-
-      - name: Configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-
-      - name: Build
-        run: cmake --build build --parallel
-
-  web:
-    name: Web (Emscripten)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout (recursive submodules)
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
@@ -45,8 +23,30 @@ jobs:
       - name: Setup Emscripten
         uses: mymindstorm/setup-emsdk@v14
 
-      - name: Configure
-        run: emcmake cmake -S . -B build-web -DCMAKE_BUILD_TYPE=Release
+      - name: Configure and build web target
+        run: |
+          emcmake cmake -S . -B build-web -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-web --parallel
 
-      - name: Build
-        run: cmake --build build-web --parallel
+      - name: Prepare Pages artifact
+        run: |
+          set -eux
+          mkdir -p site
+          cp build-web/shrooms.html site/index.html
+          cp build-web/shrooms.js site/
+          cp build-web/shrooms.wasm site/
+          if [ -f build-web/shrooms.data ]; then cp build-web/shrooms.data site/; fi
+          if [ -d build-web/assets ]; then
+            mkdir -p site/assets
+            cp -r build-web/assets/. site/assets/
+          fi
+          if [ -d build-web/shaders ]; then
+            mkdir -p site/shaders
+            cp -r build-web/shaders/. site/shaders/
+          fi
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site
