@@ -57,6 +57,7 @@ struct GeometryParseResult {
 };
 
 inline constexpr int kSpawnWarningMs = 350;
+inline constexpr bool kEnableSpawnRuleLogging = false;
 
 inline std::string parse_entity_description(std::istream& in) {
   std::string name;
@@ -224,10 +225,10 @@ inline periodic_spawn::PeriodicSpawnerObject* parse_periodic_spawner(std::istrea
 
   const std::string desc = parse_entity_description(in);
   const std::string texture_name = extract_texture_name(desc);
-#ifndef NDEBUG
-  std::fprintf(stderr, "Spawner parse: period=%.3f density=%.6f type=%s desc=[%s]\n",
-               period, density, texture_name.c_str(), desc.c_str());
-#endif
+  LOG_IF(kEnableSpawnRuleLogging,
+         "Spawner parse: period=" << period << " density=" << density
+                                  << " type=" << texture_name << " desc=[" << desc
+                                  << "]");
   const double scaled_density = density;
 
   auto* spawner = arena::create<periodic_spawn::PeriodicSpawnerObject>(
@@ -235,12 +236,13 @@ inline periodic_spawn::PeriodicSpawnerObject* parse_periodic_spawner(std::istrea
       spawn::SpawningRule{
           scaled_density,
           [=](glm::vec2 pos) {
-            std::fprintf(stderr, "Spawn rule: type=%s pos=(%.2f, %.2f)\n",
-                         texture_name.c_str(), pos.x, pos.y);
+            LOG_IF(kEnableSpawnRuleLogging,
+                   "Spawn rule: type=" << texture_name << " pos=(" << pos.x
+                                       << ", " << pos.y << ")");
             std::istringstream new_desc(desc);
             auto* new_entity = parse_entity(new_desc);
             if (!new_entity) {
-              std::fprintf(stderr, "Spawn rule: failed to parse entity desc\n");
+              LOG_IF(kEnableSpawnRuleLogging, "Spawn rule: failed to parse entity desc");
               return static_cast<ecs::Entity*>(nullptr);
             }
 
@@ -269,10 +271,11 @@ inline periodic_spawn::PeriodicSpawnerObject* parse_periodic_spawner(std::istrea
             }
 
             if (auto* geom = new_entity->get<geometry::GeometryObject>()) {
-              std::fprintf(stderr, "Spawn rule: geometry=%s size=%d\n",
-                           geom->get_name().c_str(), geom->get_size());
+              LOG_IF(kEnableSpawnRuleLogging,
+                     "Spawn rule: geometry=" << geom->get_name()
+                                             << " size=" << geom->get_size());
             } else {
-              std::fprintf(stderr, "Spawn rule: missing geometry component\n");
+              LOG_IF(kEnableSpawnRuleLogging, "Spawn rule: missing geometry component");
             }
 
             new_entity->add(arena::create<scene::SceneObject>("main"));
