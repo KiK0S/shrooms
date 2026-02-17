@@ -2,9 +2,11 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <cmath>
 #include <limits>
 #include <string>
+#include <vector>
 
 #include "glm/glm/vec2.hpp"
 #include "glm/glm/vec4.hpp"
@@ -68,6 +70,9 @@ inline int dual_player_catches = 0;
 inline int dual_familiar_catches = 0;
 
 inline constexpr int kKeyE = 'E';
+inline constexpr glm::vec2 kTitleCenterNorm = glm::vec2{0.0f, 0.14f};
+inline constexpr glm::vec2 kHintCenterNorm = glm::vec2{0.0f, -0.02f};
+inline constexpr float kMaxTextWidthRatio = 0.8f;
 
 inline float view_width() { return static_cast<float>(shrooms::screen::view_width); }
 inline float view_height() { return static_cast<float>(shrooms::screen::view_height); }
@@ -75,6 +80,114 @@ inline float view_height() { return static_cast<float>(shrooms::screen::view_hei
 inline float player_center_x() {
   if (!player::player_transform) return view_width() * 0.5f;
   return player::player_transform->pos.x + player::player_size.x * 0.5f;
+}
+
+inline std::string trim_copy(const std::string& value) {
+  size_t first = 0;
+  while (first < value.size() &&
+         std::isspace(static_cast<unsigned char>(value[first])) != 0) {
+    ++first;
+  }
+  size_t last = value.size();
+  while (last > first &&
+         std::isspace(static_cast<unsigned char>(value[last - 1])) != 0) {
+    --last;
+  }
+  return value.substr(first, last - first);
+}
+
+inline bool is_alpha_char(char ch) {
+  return std::isalpha(static_cast<unsigned char>(ch)) != 0;
+}
+
+inline int break_priority(char ch) {
+  switch (ch) {
+    case '.':
+      return 5;
+    case '!':
+    case '?':
+      return 4;
+    case ';':
+    case ':':
+      return 3;
+    case ',':
+      return 2;
+    default:
+      return is_alpha_char(ch) ? -1 : 1;
+  }
+}
+
+inline float text_width_px(const std::string& value, float font_px) {
+  return engine::text::layout_text(value, 0.0f, 0.0f, font_px).width;
+}
+
+inline std::string join_lines(const std::vector<std::string>& lines) {
+  if (lines.empty()) return "";
+  std::string out = lines.front();
+  for (size_t i = 1; i < lines.size(); ++i) {
+    out += '\n';
+    out += lines[i];
+  }
+  return out;
+}
+
+inline std::string wrap_text_for_view(const std::string& value, float font_px,
+                                      float max_width_px) {
+  if (value.empty()) return value;
+  if (text_width_px(value, font_px) <= max_width_px) return value;
+
+  std::vector<std::string> lines{};
+  size_t start = 0;
+  while (start < value.size()) {
+    while (start < value.size() &&
+           std::isspace(static_cast<unsigned char>(value[start])) != 0) {
+      ++start;
+    }
+    if (start >= value.size()) break;
+
+    const std::string remaining = value.substr(start);
+    if (text_width_px(remaining, font_px) <= max_width_px) {
+      const std::string tail = trim_copy(remaining);
+      if (!tail.empty()) lines.push_back(tail);
+      break;
+    }
+
+    size_t best_break = std::string::npos;
+    int best_priority = -1;
+    for (size_t i = start; i < value.size(); ++i) {
+      const char ch = value[i];
+      if (is_alpha_char(ch)) continue;
+      const std::string candidate = value.substr(start, i - start + 1);
+      if (text_width_px(candidate, font_px) > max_width_px) break;
+      const int priority = break_priority(ch);
+      if (priority > best_priority ||
+          (priority == best_priority &&
+           (best_break == std::string::npos || i > best_break))) {
+        best_break = i;
+        best_priority = priority;
+      }
+    }
+
+    if (best_break == std::string::npos) {
+      size_t hard_break = start;
+      for (size_t i = start; i < value.size(); ++i) {
+        const std::string candidate = value.substr(start, i - start + 1);
+        if (text_width_px(candidate, font_px) > max_width_px) break;
+        hard_break = i;
+      }
+      if (hard_break == start && start + 1 < value.size()) {
+        hard_break = start + 1;
+      }
+      best_break = hard_break;
+    }
+
+    const std::string line = trim_copy(value.substr(start, best_break - start + 1));
+    if (!line.empty()) lines.push_back(line);
+    start = best_break + 1;
+  }
+
+  if (lines.empty()) return value;
+  return join_lines(lines);
 }
 
 inline void set_visible(bool visible) {
@@ -92,8 +205,10 @@ inline void set_visible(bool visible) {
 inline void update_line(text::TextObject* text_obj, transform::NoRotationTransform* transform,
                         const std::string& value, float font_px, const glm::vec2& center_norm) {
   if (!text_obj || !transform) return;
-  text_obj->text = value;
-  const auto layout = engine::text::layout_text(value, 0.0f, 0.0f, font_px);
+  const std::string wrapped =
+      wrap_text_for_view(value, font_px, view_width() * kMaxTextWidthRatio);
+  text_obj->text = wrapped;
+  const auto layout = engine::text::layout_text(wrapped, 0.0f, 0.0f, font_px);
   const glm::vec2 size{layout.width, layout.height};
   const glm::vec2 center = shrooms::screen::norm_to_pixels(center_norm);
   transform->pos = shrooms::screen::center_to_top_left(center, size);
@@ -209,62 +324,61 @@ inline void set_stage(Stage next, const std::string& feedback) {
   switch (stage) {
     case Stage::MoveLeft: {
       clear_stage_entities();
-      update_line(title_text, title_transform, "Tutorial: Stage 1/6", 24.0f, glm::vec2{0.0f, 0.82f});
+      update_line(title_text, title_transform, "Tutorial: Stage 1/6", 24.0f, kTitleCenterNorm);
       update_line(hint_text, hint_transform, "Move left with A to the glowing marker." + base_feedback,
-                  18.0f, glm::vec2{0.0f, 0.72f});
+                  18.0f, kHintCenterNorm);
       show_marker(glm::vec2{view_width() * 0.20f, view_height() * 0.82f},
                   engine::UIColor{0.45f, 0.95f, 0.6f, 0.9f});
       break;
     }
     case Stage::MoveRight: {
       clear_stage_entities();
-      update_line(title_text, title_transform, "Tutorial: Stage 2/6", 24.0f, glm::vec2{0.0f, 0.82f});
+      update_line(title_text, title_transform, "Tutorial: Stage 2/6", 24.0f, kTitleCenterNorm);
       update_line(hint_text, hint_transform, "Move right with D to the glowing marker." + base_feedback,
-                  18.0f, glm::vec2{0.0f, 0.72f});
+                  18.0f, kHintCenterNorm);
       show_marker(glm::vec2{view_width() * 0.80f, view_height() * 0.82f},
                   engine::UIColor{0.45f, 0.95f, 0.6f, 0.9f});
       break;
     }
     case Stage::CollectOne: {
-      update_line(title_text, title_transform, "Tutorial: Stage 3/6", 24.0f, glm::vec2{0.0f, 0.82f});
+      update_line(title_text, title_transform, "Tutorial: Stage 3/6", 24.0f, kTitleCenterNorm);
       update_line(hint_text, hint_transform,
                   "Catch the falling mushroom. If it falls, this stage restarts." + base_feedback,
-                  18.0f, glm::vec2{0.0f, 0.72f});
+                  18.0f, kHintCenterNorm);
       enter_collect_stage();
       break;
     }
     case Stage::ShootOne: {
-      update_line(title_text, title_transform, "Tutorial: Stage 4/6", 24.0f, glm::vec2{0.0f, 0.82f});
+      update_line(title_text, title_transform, "Tutorial: Stage 4/6", 24.0f, kTitleCenterNorm);
       update_line(hint_text, hint_transform,
                   "Use W to shoot the mushroom with a familiar. Catching or missing restarts this stage." +
                       base_feedback,
-                  18.0f, glm::vec2{0.0f, 0.72f});
+                  18.0f, kHintCenterNorm);
       enter_shoot_stage();
       break;
     }
     case Stage::PlaceFamiliarRight: {
-      update_line(title_text, title_transform, "Tutorial: Stage 5/6", 24.0f, glm::vec2{0.0f, 0.82f});
+      update_line(title_text, title_transform, "Tutorial: Stage 5/6", 24.0f, kTitleCenterNorm);
       update_line(hint_text, hint_transform,
                   "Press E to plant a familiar on the right side marker." + base_feedback, 18.0f,
-                  glm::vec2{0.0f, 0.72f});
+                  kHintCenterNorm);
       show_marker(glm::vec2{view_width() * 0.76f, view_height() * 0.72f},
                   engine::UIColor{0.55f, 0.72f, 1.0f, 0.9f});
       enter_place_familiar_stage();
       break;
     }
     case Stage::DualCatch: {
-      update_line(title_text, title_transform, "Tutorial: Stage 6/6", 24.0f, glm::vec2{0.0f, 0.82f});
+      update_line(title_text, title_transform, "Tutorial: Stage 6/6", 24.0f, kTitleCenterNorm);
       update_line(hint_text, hint_transform,
                   "Catch both mushrooms: one by familiar and one by player." + base_feedback, 18.0f,
-                  glm::vec2{0.0f, 0.72f});
+                  kHintCenterNorm);
       enter_dual_stage();
       break;
     }
     case Stage::Complete: {
       clear_stage_entities(false);
-      update_line(title_text, title_transform, "Tutorial Complete", 24.0f, glm::vec2{0.0f, 0.82f});
-      update_line(hint_text, hint_transform, "Great. Entering victory screen...", 18.0f,
-                  glm::vec2{0.0f, 0.72f});
+      update_line(title_text, title_transform, "Tutorial Complete", 24.0f, kTitleCenterNorm);
+      update_line(hint_text, hint_transform, "Great. Entering victory screen...", 18.0f, kHintCenterNorm);
       levels::finish_tutorial(true);
       break;
     }

@@ -134,6 +134,18 @@ inline void reset_panel() {
   panel->add(arena::create<scene::SceneObject>("main"));
 }
 
+inline void hide_panel() {
+  if (!panel) return;
+  panel->mark_deleted();
+  panel = nullptr;
+}
+
+inline void ensure_panel() {
+  if (!panel) {
+    reset_panel();
+  }
+}
+
 inline ecs::Entity* create_sprite(const std::string& texture_name, const glm::vec2& center,
                                   const glm::vec2& size, int layer) {
   auto* entity = arena::create<ecs::Entity>();
@@ -200,6 +212,12 @@ inline void init_with_targets(const std::vector<std::pair<std::string, int>>& re
                               std::string task_word = "") {
   objective_word = std::move(task_word);
   current_recipe = recipe;
+  if (current_recipe.empty()) {
+    clear_entries();
+    hide_panel();
+    return;
+  }
+  ensure_panel();
   rebuild_entries();
 }
 
