@@ -38,6 +38,7 @@ namespace menu {
 constexpr size_t kMaxLevelLines = 10;
 constexpr float kMenuTextX = -0.8f;
 constexpr float kLeaderboardTextX = 0.15f;
+constexpr float kMenuTextYOffsetNorm = 0.1f;
 constexpr size_t kLeaderboardLines = static_cast<size_t>(leaderboard::kMaxEntries);
 constexpr size_t kNameMaxLength = 12;
 constexpr float kMenuBackgroundReferenceWidthPx = 312.0f;
@@ -1139,7 +1140,8 @@ inline TextLine make_text_line(glm::vec2 position_norm, float font_px, int layer
   TextLine line{};
   auto* entity = arena::create<ecs::Entity>();
   auto* transform = arena::create<transform::NoRotationTransform>();
-  transform->pos = shrooms::screen::norm_to_pixels(position_norm);
+  transform->pos =
+      shrooms::screen::norm_to_pixels(position_norm + glm::vec2{0.0f, kMenuTextYOffsetNorm});
   auto* text_obj = arena::create<text::TextObject>("", font_px);
 
   entity->add(transform);
