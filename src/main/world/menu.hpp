@@ -40,6 +40,8 @@ constexpr float kMenuTextX = -0.8f;
 constexpr float kLeaderboardTextX = 0.15f;
 constexpr size_t kLeaderboardLines = static_cast<size_t>(leaderboard::kMaxEntries);
 constexpr size_t kNameMaxLength = 12;
+constexpr float kMenuBackgroundReferenceWidthPx = 312.0f;
+constexpr const char* kDefaultMenuBackgroundTexture = "level_1_ezh";
 constexpr int kKeyArrowUpDom = 38;
 constexpr int kKeyArrowDownDom = 40;
 constexpr int kKeyArrowUpSdl = 1073741906;
@@ -88,6 +90,8 @@ inline size_t active_level_lines = 0;
 
 inline ecs::Entity* character_entity = nullptr;
 inline ecs::Entity* menu_background = nullptr;
+inline render_system::SpriteRenderable* menu_background_sprite = nullptr;
+inline transform::NoRotationTransform* menu_background_transform = nullptr;
 
 enum class MenuMode {
   Main,
@@ -133,6 +137,95 @@ inline void enter_infinite_objective_mode();
 inline void enter_tutorial_objective_mode();
 inline void enter_game_over_mode();
 inline void enter_main_menu_mode();
+
+inline std::string infinite_background_texture() {
+  if (!levels::parsed_levels.empty()) {
+    return levels::parsed_levels.back().id;
+  }
+  return kDefaultMenuBackgroundTexture;
+}
+
+inline std::string objective_background_texture() {
+  if (pending_tutorial) {
+    return kDefaultMenuBackgroundTexture;
+  }
+  if (pending_infinite) {
+    return infinite_background_texture();
+  }
+  if (pending_level_index < levels::parsed_levels.size()) {
+    return levels::parsed_levels[pending_level_index].id;
+  }
+  return kDefaultMenuBackgroundTexture;
+}
+
+inline std::string gameover_background_texture() {
+  if (!levels::last_result_valid || levels::last_result.tutorial_mode) {
+    return kDefaultMenuBackgroundTexture;
+  }
+  if (levels::last_result.infinite_mode) {
+    return infinite_background_texture();
+  }
+  if (levels::last_result.level_index < levels::parsed_levels.size()) {
+    return levels::parsed_levels[levels::last_result.level_index].id;
+  }
+  if (!levels::last_result.level_id.empty()) {
+    return levels::last_result.level_id;
+  }
+  return kDefaultMenuBackgroundTexture;
+}
+
+inline void apply_menu_background(const std::string& texture_name, bool level_layout) {
+  if (!menu_background_sprite || !menu_background_transform) return;
+
+  std::string resolved = texture_name.empty() ? kDefaultMenuBackgroundTexture : texture_name;
+  engine::TextureId tex_id = engine::resources::register_texture(resolved);
+  if (tex_id == engine::kInvalidTextureId && resolved != kDefaultMenuBackgroundTexture) {
+    resolved = kDefaultMenuBackgroundTexture;
+    tex_id = engine::resources::register_texture(resolved);
+  }
+  if (tex_id == engine::kInvalidTextureId) return;
+
+  const float view_width = static_cast<float>(shrooms::screen::view_width);
+  const float view_height = static_cast<float>(shrooms::screen::view_height);
+
+  glm::vec2 size{};
+  glm::vec2 pos{};
+  if (level_layout) {
+    size = shrooms::texture_sizing::from_width_px(resolved, view_width);
+    pos = glm::vec2{0.0f, view_height - size.y};
+  } else {
+    size = shrooms::texture_sizing::from_reference_width(resolved, kMenuBackgroundReferenceWidthPx);
+    pos = glm::vec2{-0.025f * view_width, (view_height - size.y) * 0.5f};
+  }
+
+  menu_background_sprite->texture_id = tex_id;
+  menu_background_sprite->geometry = engine::geometry::make_quad(size.x, size.y);
+  menu_background_sprite->uploaded = false;
+  menu_background_sprite->size = size;
+  menu_background_transform->pos = pos;
+}
+
+inline void refresh_menu_background() {
+  switch (menu_mode) {
+    case MenuMode::Objective: {
+      const std::string texture = objective_background_texture();
+      const bool level_layout = !pending_tutorial;
+      apply_menu_background(texture, level_layout);
+      break;
+    }
+    case MenuMode::GameOver: {
+      const std::string texture = gameover_background_texture();
+      const bool level_layout =
+          levels::last_result_valid && !levels::last_result.tutorial_mode;
+      apply_menu_background(texture, level_layout);
+      break;
+    }
+    case MenuMode::Main:
+    default:
+      apply_menu_background(kDefaultMenuBackgroundTexture, false);
+      break;
+  }
+}
 
 inline void update_text(TextLine& line, const std::string& value) {
   if (!line.text_object) return;
@@ -444,6 +537,7 @@ inline void set_menu_mode(MenuMode mode) {
   for (auto& line : leaderboard_lines) {
     set_line_visibility(line, show_board, false);
   }
+  refresh_menu_background();
 }
 
 inline void start_pending_level() {
@@ -1085,15 +1179,16 @@ inline void init() {
   };
 
   menu_background = arena::create<ecs::Entity>();
-  const glm::vec2 bg_size =
-      shrooms::texture_sizing::from_reference_width("level_1_ezh", 312.0f);
+  const glm::vec2 bg_size = shrooms::texture_sizing::from_reference_width(
+      kDefaultMenuBackgroundTexture, kMenuBackgroundReferenceWidthPx);
   auto* bg_transform = arena::create<transform::NoRotationTransform>();
-  bg_transform->pos =
-      glm::vec2{-0.025f * view_size.x, (view_size.y - bg_size.y) * 0.5f};
+  bg_transform->pos = glm::vec2{-0.025f * view_size.x, (view_size.y - bg_size.y) * 0.5f};
   menu_background->add(bg_transform);
   menu_background->add(arena::create<layers::ConstLayer>(-2));
-  const engine::TextureId bg_tex = engine::resources::register_texture("level_1_ezh");
-  menu_background->add(arena::create<render_system::SpriteRenderable>(bg_tex, bg_size));
+  const engine::TextureId bg_tex = engine::resources::register_texture(kDefaultMenuBackgroundTexture);
+  menu_background_sprite = arena::create<render_system::SpriteRenderable>(bg_tex, bg_size);
+  menu_background->add(menu_background_sprite);
+  menu_background_transform = bg_transform;
   menu_background->add(arena::create<scene::SceneObject>("menu"));
   vfx::attach_wobble(menu_background, glm::vec2{4.0f, 2.5f}, 0.18f, false);
 
