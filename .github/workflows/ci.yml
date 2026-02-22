@@ -19,6 +19,7 @@ jobs:
         with:
           submodules: recursive
           ssh-key: ${{ secrets.SUBMODULES_SSH_KEY }}
+          persist-credentials: false
 
       - name: Setup Emscripten
         uses: mymindstorm/setup-emsdk@v14
