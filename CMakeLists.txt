@@ -47,6 +47,14 @@ add_subdirectory(3rd-party/engine/libs/ui)
 add_subdirectory(3rd-party/engine/libs/render)
 add_subdirectory(3rd-party/engine/libs/platform)
 
+if(ENGINE_PLATFORM STREQUAL "web")
+  # Third-party engine currently adds both platform backends to one target.
+  # For web builds we must drop SDL sources to avoid host SDL header dependency.
+  get_target_property(engine_platform_sources engine_platform SOURCES)
+  list(FILTER engine_platform_sources EXCLUDE REGEX "platform_sdl\\.cpp$")
+  set_property(TARGET engine_platform PROPERTY SOURCES "${engine_platform_sources}")
+endif()
+
 add_executable(shrooms
   src/main/main.cpp
   src/main/shrooms_app.cpp

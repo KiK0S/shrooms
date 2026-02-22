@@ -1,9 +1,14 @@
 #include "engine/drivers.h"
 #include "engine/input.h"
 #include "engine/platform.h"
-#include "engine/platform_sdl.h"
 #include "shrooms_app.hpp"
 #include "systems/render/renderable.hpp"
+
+#ifdef __EMSCRIPTEN__
+#include "engine/platform_emscripten.h"
+#else
+#include "engine/platform_sdl.h"
+#endif
 
 int main() {
   const int view_w = 900;
@@ -14,7 +19,11 @@ int main() {
   config.title = "Shrooms Demo";
   config.renderer = engine::RendererKind::WebGL;
 
+#ifdef __EMSCRIPTEN__
+  engine::EmscriptenPlatform platform{};
+#else
   engine::SdlPlatform platform{};
+#endif
   engine::InputQueue input{};
 
   platform.init(config, input);
