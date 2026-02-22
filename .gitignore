@@ -2,3 +2,4 @@ build
 build-web
 assets
 shaders
+submodules_ci*
