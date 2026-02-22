@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<!-- Created with Vectornator (http://vectornator.io/) -->
+<svg height="100%" stroke-miterlimit="10" style="fill-rule:nonzero;clip-rule:evenodd;stroke-linecap:round;stroke-linejoin:round;" version="1.1" viewBox="39.3166 122.268 24.9746 24.384" width="100%" xml:space="preserve" xmlns="http://www.w3.org/2000/svg" xmlns:vectornator="http://vectornator.io" xmlns:xlink="http://www.w3.org/1999/xlink">
+<defs>
+<path d="M49.2222 146.652C49.2222 146.652 52.9543 146.652 52.9543 146.652L52.9543 135.907L64.2912 127.368L61.8674 123.675L56.7567 125.606L54.9502 123.675L51.6077 122.268L48.7182 123.13L47.0392 126.438L43.3325 125.606L39.3166 128.415L47.8239 135.907C47.8239 135.907 49.2222 146.652 49.2222 146.652Z" id="Fill"/>
+</defs>
+<g id="Layer">
+<g opacity="1">
+<use fill="#f5891d" fill-rule="nonzero" opacity="1" stroke="none" xlink:href="#Fill"/>
+<clipPath clip-rule="nonzero" id="ClipPath">
+<use xlink:href="#Fill"/>
+</clipPath>
+<g clip-path="url(#ClipPath)">
+<path d="M41.3572 131.986L48.9245 127.711L56.0109 127.711L61.6949 130.697L53.7167 137.888L47.0416 138.094L41.3572 131.986Z" fill="#d86c00" fill-rule="nonzero" opacity="1" stroke="none"/>
+</g>
+</g>
+</g>
+</svg>

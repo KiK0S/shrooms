@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<!-- Created with Vectornator (http://vectornator.io/) -->
+<svg height="100%" stroke-miterlimit="10" style="fill-rule:nonzero;clip-rule:evenodd;stroke-linecap:round;stroke-linejoin:round;" version="1.1" viewBox="183.594 74.8231 27.7904 25.8343" width="100%" xml:space="preserve" xmlns="http://www.w3.org/2000/svg" xmlns:vectornator="http://vectornator.io" xmlns:xlink="http://www.w3.org/1999/xlink">
+<defs>
+<path d="M194.967 89.2207L195.37 98.7754L198.91 100.657L202.425 98.9082L202.093 89.2948L205.954 89.4465L201.983 85.2515L211.384 86.0126L208.681 79.0451L198.539 74.8231L190.881 75.4451L183.594 83.5129L193.843 84.4169L190.771 88.8465L194.967 89.2207Z" id="Fill"/>
+</defs>
+<g id="Layer">
+<g opacity="1">
+<use fill="#dfd6ab" fill-rule="nonzero" opacity="1" stroke="none" xlink:href="#Fill"/>
+<clipPath clip-rule="nonzero" id="ClipPath">
+<use xlink:href="#Fill"/>
+</clipPath>
+<g clip-path="url(#ClipPath)">
+<path d="M182.821 85.2515L208.495 87.0106C208.495 87.0106 214.619 87.0106 215.167 87.0106C215.716 87.0106 213.1 75.7439 213.1 75.7439C213.1 75.7439 203.775 70.4157 202.299 70.2937C200.822 70.1716 187.025 72.5722 186.181 73.0605C185.337 73.5488 182.821 79.7335 182.821 79.7335L182.821 85.2515Z" fill="#b83c3d" fill-rule="nonzero" opacity="1" stroke="none"/>
+<path d="M186.309 78.2589C186.309 76.0777 188.207 74.3095 190.548 74.3095C192.89 74.3095 194.788 76.0777 194.788 78.2589C194.788 80.4401 192.89 82.2083 190.548 82.2083C188.207 82.2083 186.309 80.4401 186.309 78.2589Z" fill="#fcfcfc" fill-rule="nonzero" opacity="1" stroke="none"/>
+<path d="M195.545 81.8067C195.545 79.9566 197.235 78.4567 199.32 78.4567C201.405 78.4567 203.095 79.9566 203.095 81.8067C203.095 83.6569 201.405 85.1567 199.32 85.1567C197.235 85.1567 195.545 83.6569 195.545 81.8067Z" fill="#fcfcfc" fill-rule="nonzero" opacity="1" stroke="none"/>
+<path d="M204.009 78.82C204.009 76.6126 206.018 74.8231 208.495 74.8231C210.973 74.8231 212.981 76.6126 212.981 78.82C212.981 81.0275 210.973 82.817 208.495 82.817C206.018 82.817 204.009 81.0275 204.009 78.82Z" fill="#fcfcfc" fill-rule="nonzero" opacity="1" stroke="none"/>
+</g>
+</g>
+</g>
+</svg>

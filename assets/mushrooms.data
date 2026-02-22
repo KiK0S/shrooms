@@ -1,0 +1,90 @@
+background
+geometry
+quad
+-1 -1
+1 -1
+-1 1
+1 1
+texture
+level_1_ezh
+layer
+-1
+background
+sky
+geometry
+quad
+-1 0.8
+1 0.8
+-1 1
+1 1
+periodic_spawner
+2.5 0.75
+mukhomor_spawned
+texture
+mukhomor
+moving
+0 -0.005
+rotating
+random 0.05 -0.05
+layer
+2
+collider
+mushroom_catch_handler
+collider
+mushroom_fall_handler
+collider
+bone_projectile_handler
+mukhomor_spawned
+periodic_spawner
+2.5 0.75
+lisi4ka_spawned
+texture
+lisi4ka
+moving
+0 -0.005
+rotating
+random 0.05 -0.05
+layer
+2
+collider
+mushroom_catch_handler
+collider
+mushroom_fall_handler
+collider
+bone_projectile_handler
+lisi4ka_spawned
+periodic_spawner
+2.5 0.75
+borovik_spawned
+texture
+borovik
+moving
+0 -0.005
+rotating
+random 0.05 -0.05
+layer
+2
+collider
+mushroom_catch_handler
+collider
+mushroom_fall_handler
+collider
+bone_projectile_handler
+borovik_spawned
+sky
+floor
+geometry
+quad
+-1 -1
+1 -1
+-1 -0.8657718120805369
+1 -0.8657718120805369
+texture
+bottom_1
+color
+255 255 255 255
+layer
+0
+trigger
+mushroom_fall_handler
+floor
