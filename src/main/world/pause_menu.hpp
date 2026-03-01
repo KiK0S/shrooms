@@ -523,7 +523,7 @@ inline void init() {
   menu_transform->pos = shrooms::screen::center_to_top_left(menu_center, menu_size);
   menu_window->add(menu_transform);
   menu_window->add(arena::create<layers::ConstLayer>(config.menu_layer));
-  const engine::TextureId menu_tex = engine::resources::register_texture("pause_menu");
+  const engine::TextureId menu_tex = engine::resources::register_texture("background");
   menu_window->add(arena::create<render_system::SpriteRenderable>(
       menu_tex, menu_size,
       engine::UIColor{config.menu_color.x, config.menu_color.y, config.menu_color.z,
@@ -566,8 +566,9 @@ inline void init() {
       shrooms::screen::center_to_top_left(pause_button_center, pause_icon_size);
   pause_toggle_icon->add(pause_toggle_icon_transform);
   pause_toggle_icon->add(arena::create<layers::ConstLayer>(config.pause_button_layer + 1));
+  const engine::TextureId pause_toggle_icon_tex = engine::resources::register_texture("icon");
   pause_toggle_icon_sprite = arena::create<render_system::SpriteRenderable>(
-      menu_tex, pause_icon_size, engine::UIColor{1.0f, 1.0f, 1.0f, 1.0f});
+      pause_toggle_icon_tex, pause_icon_size, engine::UIColor{1.0f, 1.0f, 1.0f, 1.0f});
   pause_toggle_icon->add(pause_toggle_icon_sprite);
   pause_toggle_icon_hidden = arena::create<hidden::HiddenObject>();
   pause_toggle_icon->add(pause_toggle_icon_hidden);

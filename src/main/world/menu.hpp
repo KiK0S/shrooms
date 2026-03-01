@@ -43,7 +43,7 @@ constexpr float kMenuTextYOffsetNorm = 0.1f;
 constexpr size_t kLeaderboardLines = static_cast<size_t>(leaderboard::kMaxEntries);
 constexpr size_t kNameMaxLength = 12;
 constexpr float kMenuBackgroundReferenceWidthPx = 312.0f;
-constexpr const char* kDefaultMenuBackgroundTexture = "level_1_ezh";
+constexpr const char* kDefaultMenuBackgroundTexture = "background";
 constexpr int kKeyArrowUpDom = 38;
 constexpr int kKeyArrowDownDom = 40;
 constexpr int kKeyArrowUpSdl = 1073741906;
@@ -210,25 +210,7 @@ inline void apply_menu_background(const std::string& texture_name, bool level_la
 }
 
 inline void refresh_menu_background() {
-  switch (menu_mode) {
-    case MenuMode::Objective: {
-      const std::string texture = objective_background_texture();
-      const bool level_layout = !pending_tutorial;
-      apply_menu_background(texture, level_layout);
-      break;
-    }
-    case MenuMode::GameOver: {
-      const std::string texture = gameover_background_texture();
-      const bool level_layout =
-          levels::last_result_valid && !levels::last_result.tutorial_mode;
-      apply_menu_background(texture, level_layout);
-      break;
-    }
-    case MenuMode::Main:
-    default:
-      apply_menu_background(kDefaultMenuBackgroundTexture, false);
-      break;
-  }
+  apply_menu_background(kDefaultMenuBackgroundTexture, false);
 }
 
 inline void update_text(TextLine& line, const std::string& value) {

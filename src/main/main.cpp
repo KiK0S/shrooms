@@ -17,6 +17,7 @@ int main() {
   config.width = view_w;
   config.height = view_h;
   config.title = "Shrooms Demo";
+  config.icon_path = "shrooms/icon.svg";
   config.renderer = engine::RendererKind::WebGL;
 
 #ifdef __EMSCRIPTEN__

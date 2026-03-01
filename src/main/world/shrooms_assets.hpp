@@ -59,6 +59,8 @@ inline void register_shrooms_svg_assets() {
   register_svg("famiriar");
   register_svg("menu_face");
   register_svg("menu_scoreboard");
+  register_svg("background");
+  register_svg("icon");
   register_svg("bottom_1");
   register_svg("bottom_2");
 

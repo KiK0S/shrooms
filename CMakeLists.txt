@@ -80,6 +80,9 @@ add_custom_command(TARGET shrooms POST_BUILD
   ${CMAKE_CURRENT_SOURCE_DIR}/3rd-party/engine/assets
   $<TARGET_FILE_DIR:shrooms>/assets
   COMMAND ${CMAKE_COMMAND} -E copy_directory
+  ${CMAKE_CURRENT_SOURCE_DIR}/assets
+  $<TARGET_FILE_DIR:shrooms>/assets
+  COMMAND ${CMAKE_COMMAND} -E copy_directory
   ${CMAKE_CURRENT_SOURCE_DIR}/3rd-party/engine/assets
   ${CMAKE_CURRENT_SOURCE_DIR}/assets
   COMMAND ${CMAKE_COMMAND} -E copy_directory
@@ -100,7 +103,7 @@ if(ENGINE_PLATFORM STREQUAL "web")
     "-sUSE_WEBGL2=1"
     "-sFULL_ES3=1"
     "-sUSE_SDL=2"
-    "SHELL:--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/3rd-party/engine/assets@/assets"
+    "SHELL:--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/assets@/assets"
     "SHELL:--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/3rd-party/engine/shaders@/shaders"
     "SHELL:--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/src/main/custom_shaders@/shaders"
   )
