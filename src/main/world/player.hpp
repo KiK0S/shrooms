@@ -96,6 +96,25 @@ enum class FamiliarState {
   Returning,
 };
 
+inline engine::ShaderId familiar_sleep_shader_id() {
+  static const engine::ShaderId id =
+      engine::resources::register_shader("implicit_warp_sprite_gray_2d");
+  return id;
+}
+
+struct FamiliarSprite : public render_system::ImplicitSkeletonedSprite {
+  FamiliarSprite(engine::TextureId texture_id, glm::vec2 size,
+                 const engine::UIColor& tint = {})
+      : render_system::ImplicitSkeletonedSprite(texture_id, size, tint) {}
+
+  engine::ShaderId shader_id() const override {
+    return grayscale ? familiar_sleep_shader_id()
+                     : render_system::ImplicitSkeletonedSprite::shader_id();
+  }
+
+  bool grayscale = false;
+};
+
 struct FamiliarLogic : public dynamic::DynamicObject {
   FamiliarLogic(float orbit_radius_px, float orbit_speed, float phase)
       : dynamic::DynamicObject(),
@@ -126,11 +145,7 @@ struct FamiliarLogic : public dynamic::DynamicObject {
 
     if (state == FamiliarState::Orbit) {
       orbit_angle += orbit_speed * dt;
-      const glm::vec2 offset{
-          std::cos(orbit_angle) * orbit_radius_px,
-          std::sin(orbit_angle) * orbit_radius_px * orbit_y_scale,
-      };
-      set_center(player_center + offset);
+      set_center(player_center + orbit_offset(orbit_angle));
     } else if (state == FamiliarState::Planted) {
       set_center(planted_center);
     } else if (state == FamiliarState::Carry) {
@@ -169,18 +184,20 @@ struct FamiliarLogic : public dynamic::DynamicObject {
       }
     } else if (state == FamiliarState::Returning) {
       return_timer = std::max(0.0f, return_timer - dt);
+      orbit_angle += orbit_speed * dt;
+      const glm::vec2 orbit_center = player_center + orbit_offset(orbit_angle);
       glm::vec2 center = current_center();
-      const glm::vec2 to_player = player_center - center;
-      const float dist = glm::length(to_player);
-      bool reached_player = false;
-      if (dist > 1.0f && dist > 0.0001f) {
-        center += glm::normalize(to_player) * return_speed * dt;
+      const glm::vec2 to_orbit = orbit_center - center;
+      const float dist = glm::length(to_orbit);
+      bool reached_orbit = false;
+      if (dist > return_speed * dt + 1.0f && dist > 0.0001f) {
+        center += glm::normalize(to_orbit) * return_speed * dt;
         set_center(center);
       } else {
-        set_center(player_center);
-        reached_player = true;
+        set_center(orbit_center);
+        reached_orbit = true;
       }
-      if (reached_player && return_timer <= 0.0f) {
+      if (reached_orbit && return_timer <= 0.0f) {
         state = FamiliarState::Orbit;
       }
     }
@@ -194,6 +211,8 @@ struct FamiliarLogic : public dynamic::DynamicObject {
         trail_timer = trail_period;
       }
     }
+
+    update_visual_state();
   }
 
   bool is_idle() const { return state == FamiliarState::Orbit; }
@@ -285,6 +304,7 @@ struct FamiliarLogic : public dynamic::DynamicObject {
     }
     planted_center = current_center();
     strike_top_y = -size.y * 0.6f;
+    update_visual_state();
   }
 
   void clear_carried(bool delete_entity) {
@@ -324,6 +344,14 @@ struct FamiliarLogic : public dynamic::DynamicObject {
   void begin_return(float delay = -1.0f) {
     state = FamiliarState::Returning;
     return_timer = delay >= 0.0f ? delay : return_delay;
+    if (player_transform) {
+      const glm::vec2 player_center =
+          player_transform->pos + glm::vec2{player_size.x * 0.5f, player_size.y * 0.5f};
+      const glm::vec2 rel = current_center() - player_center;
+      const float scaled_y = orbit_y_scale > 0.0001f ? rel.y / orbit_y_scale : rel.y;
+      orbit_angle = std::atan2(scaled_y, rel.x);
+    }
+    update_visual_state();
   }
 
   glm::vec2 current_center() const {
@@ -343,7 +371,22 @@ struct FamiliarLogic : public dynamic::DynamicObject {
     carried_transform->pos = target_center - carried_size * 0.5f;
   }
 
+  bool is_sleeping() const { return state == FamiliarState::Returning; }
+
+  glm::vec2 orbit_offset(float angle) const {
+    return glm::vec2{
+        std::cos(angle) * orbit_radius_px,
+        std::sin(angle) * orbit_radius_px * orbit_y_scale,
+    };
+  }
+
+  void update_visual_state() {
+    if (!sprite) return;
+    sprite->grayscale = is_sleeping();
+  }
+
   transform::NoRotationTransform* transform = nullptr;
+  FamiliarSprite* sprite = nullptr;
   glm::vec2 size{0.0f, 0.0f};
   float orbit_radius_px = 0.0f;
   float orbit_speed = 2.3f;
@@ -467,7 +510,7 @@ inline void init_familiars() {
 
     entity->add(arena::create<layers::ConstLayer>(3));
     auto* familiar_sprite =
-        arena::create<render_system::ImplicitSkeletonedSprite>(tex_id, familiar_size);
+        arena::create<FamiliarSprite>(tex_id, familiar_size);
     familiar_sprite->warp_power = 2.0f;
     familiar_sprite->warp_epsilon = 0.02f;
     familiar_sprite->warp_rest_weight = 1.25f;
@@ -563,6 +606,7 @@ inline void init_familiars() {
     entity->add(familiar_sprite);
     auto* logic = arena::create<FamiliarLogic>(orbit_radius, orbit_speed, phase);
     logic->size = familiar_size;
+    logic->sprite = familiar_sprite;
     entity->add(logic);
     entity->add(make_familiar_trigger(logic));
     entity->add(make_familiar_sort_trigger(logic));

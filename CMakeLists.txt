@@ -86,8 +86,8 @@ add_custom_command(TARGET shrooms POST_BUILD
   ${CMAKE_CURRENT_SOURCE_DIR}/3rd-party/engine/shaders
   $<TARGET_FILE_DIR:shrooms>/shaders
   COMMAND ${CMAKE_COMMAND} -E copy_directory
-  ${CMAKE_CURRENT_SOURCE_DIR}/3rd-party/engine/shaders
-  ${CMAKE_CURRENT_SOURCE_DIR}/shaders
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/custom_shaders
+  $<TARGET_FILE_DIR:shrooms>/shaders
 )
 
 if(ENGINE_PLATFORM STREQUAL "web")
@@ -102,6 +102,7 @@ if(ENGINE_PLATFORM STREQUAL "web")
     "-sUSE_SDL=2"
     "SHELL:--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/3rd-party/engine/assets@/assets"
     "SHELL:--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/3rd-party/engine/shaders@/shaders"
+    "SHELL:--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/src/main/custom_shaders@/shaders"
   )
 else()
   find_package(SDL2 REQUIRED)
