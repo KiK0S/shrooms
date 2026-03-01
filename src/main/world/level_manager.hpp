@@ -1044,7 +1044,7 @@ inline void finalize_level(bool success) {
 
   if (infinite_mode) {
     last_result.level_index = infinite_menu_index();
-    last_result.level_id = "Infinite Mode";
+    last_result.level_id = "Daily Infinity Mode";
     last_game_status = "Infinite run ended (score " + std::to_string(infinite_global_score) + ")";
     last_game_success = success;
   } else if (tutorial_mode) {

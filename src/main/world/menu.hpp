@@ -77,7 +77,7 @@ struct TextLine {
   glm::vec4 base_text_color{1.0f, 1.0f, 1.0f, 1.0f};
   glm::vec4 selected_text_color{1.0f, 1.0f, 1.0f, 1.0f};
   glm::vec4 dimmed_text_color{0.74f, 0.74f, 0.74f, 0.92f};
-  glm::vec4 locked_text_color{0.56f, 0.56f, 0.56f, 0.9f};
+  glm::vec4 locked_text_color{0.32f, 0.32f, 0.32f, 0.78f};
   float hover_scale = 1.04f;
   float selected_scale = 1.0f;
   float font_px = 18.0f;
@@ -342,7 +342,7 @@ inline bool is_selectable_level(size_t index) {
 
 inline std::string format_level_line(size_t index) {
   if (is_infinite_entry(index)) {
-    return std::to_string(index + 1) + ". Infinite Mode";
+    return std::to_string(index + 1) + ". Daily Infinity Mode:";
   }
   if (index >= levels::parsed_levels.size()) {
     return "";
@@ -607,7 +607,7 @@ inline void enter_infinite_objective_mode() {
   pending_infinite = true;
   pending_tutorial = false;
   levels::prepare_infinite_preview();
-  const std::string label = "Infinite Mode: Round 1";
+  const std::string label = "Daily Infinity Mode: Round 1";
   refresh_objective_lines_from_level(levels::infinite_level, label);
   set_menu_mode(MenuMode::Objective);
 }
