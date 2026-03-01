@@ -95,6 +95,9 @@ add_custom_command(TARGET shrooms POST_BUILD
 
 if(ENGINE_PLATFORM STREQUAL "web")
   set_target_properties(shrooms PROPERTIES SUFFIX ".html")
+  set_property(TARGET shrooms APPEND PROPERTY LINK_DEPENDS
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/main/web/shrooms_shell.html
+  )
   target_link_options(shrooms PRIVATE
     "-sWASM=1"
     "--use-preload-plugins"

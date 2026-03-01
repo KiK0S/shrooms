@@ -11,123 +11,83 @@
       font-display: swap;
     }
 
-    :root {
-      --bg-0: #121416;
-      --bg-1: #1a1f22;
-      --bg-2: #22282c;
-      --blue: #007aff;
-      --red: #b83c3d;
-      --cream: #dfd6ab;
-      --moss: #749914;
-    }
-
     * {
       box-sizing: border-box;
     }
 
     html,
     body {
+      margin: 0;
       width: 100%;
       min-height: 100%;
-      margin: 0;
-      overflow-x: hidden;
-      background: var(--bg-0);
     }
 
     body {
-      font-family: "Vera", "Trebuchet MS", sans-serif;
-      color: var(--cream);
-      background-image:
-        radial-gradient(circle at 15% 20%, rgba(116, 153, 20, 0.16), transparent 28%),
-        radial-gradient(circle at 85% 22%, rgba(184, 60, 61, 0.14), transparent 30%),
-        radial-gradient(circle at 20% 85%, rgba(0, 122, 255, 0.12), transparent 28%),
-        linear-gradient(155deg, var(--bg-0) 0%, var(--bg-1) 45%, var(--bg-2) 100%);
-    }
-
-    body::before {
-      content: "";
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      opacity: 0.15;
-      background-image:
-        repeating-linear-gradient(35deg, transparent 0 26px, rgba(223, 214, 171, 0.1) 26px 28px),
-        repeating-linear-gradient(-35deg, transparent 0 28px, rgba(0, 122, 255, 0.08) 28px 29px);
-      z-index: 0;
+      font-family: "Vera", sans-serif;
+      background: #1b1f22;
+      color: #dfd6ab;
+      position: relative;
+      overflow-x: hidden;
     }
 
     .decor {
       position: fixed;
       inset: 0;
       pointer-events: none;
-      z-index: 1;
+      z-index: 0;
     }
 
     .decor img {
       position: absolute;
-      width: clamp(34px, 4.2vw, 70px);
-      opacity: 0.32;
+      width: clamp(28px, 3.4vw, 52px);
+      opacity: 0.28;
     }
 
-    .d1 { left: 4%; top: 8%; }
-    .d2 { left: 12%; bottom: 10%; }
-    .d3 { left: 23%; top: 20%; }
-    .d4 { left: 34%; bottom: 6%; }
-    .d5 { right: 4%; top: 10%; }
-    .d6 { right: 12%; bottom: 12%; }
-    .d7 { right: 24%; top: 18%; }
-    .d8 { right: 31%; bottom: 7%; }
-    .d9 { left: 8%; top: 45%; }
-    .d10 { right: 9%; top: 46%; }
+    .d1 { left: 5%; top: 10%; }
+    .d2 { left: 14%; bottom: 10%; }
+    .d3 { left: 28%; top: 18%; }
+    .d4 { right: 6%; top: 12%; }
+    .d5 { right: 16%; bottom: 11%; }
+    .d6 { right: 30%; top: 45%; }
 
-    .layout {
+    main {
       position: relative;
-      z-index: 2;
+      z-index: 1;
       min-height: 100dvh;
       display: grid;
       place-items: center;
-      padding: 1.1rem 0.7rem 1.3rem;
+      padding: 12px;
     }
 
     .content {
-      width: min(1120px, 96vw);
+      width: min(1100px, 96vw);
     }
 
-    .title {
-      margin: 0 0 0.45rem;
+    h1 {
+      margin: 0 0 8px;
       text-align: center;
+      letter-spacing: 0.16em;
       text-transform: uppercase;
-      letter-spacing: 0.2em;
       font-size: clamp(1.2rem, 3vw, 2rem);
-      color: var(--cream);
+      font-weight: normal;
     }
 
     #status {
-      margin: 0 0 0.7rem;
+      margin: 0 0 8px;
       text-align: center;
-      font-size: 0.82rem;
-      color: rgba(223, 214, 171, 0.88);
-      min-height: 1.1rem;
-    }
-
-    .canvas-wrap {
-      width: 100%;
-      margin: 0 auto;
-      background: #000;
+      font-size: 0.8rem;
+      color: #cfc6a0;
+      min-height: 1rem;
     }
 
     #canvas {
-      width: 100%;
       display: block;
+      width: 100%;
       aspect-ratio: 16 / 9;
       background: #000;
+      border: none !important;
       outline: none;
-    }
-
-    @media (max-width: 800px) {
-      .decor img {
-        opacity: 0.24;
-      }
+      box-shadow: none;
     }
   </style>
 </head>
@@ -139,19 +99,13 @@
     <img class="d4" src="assets/shrooms/mukhomor_small.svg" alt="">
     <img class="d5" src="assets/shrooms/borovik_small.svg" alt="">
     <img class="d6" src="assets/shrooms/famiriar.svg" alt="">
-    <img class="d7" src="assets/shrooms/mukhomor_small.svg" alt="">
-    <img class="d8" src="assets/shrooms/borovik_small.svg" alt="">
-    <img class="d9" src="assets/shrooms/famiriar.svg" alt="">
-    <img class="d10" src="assets/shrooms/famiriar.svg" alt="">
   </div>
 
-  <main class="layout">
+  <main>
     <section class="content">
-      <h1 class="title">Shrooms</h1>
+      <h1>Shrooms</h1>
       <p id="status">Downloading...</p>
-      <div class="canvas-wrap">
-        <canvas id="canvas" width="1280" height="720" tabindex="0" oncontextmenu="event.preventDefault()"></canvas>
-      </div>
+      <canvas id="canvas" width="1280" height="720" tabindex="0" oncontextmenu="event.preventDefault()"></canvas>
     </section>
   </main>
 
@@ -175,11 +129,7 @@
       totalDependencies: 0,
       monitorRunDependencies: (left) => {
         Module.totalDependencies = Math.max(Module.totalDependencies, left);
-        Module.setStatus(
-          left
-            ? `Preparing... (${Module.totalDependencies - left}/${Module.totalDependencies})`
-            : ""
-        );
+        Module.setStatus(left ? `Preparing... (${Module.totalDependencies - left}/${Module.totalDependencies})` : "");
       }
     };
 
