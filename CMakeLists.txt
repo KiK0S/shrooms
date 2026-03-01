@@ -103,6 +103,7 @@ if(ENGINE_PLATFORM STREQUAL "web")
     "-sUSE_WEBGL2=1"
     "-sFULL_ES3=1"
     "-sUSE_SDL=2"
+    "SHELL:--shell-file ${CMAKE_CURRENT_SOURCE_DIR}/src/main/web/shrooms_shell.html"
     "SHELL:--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/assets@/assets"
     "SHELL:--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/3rd-party/engine/shaders@/shaders"
     "SHELL:--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/src/main/custom_shaders@/shaders"

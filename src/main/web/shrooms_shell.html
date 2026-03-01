@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en-us">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Shrooms</title>
+  <style>
+    @font-face {
+      font-family: "Vera";
+      src: url("assets/Vera.ttf") format("truetype");
+      font-display: swap;
+    }
+
+    :root {
+      --blue: #007aff;
+      --red: #b83c3d;
+      --red-bright: #ff0003;
+      --cream: #dfd6ab;
+      --moss: #749914;
+      --bark: #8a562e;
+      --charcoal: #1a1a1a;
+      --steel: #424242;
+      --familiar: #fd6ec8;
+      --panel: rgba(12, 14, 16, 0.84);
+      --panel-border: rgba(223, 214, 171, 0.38);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      min-height: 100%;
+      margin: 0;
+      overflow-x: hidden;
+      background: var(--charcoal);
+    }
+
+    body {
+      min-height: 100dvh;
+      font-family: "Vera", "Trebuchet MS", sans-serif;
+      color: var(--cream);
+      position: relative;
+      background-image:
+        radial-gradient(circle at 18% 22%, rgba(116, 153, 20, 0.18), transparent 32%),
+        radial-gradient(circle at 79% 15%, rgba(184, 60, 61, 0.14), transparent 28%),
+        radial-gradient(circle at 15% 87%, rgba(141, 86, 46, 0.18), transparent 30%),
+        radial-gradient(circle at 85% 83%, rgba(0, 122, 255, 0.14), transparent 35%),
+        linear-gradient(145deg, #0f1214 0%, #171d21 45%, #1e2327 100%);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.24;
+      background-image:
+        repeating-linear-gradient(30deg, transparent 0 20px, rgba(223, 214, 171, 0.1) 20px 22px),
+        repeating-linear-gradient(-30deg, transparent 0 19px, rgba(0, 122, 255, 0.08) 19px 20px);
+      z-index: 0;
+    }
+
+    .scene {
+      position: relative;
+      min-height: 100dvh;
+      display: grid;
+      place-items: center;
+      padding: 2rem 1rem 2.5rem;
+      isolation: isolate;
+      z-index: 1;
+    }
+
+    .decor {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .decor img {
+      position: absolute;
+      width: clamp(70px, 7vw, 140px);
+      opacity: 0.34;
+      filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.4));
+      animation: drift 9s ease-in-out infinite;
+    }
+
+    .decor img.familiar {
+      width: clamp(54px, 5vw, 96px);
+      opacity: 0.36;
+      filter: drop-shadow(0 0 10px rgba(253, 110, 200, 0.46));
+      animation-duration: 7s;
+    }
+
+    .d1 { left: 4%; top: 8%; transform: rotate(-16deg); }
+    .d2 { left: 18%; bottom: 8%; transform: rotate(8deg); animation-delay: 0.7s; }
+    .d3 { right: 6%; top: 10%; transform: rotate(18deg) scaleX(-1); animation-delay: 0.4s; }
+    .d4 { right: 15%; bottom: 7%; transform: rotate(-8deg) scale(1.08); animation-delay: 1.1s; }
+    .d5 { left: 32%; top: 6%; transform: rotate(-10deg); animation-delay: 0.9s; }
+    .d6 { right: 30%; bottom: 5%; transform: rotate(12deg); animation-delay: 0.25s; }
+    .d7 { left: 9%; top: 40%; transform: rotate(14deg); animation-delay: 0.5s; }
+    .d8 { right: 10%; top: 44%; transform: rotate(-15deg) scaleX(-1); animation-delay: 1.4s; }
+
+    @keyframes drift {
+      0%,
+      100% { transform: translateY(0px) scale(1) rotate(var(--r, 0deg)); }
+      50% { transform: translateY(-8px) scale(1.03) rotate(calc(var(--r, 0deg) + 2deg)); }
+    }
+
+    .d1 { --r: -16deg; }
+    .d2 { --r: 8deg; }
+    .d3 { --r: 18deg; }
+    .d4 { --r: -8deg; }
+    .d5 { --r: -10deg; }
+    .d6 { --r: 12deg; }
+    .d7 { --r: 14deg; }
+    .d8 { --r: -15deg; }
+
+    .frame {
+      width: min(1120px, 96vw);
+      border: 1px solid var(--panel-border);
+      border-radius: 20px;
+      background: var(--panel);
+      box-shadow:
+        0 22px 56px rgba(0, 0, 0, 0.56),
+        inset 0 1px 0 rgba(255, 255, 255, 0.04),
+        0 0 0 1px rgba(0, 122, 255, 0.16);
+      backdrop-filter: blur(4px);
+      padding: 1.1rem 1rem 1rem;
+      position: relative;
+    }
+
+    .frame::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      pointer-events: none;
+      background: linear-gradient(120deg, rgba(184, 60, 61, 0.11), transparent 38%, rgba(116, 153, 20, 0.07) 65%, rgba(0, 122, 255, 0.1));
+      mix-blend-mode: screen;
+    }
+
+    .title {
+      margin: 0;
+      text-align: center;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--cream);
+      text-shadow:
+        0 0 0 transparent,
+        0 0 20px rgba(0, 122, 255, 0.35),
+        0 0 12px rgba(184, 60, 61, 0.25);
+      font-size: clamp(1.2rem, 3vw, 2rem);
+    }
+
+    .sub {
+      margin: 0.4rem 0 0.85rem;
+      text-align: center;
+      color: #c0c0a8;
+      font-size: clamp(0.76rem, 1.6vw, 0.92rem);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .hud {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 0.55rem;
+      margin-bottom: 0.75rem;
+      min-height: 34px;
+    }
+
+    #status {
+      color: #d8d0ac;
+      font-size: 0.86rem;
+      letter-spacing: 0.04em;
+    }
+
+    #progress {
+      width: min(380px, 75vw);
+      height: 8px;
+      border: 0;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    #progress::-webkit-progress-bar {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    #progress::-webkit-progress-value {
+      background: linear-gradient(90deg, var(--red), var(--moss), var(--blue));
+    }
+
+    #progress::-moz-progress-bar {
+      background: linear-gradient(90deg, var(--red), var(--moss), var(--blue));
+    }
+
+    .controls {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 0.75rem;
+    }
+
+    .btn {
+      appearance: none;
+      border: 1px solid rgba(223, 214, 171, 0.4);
+      background: linear-gradient(180deg, rgba(0, 122, 255, 0.2), rgba(184, 60, 61, 0.2));
+      color: var(--cream);
+      font-family: inherit;
+      font-size: 0.84rem;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      border-radius: 999px;
+      padding: 0.48rem 0.95rem;
+      cursor: pointer;
+      transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      border-color: rgba(223, 214, 171, 0.8);
+      box-shadow: 0 0 15px rgba(0, 122, 255, 0.25);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .canvas-wrap {
+      width: min(1080px, 92vw);
+      margin: 0 auto;
+      border: 2px solid rgba(0, 122, 255, 0.35);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+        0 0 24px rgba(0, 122, 255, 0.18),
+        0 0 24px rgba(184, 60, 61, 0.12);
+      background: #000;
+    }
+
+    #canvas {
+      width: 100%;
+      display: block;
+      aspect-ratio: 16 / 9;
+      background: #000;
+      outline: none;
+    }
+
+    #output {
+      margin-top: 0.75rem;
+      width: 100%;
+      max-height: 7rem;
+      resize: vertical;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(0, 0, 0, 0.45);
+      color: #d0d0d0;
+      padding: 0.6rem;
+      font-size: 0.72rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      display: none;
+    }
+
+    @media (max-width: 820px) {
+      .scene { padding: 1.15rem 0.5rem 1.5rem; }
+      .frame { border-radius: 14px; padding: 0.7rem 0.55rem 0.55rem; }
+      .title { letter-spacing: 0.14em; }
+      .sub { margin-bottom: 0.55rem; }
+      .decor img { opacity: 0.25; }
+    }
+  </style>
+</head>
+<body>
+  <div class="decor" aria-hidden="true">
+    <img class="d1" src="assets/shrooms/mukhomor.svg" alt="">
+    <img class="d2" src="assets/shrooms/borovik.svg" alt="">
+    <img class="d3" src="assets/shrooms/mukhomor.svg" alt="">
+    <img class="d4" src="assets/shrooms/borovik.svg" alt="">
+    <img class="d5 familiar" src="assets/shrooms/famiriar.svg" alt="">
+    <img class="d6 familiar" src="assets/shrooms/famiriar.svg" alt="">
+    <img class="d7" src="assets/shrooms/mukhomor_small.svg" alt="">
+    <img class="d8" src="assets/shrooms/borovik_small.svg" alt="">
+  </div>
+
+  <main class="scene">
+    <section class="frame">
+      <h1 class="title">Shrooms</h1>
+      <p class="sub">Web Build</p>
+
+      <div class="hud">
+        <span id="status">Downloading...</span>
+        <progress id="progress" max="100" value="0" hidden></progress>
+      </div>
+
+      <div class="controls">
+        <button type="button" class="btn" id="fullscreenBtn">Fullscreen</button>
+      </div>
+
+      <div class="canvas-wrap">
+        <canvas id="canvas" width="1280" height="720" tabindex="0" oncontextmenu="event.preventDefault()"></canvas>
+      </div>
+
+      <textarea id="output" rows="8" aria-label="Console output"></textarea>
+    </section>
+  </main>
+
+  <script>
+    const statusElement = document.getElementById("status");
+    const progressElement = document.getElementById("progress");
+    const outputElement = document.getElementById("output");
+
+    var Module = {
+      print: (...args) => {
+        const line = args.join(" ");
+        console.log(line);
+        if (outputElement) {
+          outputElement.value += line + "\n";
+          outputElement.scrollTop = outputElement.scrollHeight;
+        }
+      },
+      printErr: (...args) => {
+        console.error(...args);
+      },
+      canvas: (() => {
+        const canvas = document.getElementById("canvas");
+        canvas.addEventListener("webglcontextlost", (event) => {
+          alert("WebGL context lost. Reload the page to continue.");
+          event.preventDefault();
+        }, false);
+        return canvas;
+      })(),
+      setStatus: (text) => {
+        if (!Module.setStatus.last) {
+          Module.setStatus.last = { time: Date.now(), text: "" };
+        }
+        if (text === Module.setStatus.last.text) {
+          return;
+        }
+
+        const match = text.match(/([^()]+)\((\d+(?:\.\d+)?)\/(\d+)\)/);
+        const now = Date.now();
+        if (match && now - Module.setStatus.last.time < 30) {
+          return;
+        }
+
+        Module.setStatus.last.time = now;
+        Module.setStatus.last.text = text;
+
+        if (match) {
+          const [, label, current, total] = match;
+          statusElement.textContent = label.trim();
+          progressElement.hidden = false;
+          progressElement.max = Math.max(1, Number(total));
+          progressElement.value = Number(current);
+        } else {
+          statusElement.textContent = text || "Ready";
+          if (!text) {
+            progressElement.hidden = true;
+          }
+        }
+      },
+      totalDependencies: 0,
+      monitorRunDependencies: (left) => {
+        Module.totalDependencies = Math.max(Module.totalDependencies, left);
+        Module.setStatus(
+          left
+            ? `Preparing... (${Module.totalDependencies - left}/${Module.totalDependencies})`
+            : "All downloads complete."
+        );
+      }
+    };
+
+    Module.setStatus("Downloading...");
+
+    window.onerror = (message) => {
+      Module.setStatus("Exception thrown. Check JavaScript console.");
+      console.error(message);
+    };
+
+    document.getElementById("fullscreenBtn").addEventListener("click", () => {
+      if (Module.requestFullscreen) {
+        Module.requestFullscreen(true, true);
+      }
+    });
+  </script>
+
+  {{{ SCRIPT }}}
+</body>
+</html>
