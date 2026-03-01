@@ -2,8 +2,11 @@
 
 #include <algorithm>
 #include <array>
+#include <ctime>
+#include <iomanip>
 #include <limits>
 #include <optional>
+#include <sstream>
 #include <string>
 
 #include "glm/glm/vec2.hpp"
@@ -174,6 +177,25 @@ inline std::string gameover_background_texture() {
     return levels::last_result.level_id;
   }
   return kDefaultMenuBackgroundTexture;
+}
+
+inline std::string current_date_ymd() {
+  const std::time_t now = std::time(nullptr);
+  std::tm local_tm{};
+#if defined(_WIN32)
+  localtime_s(&local_tm, &now);
+#else
+  localtime_r(&now, &local_tm);
+#endif
+  std::ostringstream out;
+  out << std::put_time(&local_tm, "%Y-%m-%d");
+  return out.str();
+}
+
+inline std::string build_share_text(int score) {
+  constexpr const char* kMushroomEmoji = "\xF0\x9F\x8D\x84";
+  return std::string(kMushroomEmoji) + " Shrooms Infinite Score: " + std::to_string(score) + " " +
+         kMushroomEmoji + "\nPlay: https://kik0s.github.io/shrooms\nDate: " + current_date_ymd();
 }
 
 inline void apply_menu_background(const std::string& texture_name, bool level_layout) {
@@ -927,8 +949,7 @@ struct MenuController : public dynamic::DynamicObject {
       return;
     }
     if (selected_gameover_index == 2 && gameover_has_share()) {
-      const std::string text =
-          "Shrooms Daily Infinite Score: " + std::to_string(levels::last_result.global_score);
+      const std::string text = build_share_text(levels::last_result.global_score);
       const share_bridge::ShareRoute route = share_bridge::share_or_copy_score_text(text);
       switch (route) {
         case share_bridge::ShareRoute::WebShare:
