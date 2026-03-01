@@ -75,21 +75,30 @@ target_include_directories(shrooms PRIVATE
 
 target_compile_features(shrooms PRIVATE cxx_std_20)
 
+set(SHROOMS_ENGINE_ASSET_DIR "${CMAKE_CURRENT_SOURCE_DIR}/3rd-party/engine/assets")
+set(SHROOMS_PROJECT_ASSET_DIR "${CMAKE_CURRENT_SOURCE_DIR}/assets")
+set(SHROOMS_SHADER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/3rd-party/engine/shaders")
+set(SHROOMS_CUSTOM_SHADER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/main/custom_shaders")
+
+if(EXISTS "${SHROOMS_PROJECT_ASSET_DIR}")
+  set(SHROOMS_ASSET_DIR "${SHROOMS_PROJECT_ASSET_DIR}")
+else()
+  set(SHROOMS_ASSET_DIR "${SHROOMS_ENGINE_ASSET_DIR}")
+endif()
+
+if(NOT EXISTS "${SHROOMS_ASSET_DIR}")
+  message(FATAL_ERROR "Missing assets directory: ${SHROOMS_ASSET_DIR}")
+endif()
+
 add_custom_command(TARGET shrooms POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy_directory
-  ${CMAKE_CURRENT_SOURCE_DIR}/3rd-party/engine/assets
+  ${SHROOMS_ASSET_DIR}
   $<TARGET_FILE_DIR:shrooms>/assets
   COMMAND ${CMAKE_COMMAND} -E copy_directory
-  ${CMAKE_CURRENT_SOURCE_DIR}/assets
-  $<TARGET_FILE_DIR:shrooms>/assets
-  COMMAND ${CMAKE_COMMAND} -E copy_directory
-  ${CMAKE_CURRENT_SOURCE_DIR}/3rd-party/engine/assets
-  ${CMAKE_CURRENT_SOURCE_DIR}/assets
-  COMMAND ${CMAKE_COMMAND} -E copy_directory
-  ${CMAKE_CURRENT_SOURCE_DIR}/3rd-party/engine/shaders
+  ${SHROOMS_SHADER_DIR}
   $<TARGET_FILE_DIR:shrooms>/shaders
   COMMAND ${CMAKE_COMMAND} -E copy_directory
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/custom_shaders
+  ${SHROOMS_CUSTOM_SHADER_DIR}
   $<TARGET_FILE_DIR:shrooms>/shaders
 )
 
@@ -110,9 +119,9 @@ if(ENGINE_PLATFORM STREQUAL "web")
     "-sFULL_ES3=1"
     "-sUSE_SDL=2"
     "SHELL:--shell-file ${CMAKE_CURRENT_SOURCE_DIR}/src/main/web/shrooms_shell.html"
-    "SHELL:--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/assets@/assets"
-    "SHELL:--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/3rd-party/engine/shaders@/shaders"
-    "SHELL:--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/src/main/custom_shaders@/shaders"
+    "SHELL:--preload-file ${SHROOMS_ASSET_DIR}@/assets"
+    "SHELL:--preload-file ${SHROOMS_SHADER_DIR}@/shaders"
+    "SHELL:--preload-file ${SHROOMS_CUSTOM_SHADER_DIR}@/shaders"
   )
 else()
   find_package(SDL2 REQUIRED)
