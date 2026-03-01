@@ -91,7 +91,6 @@ inline TextLine credits_line{};
 inline std::array<TextLine, kMaxLevelLines> level_lines{};
 inline size_t active_level_lines = 0;
 
-inline ecs::Entity* character_entity = nullptr;
 inline ecs::Entity* menu_background = nullptr;
 inline render_system::SpriteRenderable* menu_background_sprite = nullptr;
 inline transform::NoRotationTransform* menu_background_transform = nullptr;
@@ -490,8 +489,6 @@ inline void set_menu_mode(MenuMode mode) {
   for (size_t i = 0; i < kMaxLevelLines; ++i) {
     set_line_visibility(level_lines[i], show_main, show_main);
   }
-  set_entity_visible(character_entity, show_main);
-
   set_line_visibility(objective_title, show_objective, false);
   set_line_visibility(objective_level, show_objective, false);
   set_line_visibility(objective_hint, show_objective, false);
@@ -1247,20 +1244,6 @@ inline void init() {
   menu_background_transform = bg_transform;
   menu_background->add(arena::create<scene::SceneObject>("menu"));
   vfx::attach_wobble(menu_background, glm::vec2{4.0f, 2.5f}, 0.18f, false);
-
-  character_entity = arena::create<ecs::Entity>();
-  const glm::vec2 character_size =
-      shrooms::texture_sizing::from_reference_width("witch", 120.0f);
-  auto* transform = arena::create<transform::NoRotationTransform>();
-  transform->pos =
-      shrooms::screen::center_to_top_left(shrooms::screen::norm_to_pixels(glm::vec2{0.45f, -0.2f}),
-                                          character_size);
-  character_entity->add(transform);
-  const engine::TextureId tex_id = engine::resources::register_texture("witch");
-  character_entity->add(arena::create<render_system::SpriteRenderable>(tex_id, character_size));
-  character_entity->add(arena::create<layers::ConstLayer>(3));
-  character_entity->add(arena::create<hidden::HiddenObject>());
-  character_entity->add(arena::create<scene::SceneObject>("menu"));
 
   status_line = make_text_line(glm::vec2{kMenuTextX, 0.72f}, 22.0f, 6);
   instruction_line = make_text_line(glm::vec2{kMenuTextX, 0.58f}, 20.0f, 6);
