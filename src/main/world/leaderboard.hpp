@@ -195,7 +195,7 @@ inline void load_or_default() {
   if (saved) {
     loaded_saved = load_version_2_entries(*saved, today);
     if (!loaded_saved) {
-      save::erase_text(key_for_profile(current_profile));
+      save::write_text(key_for_profile(current_profile), "");
     }
   }
 
