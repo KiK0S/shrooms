@@ -25,6 +25,7 @@
 #include "level_manager.hpp"
 #include "lives.hpp"
 #include "player.hpp"
+#include "share_bridge.hpp"
 #include "tutorial.hpp"
 #include "camera_shake.hpp"
 #include "vfx.hpp"
@@ -117,6 +118,7 @@ inline TextLine gameover_name_prompt{};
 inline TextLine gameover_name_value{};
 inline TextLine gameover_restart{};
 inline TextLine gameover_main_menu{};
+inline TextLine gameover_share{};
 inline TextLine leaderboard_title{};
 inline std::array<TextLine, kLeaderboardLines> leaderboard_lines{};
 
@@ -454,7 +456,8 @@ inline void refresh_leaderboard_lines() {
     }
     return;
   }
-  update_text(leaderboard_title, "Infinite Leaderboard (" + levels::difficulty_label() + ")");
+  update_text(leaderboard_title, "Daily Infinite Leaderboard (" + levels::difficulty_label() +
+                                     ", " + leaderboard::current_date() + ")");
   const auto& entries = leaderboard::list();
   for (size_t i = 0; i < leaderboard_lines.size(); ++i) {
     if (i < entries.size()) {
@@ -495,6 +498,7 @@ inline void refresh_gameover_lines() {
   update_text(gameover_hint, "");
   update_text(gameover_restart, "Restart");
   update_text(gameover_main_menu, "Main Menu");
+  update_text(gameover_share, "Share");
   refresh_name_entry_lines();
   refresh_leaderboard_lines();
 }
@@ -527,12 +531,16 @@ inline void set_menu_mode(MenuMode mode) {
   set_line_visibility(gameover_level, false, false);
   set_line_visibility(gameover_collected, false, false);
   set_line_visibility(gameover_sorted, false, false);
-  set_line_visibility(gameover_hint, false, false);
   const bool show_restart = show_game_over && !awaiting_name_entry;
+  const bool show_share = show_restart && levels::last_result_valid && levels::last_result.infinite_mode;
+  const bool show_hint =
+      show_game_over && gameover_hint.text_object && !gameover_hint.text_object->text.empty();
+  set_line_visibility(gameover_hint, show_hint, false);
   set_line_visibility(gameover_name_prompt, show_game_over && awaiting_name_entry, false);
   set_line_visibility(gameover_name_value, show_game_over && awaiting_name_entry, false);
   set_line_visibility(gameover_restart, show_restart, show_restart);
   set_line_visibility(gameover_main_menu, show_restart, show_restart);
+  set_line_visibility(gameover_share, show_share, show_share);
   const bool show_board = show_game_over && show_leaderboard;
   set_line_visibility(leaderboard_title, show_board, false);
   for (auto& line : leaderboard_lines) {
@@ -764,7 +772,15 @@ struct MenuController : public dynamic::DynamicObject {
 
   void move_gameover_selection(int direction) {
     if (direction == 0) return;
-    selected_gameover_index = (selected_gameover_index == 0) ? 1 : 0;
+    const size_t count = gameover_action_count();
+    if (count == 0) return;
+    ensure_gameover_selection();
+    int next = static_cast<int>(selected_gameover_index) + direction;
+    while (next < 0) {
+      next += static_cast<int>(count);
+    }
+    next %= static_cast<int>(count);
+    selected_gameover_index = static_cast<size_t>(next);
   }
 
   void toggle_difficulty() {
@@ -815,13 +831,39 @@ struct MenuController : public dynamic::DynamicObject {
                           !difficulty_selected && has_selection);
     set_line_visual_state(gameover_restart, false, false, false);
     set_line_visual_state(gameover_main_menu, false, false, false);
+    set_line_visual_state(gameover_share, false, false, false);
   }
 
-  void apply_gameover_visuals(bool hover_restart, bool hover_menu) {
+  bool gameover_has_share() const {
+    return levels::last_result_valid && levels::last_result.infinite_mode && !awaiting_name_entry;
+  }
+
+  size_t gameover_action_count() const { return gameover_has_share() ? 3 : 2; }
+
+  void ensure_gameover_selection() {
+    const size_t count = gameover_action_count();
+    if (count == 0) {
+      selected_gameover_index = 0;
+      return;
+    }
+    if (selected_gameover_index >= count) {
+      selected_gameover_index = 0;
+    }
+  }
+
+  void apply_gameover_visuals(bool hover_restart, bool hover_menu, bool hover_share) {
+    ensure_gameover_selection();
     const bool restart_selected = (selected_gameover_index == 0);
-    const bool menu_selected = !restart_selected;
+    const bool menu_selected = (selected_gameover_index == 1);
+    const bool share_visible = gameover_has_share();
+    const bool share_selected = share_visible && (selected_gameover_index == 2);
     set_line_visual_state(gameover_restart, restart_selected, hover_restart, !restart_selected);
     set_line_visual_state(gameover_main_menu, menu_selected, hover_menu, !menu_selected);
+    if (share_visible) {
+      set_line_visual_state(gameover_share, share_selected, hover_share, !share_selected);
+    } else {
+      set_line_visual_state(gameover_share, false, false, false);
+    }
     for (size_t i = 0; i < kMaxLevelLines; ++i) {
       set_line_visual_state(level_lines[i], false, false, false);
     }
@@ -843,10 +885,11 @@ struct MenuController : public dynamic::DynamicObject {
       set_line_visual_state(difficulty_line, false, false, false);
     }
     if (menu_mode == MenuMode::GameOver && !awaiting_name_entry) {
-      apply_gameover_visuals(false, false);
+      apply_gameover_visuals(false, false, false);
     } else {
       set_line_visual_state(gameover_restart, false, false, false);
       set_line_visual_state(gameover_main_menu, false, false, false);
+      set_line_visual_state(gameover_share, false, false, false);
     }
   }
 
@@ -874,20 +917,25 @@ struct MenuController : public dynamic::DynamicObject {
         }
         set_line_visual_state(gameover_restart, false, false, false);
         set_line_visual_state(gameover_main_menu, false, false, false);
+        set_line_visual_state(gameover_share, false, false, false);
         return;
       }
       bool hover_restart = false;
       bool hover_menu = false;
+      bool hover_share = false;
       if (last_pointer) {
         hover_restart = point_hits_line(gameover_restart, *last_pointer);
         hover_menu = point_hits_line(gameover_main_menu, *last_pointer);
+        hover_share = gameover_has_share() && point_hits_line(gameover_share, *last_pointer);
       }
       if (hover_restart) {
         selected_gameover_index = 0;
       } else if (hover_menu) {
         selected_gameover_index = 1;
+      } else if (hover_share) {
+        selected_gameover_index = 2;
       }
-      apply_gameover_visuals(hover_restart, hover_menu);
+      apply_gameover_visuals(hover_restart, hover_menu, hover_share);
       return;
     }
 
@@ -895,6 +943,7 @@ struct MenuController : public dynamic::DynamicObject {
   }
 
   void handle_selected_gameover_action(size_t restart_index) {
+    ensure_gameover_selection();
     if (selected_gameover_index == 0) {
       if (levels::last_result.infinite_mode) {
         enter_infinite_objective_mode();
@@ -903,6 +952,25 @@ struct MenuController : public dynamic::DynamicObject {
       } else {
         enter_objective_mode(restart_index);
       }
+      return;
+    }
+    if (selected_gameover_index == 2 && gameover_has_share()) {
+      const std::string text =
+          "Shrooms Daily Infinite Score: " + std::to_string(levels::last_result.global_score);
+      const share_bridge::ShareRoute route = share_bridge::share_or_copy_score_text(text);
+      switch (route) {
+        case share_bridge::ShareRoute::WebShare:
+          update_text(gameover_hint, "Opened share menu");
+          break;
+        case share_bridge::ShareRoute::Clipboard:
+          update_text(gameover_hint, "Copied to clipboard");
+          break;
+        case share_bridge::ShareRoute::Unsupported:
+        default:
+          update_text(gameover_hint, "Share unavailable");
+          break;
+      }
+      set_menu_mode(MenuMode::GameOver);
       return;
     }
     enter_main_menu_mode();
@@ -945,6 +1013,7 @@ struct MenuController : public dynamic::DynamicObject {
         ensure_main_selection(current_levels);
       } else if (menu_mode == MenuMode::GameOver && !awaiting_name_entry) {
         selected_gameover_index = 0;
+        ensure_gameover_selection();
       }
       previous_mode = menu_mode;
     }
@@ -1084,6 +1153,11 @@ struct MenuController : public dynamic::DynamicObject {
             handle_selected_gameover_action(restart_index);
             return;
           }
+          if (gameover_has_share() && point_hits_line(gameover_share, point)) {
+            selected_gameover_index = 2;
+            handle_selected_gameover_action(restart_index);
+            return;
+          }
           continue;
         }
         if (evt.kind != engine::InputKind::KeyDown) continue;
@@ -1105,6 +1179,11 @@ struct MenuController : public dynamic::DynamicObject {
         }
         if (key == 'M') {
           selected_gameover_index = 1;
+          handle_selected_gameover_action(restart_index);
+          return;
+        }
+        if (key == 'S' && gameover_has_share()) {
+          selected_gameover_index = 2;
           handle_selected_gameover_action(restart_index);
           return;
         }
@@ -1252,6 +1331,7 @@ inline void init() {
   gameover_name_value = make_text_line(glm::vec2{kMenuTextX, -0.1f}, 20.0f, 6);
   gameover_restart = make_text_line(glm::vec2{kMenuTextX, -0.3f}, 20.0f, 6);
   gameover_main_menu = make_text_line(glm::vec2{kMenuTextX, -0.46f}, 20.0f, 6);
+  gameover_share = make_text_line(glm::vec2{kMenuTextX, -0.62f}, 20.0f, 6);
   gameover_hint = make_text_line(glm::vec2{kMenuTextX, -0.75f}, 18.0f, 6);
 
   leaderboard_title = make_text_line(glm::vec2{kLeaderboardTextX, 0.62f}, 22.0f, 6);
@@ -1282,6 +1362,16 @@ inline void init() {
     gameover_main_menu.dimmed_text_color = glm::vec4{0.72f, 0.72f, 0.72f, 0.92f};
     gameover_main_menu.selected_scale = 1.0f;
     gameover_main_menu.button_quad->color = gameover_main_menu.base_button_color;
+  }
+  if (gameover_share.button_quad) {
+    gameover_share.base_button_color = engine::UIColor{0.15f, 0.15f, 0.15f, 0.95f};
+    gameover_share.hover_button_color = engine::UIColor{0.28f, 0.2f, 0.35f, 0.98f};
+    gameover_share.selected_button_color = gameover_share.base_button_color;
+    gameover_share.dimmed_button_color = engine::UIColor{0.08f, 0.08f, 0.08f, 0.52f};
+    gameover_share.selected_text_color = glm::vec4{1.0f, 1.0f, 1.0f, 1.0f};
+    gameover_share.dimmed_text_color = glm::vec4{0.72f, 0.72f, 0.72f, 0.92f};
+    gameover_share.selected_scale = 1.0f;
+    gameover_share.button_quad->color = gameover_share.base_button_color;
   }
 
   refresh_status_line();

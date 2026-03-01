@@ -35,6 +35,7 @@
 #include "camera_shake.hpp"
 #include "round_transition.hpp"
 #include "leaderboard.hpp"
+#include "daily_runtime.hpp"
 
 namespace levels {
 
@@ -115,6 +116,7 @@ inline int infinite_round_index = 0;
 inline int infinite_rounds_won = 0;
 inline int infinite_global_score = 0;
 inline bool infinite_preview_ready = false;
+inline std::string infinite_preview_date{};
 inline LevelDefinition infinite_level{};
 inline LevelDefinition tutorial_level{};
 inline bool progress_save_exists = false;
@@ -123,6 +125,8 @@ inline std::vector<std::string> infinite_types{};
 inline render_system::SpriteRenderable* background_sprite = nullptr;
 inline transform::NoRotationTransform* background_transform = nullptr;
 inline Difficulty current_difficulty = Difficulty::Normal;
+inline std::string current_daily_date{};
+inline uint32_t current_daily_seed = 0;
 
 using TutorialSpawnHook = std::function<void(const std::string&, ecs::Entity*)>;
 using TutorialCatchHook =
@@ -386,11 +390,46 @@ inline uint32_t fnv1a_append(uint32_t hash, const std::string& text) {
   return hash;
 }
 
+inline std::string difficulty_seed_tag() {
+  switch (current_difficulty) {
+    case Difficulty::Easy:
+      return "easy";
+    case Difficulty::Normal:
+    default:
+      return "normal";
+  }
+}
+
+inline void refresh_daily_seed_if_needed() {
+  const std::string today = daily_runtime::local_calendar_date().iso_yyyy_mm_dd();
+  const std::string salt = std::string("shrooms_daily_infinite_v1_") + difficulty_seed_tag();
+  const uint32_t seed = daily_runtime::day_hash(salt, today);
+  if (today == current_daily_date && seed == current_daily_seed) {
+    return;
+  }
+  current_daily_date = today;
+  current_daily_seed = seed;
+}
+
+inline uint32_t hash_daily_round(uint32_t stream, int round_index) {
+  refresh_daily_seed_if_needed();
+  uint32_t hash = current_daily_seed;
+  hash ^= stream * 0x9e3779b9u;
+  hash ^= static_cast<uint32_t>(round_index + 1) * 0x85ebca6bu;
+  hash *= 16777619u;
+  return hash;
+}
+
 inline uint32_t seed_for_level(const LevelDefinition& level, size_t seed_index,
                                const std::string& spawner_type) {
   uint32_t hash = 2166136261u;
   hash = fnv1a_append(hash, level.id);
   hash = fnv1a_append(hash, spawner_type);
+  if (level.id == "Infinite") {
+    refresh_daily_seed_if_needed();
+    hash = fnv1a_append(hash, current_daily_date);
+    hash ^= current_daily_seed;
+  }
   hash ^= static_cast<uint32_t>(seed_index + 1) * 0x9e3779b9u;
   return hash;
 }
@@ -476,10 +515,13 @@ inline void apply_difficulty_to_levels() {
 inline void set_difficulty(Difficulty new_difficulty) {
   if (current_difficulty == new_difficulty) return;
   current_difficulty = new_difficulty;
+  current_daily_date.clear();
+  current_daily_seed = 0;
   infinite_preview_ready = false;
   apply_difficulty_to_levels();
   load_progress();
   leaderboard::set_profile(leaderboard_profile_for_difficulty(current_difficulty));
+  refresh_daily_seed_if_needed();
 }
 
 inline void cycle_difficulty() {
@@ -490,11 +532,12 @@ inline void cycle_difficulty() {
 inline int infinite_target_for_round(int round_index) {
   const int round_boost = std::min(3, round_index / 3);
   const int base = 2 + round_boost;
-  const int jitter = rnd::get_int(0, 2);
+  const int jitter = static_cast<int>(hash_daily_round(0x41a13u, round_index) % 3u);
   return base + jitter;
 }
 
 inline void build_infinite_level(int round_index) {
+  refresh_daily_seed_if_needed();
   infinite_level = LevelDefinition{};
   infinite_level.id = "Infinite";
   infinite_level.recipe.clear();
@@ -509,7 +552,10 @@ inline void build_infinite_level(int round_index) {
   }
 
   if (current_difficulty == Difficulty::Easy) {
-    const std::string& type = infinite_types[static_cast<size_t>(round_index) % infinite_types.size()];
+    const size_t base_index = static_cast<size_t>(round_index);
+    const size_t day_offset =
+        (infinite_types.empty() ? 0u : static_cast<size_t>(current_daily_seed) % infinite_types.size());
+    const std::string& type = infinite_types[(base_index + day_offset) % infinite_types.size()];
     const int target = std::max(2, std::min(6, 2 + round_index / 3));
     infinite_level.recipe[type] = target;
     infinite_level.recipe_order.emplace_back(type, target);
@@ -558,9 +604,11 @@ inline void build_infinite_level(int round_index) {
 }
 
 inline void prepare_infinite_preview() {
+  refresh_daily_seed_if_needed();
   infinite_round_index = 0;
   infinite_rounds_won = 0;
   build_infinite_level(infinite_round_index);
+  infinite_preview_date = current_daily_date;
   infinite_preview_ready = true;
 }
 
@@ -788,11 +836,13 @@ inline void start_level_with_definition(const LevelDefinition& level, size_t dis
 }
 
 inline void start_infinite_mode() {
+  refresh_daily_seed_if_needed();
   tutorial_mode = false;
-  if (!infinite_preview_ready) {
+  if (!infinite_preview_ready || infinite_preview_date != current_daily_date) {
     infinite_round_index = 0;
     infinite_rounds_won = 0;
     build_infinite_level(infinite_round_index);
+    infinite_preview_date = current_daily_date;
   }
   infinite_mode = true;
   infinite_preview_ready = false;
@@ -818,6 +868,7 @@ inline void start_level(size_t index) {
   infinite_mode = false;
   tutorial_mode = false;
   infinite_preview_ready = false;
+  infinite_preview_date.clear();
   if (parsed_levels.empty()) {
     std::cerr << "No levels parsed" << std::endl;
     return;
@@ -833,6 +884,7 @@ inline void start_level(size_t index) {
 inline void start_tutorial_mode() {
   infinite_mode = false;
   infinite_preview_ready = false;
+  infinite_preview_date.clear();
   tutorial_mode = true;
   tutorial_level = LevelDefinition{};
   if (!parsed_levels.empty()) {
@@ -859,6 +911,7 @@ inline void restart_level() {
     infinite_round_index = 0;
     infinite_rounds_won = 0;
     infinite_preview_ready = false;
+    infinite_preview_date.clear();
     start_infinite_mode();
     return;
   }
@@ -1091,6 +1144,9 @@ inline void initialize() {
   build_infinite_spawner_cache();
   leaderboard::set_profile(leaderboard_profile_for_difficulty(current_difficulty));
   leaderboard::load_or_default();
+  current_daily_date.clear();
+  current_daily_seed = 0;
+  refresh_daily_seed_if_needed();
   level_finished = true;
   level_failed = false;
   game_over_pending = false;
@@ -1105,6 +1161,7 @@ inline void initialize() {
   infinite_rounds_won = 0;
   infinite_global_score = 0;
   infinite_preview_ready = false;
+  infinite_preview_date.clear();
   infinite_level = LevelDefinition{};
   tutorial_level = LevelDefinition{};
   progress_save_exists = false;

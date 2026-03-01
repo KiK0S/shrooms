@@ -3,10 +3,12 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <cstdint>
 #include <sstream>
 #include <string>
 #include <vector>
 
+#include "daily_runtime.hpp"
 #include "utils/random.hpp"
 #include "utils/save_system.hpp"
 
@@ -27,6 +29,8 @@ enum class Profile {
 inline std::vector<Entry> entries{};
 inline bool loaded = false;
 inline Profile current_profile = Profile::Normal;
+inline std::string loaded_for_date{};
+constexpr int kSaveVersion = 2;
 
 inline const char* key_for_profile(Profile profile) {
   switch (profile) {
@@ -43,6 +47,7 @@ inline void set_profile(Profile profile) {
   current_profile = profile;
   entries.clear();
   loaded = false;
+  loaded_for_date.clear();
 }
 
 inline std::string sanitize_name(const std::string& raw) {
@@ -73,8 +78,20 @@ inline void sort_entries() {
             [](const Entry& a, const Entry& b) { return a.score > b.score; });
 }
 
-inline std::string serialize() {
+inline std::string today_iso_date() {
+  return daily_runtime::local_calendar_date().iso_yyyy_mm_dd();
+}
+
+inline void trim_line_end(std::string& line) {
+  if (!line.empty() && line.back() == '\r') {
+    line.pop_back();
+  }
+}
+
+inline std::string serialize(const std::string& date) {
   std::ostringstream out;
+  out << "version=" << kSaveVersion << '\n';
+  out << "date=" << date << '\n';
   for (const auto& entry : entries) {
     out << entry.name << '\t' << entry.score << '\n';
   }
@@ -82,7 +99,9 @@ inline std::string serialize() {
 }
 
 inline void save() {
-  save::write_text(key_for_profile(current_profile), serialize());
+  const std::string date = loaded_for_date.empty() ? today_iso_date() : loaded_for_date;
+  loaded_for_date = date;
+  save::write_text(key_for_profile(current_profile), serialize(date));
 }
 
 inline void build_default_entries() {
@@ -110,38 +129,85 @@ inline void build_default_entries() {
   }
 }
 
-inline void load_or_default() {
-  if (loaded) return;
+inline bool load_version_2_entries(const std::string& raw, const std::string& today) {
+  std::istringstream lines(raw);
+
+  std::string version_line;
+  if (!std::getline(lines, version_line)) {
+    return false;
+  }
+  trim_line_end(version_line);
+  if (version_line != "version=2") {
+    return false;
+  }
+
+  std::string date_line;
+  if (!std::getline(lines, date_line)) {
+    return false;
+  }
+  trim_line_end(date_line);
+  if (date_line.rfind("date=", 0) != 0) {
+    return false;
+  }
+  const std::string save_date = date_line.substr(5);
+  if (save_date != today) {
+    return false;
+  }
+
   entries.clear();
-  auto saved = save::read_text(key_for_profile(current_profile));
-  if (saved) {
-    std::istringstream lines(*saved);
-    std::string line;
-    while (std::getline(lines, line)) {
-      if (line.empty()) continue;
-      const size_t pos = line.find('\t');
-      if (pos == std::string::npos) continue;
-      std::string name = line.substr(0, pos);
-      std::string score_str = line.substr(pos + 1);
-      int score = 0;
-      std::istringstream score_in(score_str);
-      if (!(score_in >> score)) continue;
-      name = sanitize_name(name);
-      if (name.empty()) continue;
-      if (score < 0) score = 0;
-      entries.push_back(Entry{name, score});
-    }
+  std::string line;
+  while (std::getline(lines, line)) {
+    trim_line_end(line);
+    if (line.empty()) continue;
+    const size_t pos = line.find('\t');
+    if (pos == std::string::npos) continue;
+    std::string name = line.substr(0, pos);
+    std::string score_str = line.substr(pos + 1);
+    int score = 0;
+    std::istringstream score_in(score_str);
+    if (!(score_in >> score)) continue;
+    name = sanitize_name(name);
+    if (name.empty()) continue;
+    if (score < 0) score = 0;
+    entries.push_back(Entry{name, score});
   }
+
   if (entries.empty()) {
-    build_default_entries();
-    save();
-    loaded = true;
-    return;
+    return false;
   }
+
   sort_entries();
   if (entries.size() > static_cast<size_t>(kMaxEntries)) {
     entries.resize(static_cast<size_t>(kMaxEntries));
   }
+  return true;
+}
+
+inline void load_or_default() {
+  const std::string today = today_iso_date();
+  if (loaded && loaded_for_date == today) return;
+
+  loaded = false;
+  entries.clear();
+
+  bool loaded_saved = false;
+  auto saved = save::read_text(key_for_profile(current_profile));
+  if (saved) {
+    loaded_saved = load_version_2_entries(*saved, today);
+    if (!loaded_saved) {
+      save::erase_text(key_for_profile(current_profile));
+    }
+  }
+
+  if (!loaded_saved) {
+    build_default_entries();
+    loaded_for_date = today;
+    save();
+    loaded = true;
+    return;
+  }
+
+  loaded_for_date = today;
   loaded = true;
 }
 
@@ -170,6 +236,11 @@ inline void insert(const std::string& name, int score) {
 inline const std::vector<Entry>& list() {
   load_or_default();
   return entries;
+}
+
+inline std::string current_date() {
+  load_or_default();
+  return loaded_for_date;
 }
 
 }  // namespace leaderboard
