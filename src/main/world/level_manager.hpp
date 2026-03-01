@@ -529,11 +529,13 @@ inline void cycle_difficulty() {
                                                           : Difficulty::Normal);
 }
 
-inline int infinite_target_for_round(int round_index) {
+inline int infinite_target_for_round_type(int round_index, const std::string& type) {
   const int round_boost = std::min(3, round_index / 3);
   const int base = 2 + round_boost;
-  const int jitter = static_cast<int>(hash_daily_round(0x41a13u, round_index) % 3u);
-  return base + jitter;
+  uint32_t hash = hash_daily_round(0x41a13u, round_index);
+  hash = fnv1a_append(hash, type);
+  const int jitter = static_cast<int>(hash % 5u) - 1;
+  return std::clamp(base + jitter, 1, 7);
 }
 
 inline void build_infinite_level(int round_index) {
@@ -579,7 +581,7 @@ inline void build_infinite_level(int round_index) {
   }
 
   for (const auto& type : infinite_types) {
-    const int target = infinite_target_for_round(round_index);
+    const int target = infinite_target_for_round_type(round_index, type);
     infinite_level.recipe[type] = target;
     infinite_level.recipe_order.emplace_back(type, target);
 
