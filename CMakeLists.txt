@@ -101,6 +101,9 @@ if(ENGINE_PLATFORM STREQUAL "web")
   target_link_options(shrooms PRIVATE
     "-sWASM=1"
     "--use-preload-plugins"
+    "-sALLOW_MEMORY_GROWTH=1"
+    "-sINITIAL_MEMORY=134217728"
+    "-sMAXIMUM_MEMORY=1073741824"
     "-sMIN_WEBGL_VERSION=2"
     "-sMAX_WEBGL_VERSION=2"
     "-sUSE_WEBGL2=1"
