@@ -42,7 +42,6 @@ constexpr float kLeaderboardTextX = 0.15f;
 constexpr float kMenuTextYOffsetNorm = 0.1f;
 constexpr size_t kLeaderboardLines = static_cast<size_t>(leaderboard::kMaxEntries);
 constexpr size_t kNameMaxLength = 12;
-constexpr float kMenuBackgroundReferenceWidthPx = 312.0f;
 constexpr const char* kDefaultMenuBackgroundTexture = "background";
 constexpr int kKeyArrowUpDom = 38;
 constexpr int kKeyArrowDownDom = 40;
@@ -197,8 +196,9 @@ inline void apply_menu_background(const std::string& texture_name, bool level_la
     size = shrooms::texture_sizing::from_width_px(resolved, view_width);
     pos = glm::vec2{0.0f, view_height - size.y};
   } else {
-    size = shrooms::texture_sizing::from_reference_width(resolved, kMenuBackgroundReferenceWidthPx);
-    pos = glm::vec2{-0.025f * view_width, (view_height - size.y) * 0.5f};
+    const float side = std::max(view_width, view_height);
+    size = glm::vec2{side, side};
+    pos = glm::vec2{(view_width - side) * 0.5f, (view_height - side) * 0.5f};
   }
 
   menu_background_sprite->texture_id = tex_id;
@@ -1232,10 +1232,10 @@ inline void init() {
   };
 
   menu_background = arena::create<ecs::Entity>();
-  const glm::vec2 bg_size = shrooms::texture_sizing::from_reference_width(
-      kDefaultMenuBackgroundTexture, kMenuBackgroundReferenceWidthPx);
+  const float bg_side = std::max(view_size.x, view_size.y);
+  const glm::vec2 bg_size{bg_side, bg_side};
   auto* bg_transform = arena::create<transform::NoRotationTransform>();
-  bg_transform->pos = glm::vec2{-0.025f * view_size.x, (view_size.y - bg_size.y) * 0.5f};
+  bg_transform->pos = glm::vec2{(view_size.x - bg_side) * 0.5f, (view_size.y - bg_side) * 0.5f};
   menu_background->add(bg_transform);
   menu_background->add(arena::create<layers::ConstLayer>(-2));
   const engine::TextureId bg_tex = engine::resources::register_texture(kDefaultMenuBackgroundTexture);
