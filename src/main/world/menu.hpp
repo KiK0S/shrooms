@@ -1243,7 +1243,6 @@ inline void init() {
   menu_background->add(menu_background_sprite);
   menu_background_transform = bg_transform;
   menu_background->add(arena::create<scene::SceneObject>("menu"));
-  vfx::attach_wobble(menu_background, glm::vec2{4.0f, 2.5f}, 0.18f, false);
 
   status_line = make_text_line(glm::vec2{kMenuTextX, 0.72f}, 22.0f, 6);
   instruction_line = make_text_line(glm::vec2{kMenuTextX, 0.58f}, 20.0f, 6);
