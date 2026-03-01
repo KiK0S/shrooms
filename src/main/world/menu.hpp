@@ -335,29 +335,13 @@ inline bool is_selectable_level(size_t index) {
 
 inline std::string format_level_line(size_t index) {
   if (is_infinite_entry(index)) {
-    std::string label = std::to_string(index + 1) + ". Infinite Mode";
-    if (levels::last_played_level_index == index && !levels::level_finished) {
-      label += "  [in progress]";
-    } else if (levels::last_played_level_index == index && levels::level_finished) {
-      label += "  [last]";
-    }
-    return label;
+    return std::to_string(index + 1) + ". Infinite Mode";
   }
   if (index >= levels::parsed_levels.size()) {
     return "";
   }
   const auto& definition = levels::parsed_levels[index];
-  std::string label = std::to_string(index + 1) + ". " + definition.id;
-  if (!levels::is_unlocked(index)) {
-    label += "  [locked]";
-    return label;
-  }
-  if (levels::last_played_level_index == index && !levels::level_finished) {
-    label += "  [in progress]";
-  } else if (levels::last_played_level_index == index && levels::level_finished) {
-    label += "  [last]";
-  }
-  return label;
+  return std::to_string(index + 1) + ". " + definition.id;
 }
 
 inline void refresh_status_line() {
