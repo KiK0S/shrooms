@@ -456,8 +456,8 @@ inline void refresh_leaderboard_lines() {
     }
     return;
   }
-  update_text(leaderboard_title, "Daily Infinite Leaderboard (" + levels::difficulty_label() +
-                                     ", " + leaderboard::current_date() + ")");
+  update_text(leaderboard_title, "Daily Infinite Leaderboard\n" + levels::difficulty_label() +
+                                     ", " + leaderboard::current_date());
   const auto& entries = leaderboard::list();
   for (size_t i = 0; i < leaderboard_lines.size(); ++i) {
     if (i < entries.size()) {
