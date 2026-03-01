@@ -77,6 +77,7 @@ struct TextLine {
   glm::vec4 base_text_color{1.0f, 1.0f, 1.0f, 1.0f};
   glm::vec4 selected_text_color{1.0f, 1.0f, 1.0f, 1.0f};
   glm::vec4 dimmed_text_color{0.74f, 0.74f, 0.74f, 0.92f};
+  glm::vec4 locked_text_color{0.56f, 0.56f, 0.56f, 0.9f};
   float hover_scale = 1.04f;
   float selected_scale = 1.0f;
   float font_px = 18.0f;
@@ -280,10 +281,16 @@ inline bool is_confirm_key(int key) {
   return key == ' ' || key == '\r' || key == '\n' || key == 13;
 }
 
-inline void set_line_visual_state(TextLine& line, bool selected, bool hovered, bool dimmed) {
+inline void set_line_visual_state(TextLine& line,
+                                  bool selected,
+                                  bool hovered,
+                                  bool dimmed,
+                                  bool locked = false) {
   if (line.text_color) {
     line.text_color->value = selected ? line.selected_text_color
-                                      : (dimmed ? line.dimmed_text_color : line.base_text_color);
+                                      : (locked ? line.locked_text_color
+                                                : (dimmed ? line.dimmed_text_color
+                                                          : line.base_text_color));
   }
   if (!line.button_quad) return;
   if (selected) {
@@ -799,10 +806,12 @@ struct MenuController : public dynamic::DynamicObject {
         continue;
       }
       const size_t slot = i + kLevelMainSlotOffset;
+      const bool selectable = is_selectable_level(i);
       const bool selected = selected_main_slot && slot == *selected_main_slot;
       const bool hovered = hovered_slot && slot == *hovered_slot;
-      const bool dimmed = (!selected && has_selection) || !is_selectable_level(i);
-      set_line_visual_state(level_lines[i], selected, hovered, dimmed);
+      const bool locked = !selectable;
+      const bool dimmed = locked || (!selected && has_selection);
+      set_line_visual_state(level_lines[i], selected, hovered, dimmed, locked);
     }
     const bool tutorial_selected = selected_main_slot && *selected_main_slot == kTutorialMainSlot;
     const bool tutorial_hovered = hovered_slot && *hovered_slot == kTutorialMainSlot;
