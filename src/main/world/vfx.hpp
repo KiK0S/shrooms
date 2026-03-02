@@ -197,7 +197,10 @@ struct CatchConsumeVanish : public dynamic::DynamicObject {
         lerp(start_center.x, consumed_x, follow_t) + wobble,
         start_center.y - y_lift + y_jitter,
     };
-    const float scale = std::max(0.04f, 1.0f - fade_t);
+    // Keep the current consume motion, but shrink earlier so the catch reads clearly.
+    const float shrink_window = std::max(0.0001f, 1.0f - shrink_delay_ratio);
+    const float scale_t = ease_out(clamp01((t - shrink_delay_ratio) / shrink_window));
+    const float scale = std::max(min_scale, lerp(1.0f, min_scale, scale_t));
     const glm::vec2 scaled_size = base_size * scale;
 
     sprite->size = scaled_size;
@@ -220,6 +223,8 @@ struct CatchConsumeVanish : public dynamic::DynamicObject {
   float wobble_ratio = 0.09f;
   float wobble_cycles = 2.6f;
   float lift_ratio = 0.2f;
+  float shrink_delay_ratio = 0.06f;
+  float min_scale = 0.01f;
   float elapsed = 0.0f;
 };
 
