@@ -34,6 +34,12 @@ namespace engine::shrooms {
 ShroomsLogic::ShroomsLogic(int view_width, int view_height)
     : view_width_(view_width), view_height_(view_height) {}
 
+bool is_gameplay_active() {
+  auto* main_scene = ::shrooms::scenes::main;
+  auto* active_scene = scene::get_active_scene();
+  return main_scene && active_scene == main_scene && !scene::is_current_scene_paused();
+}
+
 void ShroomsLogic::on_init() {
   config_params::register_params();
   config_params::setup_io();

@@ -6,8 +6,43 @@
 
 #ifdef __EMSCRIPTEN__
 #include "engine/platform_emscripten.h"
+#include "world/touchscreen.hpp"
+
+#include <emscripten/emscripten.h>
 #else
 #include "engine/platform_sdl.h"
+#endif
+
+#ifdef __EMSCRIPTEN__
+namespace {
+
+engine::InputQueue* web_input_queue = nullptr;
+
+void push_web_key_event(int key_code, bool pressed) {
+  if (!web_input_queue) return;
+  engine::InputEvent evt{};
+  evt.kind = pressed ? engine::InputKind::KeyDown : engine::InputKind::KeyUp;
+  evt.key_code = key_code;
+  web_input_queue->push(evt);
+}
+
+}  // namespace
+
+extern "C" {
+
+EMSCRIPTEN_KEEPALIVE void shrooms_push_key_event(int key_code, int pressed) {
+  push_web_key_event(key_code, pressed != 0);
+}
+
+EMSCRIPTEN_KEEPALIVE void shrooms_set_touchscreen_enabled(int enabled) {
+  touchscreen::set_enabled(enabled != 0);
+}
+
+EMSCRIPTEN_KEEPALIVE int shrooms_is_gameplay_active() {
+  return engine::shrooms::is_gameplay_active() ? 1 : 0;
+}
+
+}  // extern "C"
 #endif
 
 int main() {
@@ -25,6 +60,9 @@ int main() {
   engine::SdlPlatform platform{};
 #endif
   engine::InputQueue input{};
+#ifdef __EMSCRIPTEN__
+  web_input_queue = &input;
+#endif
 
   platform.init(config, input);
   auto renderer = platform.create_renderer(config);

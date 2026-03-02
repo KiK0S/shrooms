@@ -10,6 +10,7 @@
 
 #include "ecs/ecs.hpp"
 #include "utils/arena.hpp"
+#include "systems/hidden/hidden_object.hpp"
 #include "systems/input/input_system.hpp"
 #include "systems/render/render_system.hpp"
 #include "systems/scene/scene_object.hpp"
@@ -45,10 +46,15 @@ inline ecs::Entity* joystick_outer = nullptr;
 inline ecs::Entity* joystick_inner = nullptr;
 inline ecs::Entity* fire_button = nullptr;
 inline ecs::Entity* deploy_button = nullptr;
+inline hidden::HiddenObject* joystick_outer_hidden = nullptr;
+inline hidden::HiddenObject* joystick_inner_hidden = nullptr;
+inline hidden::HiddenObject* fire_button_hidden = nullptr;
+inline hidden::HiddenObject* deploy_button_hidden = nullptr;
 inline glm::vec2 joystick_value{0.0f, 0.0f};
 inline std::optional<int> active_pointer{};
 inline bool initialized = false;
 inline bool activated = false;
+inline bool enabled = true;
 inline bool fire_pressed = false;
 inline bool deploy_pressed = false;
 inline bool logged_activation = false;
@@ -119,12 +125,30 @@ inline void update_inner_sprite(const glm::vec2& offset) {
   transform->pos = shrooms::screen::center_to_top_left(center_px() + offset, size);
 }
 
+inline void set_controls_visible(bool visible) {
+  if (joystick_outer_hidden) joystick_outer_hidden->set_visible(visible);
+  if (joystick_inner_hidden) joystick_inner_hidden->set_visible(visible);
+  if (fire_button_hidden) fire_button_hidden->set_visible(visible);
+  if (deploy_button_hidden) deploy_button_hidden->set_visible(visible);
+}
+
 inline void reset() {
   joystick_value = glm::vec2{0.0f, 0.0f};
   active_pointer.reset();
   fire_pressed = false;
   deploy_pressed = false;
   update_inner_sprite(glm::vec2{0.0f, 0.0f});
+}
+
+inline bool is_enabled() { return enabled; }
+
+inline void set_enabled(bool value) {
+  if (enabled == value) return;
+  enabled = value;
+  reset();
+  if (initialized) {
+    set_controls_visible(enabled);
+  }
 }
 
 inline bool should_activate() {
@@ -148,6 +172,11 @@ struct JoystickSystem : public dynamic::DynamicObject {
   ~JoystickSystem() override { Component::component_count--; }
 
   void update() override {
+    if (!enabled) {
+      reset();
+      return;
+    }
+
     if (shrooms::scenes::menu && shrooms::scenes::menu->is_active) {
       reset();
       return;
@@ -229,6 +258,9 @@ inline void init() {
   joystick_outer->add(arena::create<layers::ConstLayer>(config.layer));
   joystick_outer->add(arena::create<render_system::CircleRenderable>(
       outer_radius_px(), engine::UIColor{0.2f, 0.2f, 0.2f, 0.6f}));
+  joystick_outer_hidden = arena::create<hidden::HiddenObject>();
+  joystick_outer->add(joystick_outer_hidden);
+  if (!enabled) joystick_outer_hidden->hide();
   joystick_outer->add(arena::create<scene::SceneObject>("main"));
 
   joystick_inner = arena::create<ecs::Entity>();
@@ -238,6 +270,9 @@ inline void init() {
   joystick_inner->add(arena::create<layers::ConstLayer>(config.layer + 1));
   joystick_inner->add(arena::create<render_system::CircleRenderable>(
       inner_radius_px(), engine::UIColor{0.6f, 0.6f, 0.6f, 0.8f}));
+  joystick_inner_hidden = arena::create<hidden::HiddenObject>();
+  joystick_inner->add(joystick_inner_hidden);
+  if (!enabled) joystick_inner_hidden->hide();
   joystick_inner->add(arena::create<scene::SceneObject>("main"));
 
   fire_button = arena::create<ecs::Entity>();
@@ -248,6 +283,9 @@ inline void init() {
   fire_button->add(arena::create<layers::ConstLayer>(fire_config.layer));
   fire_button->add(arena::create<render_system::CircleRenderable>(
       fire_radius_px(), engine::UIColor{0.9f, 0.4f, 0.4f, 0.7f}));
+  fire_button_hidden = arena::create<hidden::HiddenObject>();
+  fire_button->add(fire_button_hidden);
+  if (!enabled) fire_button_hidden->hide();
   fire_button->add(arena::create<scene::SceneObject>("main"));
 
   deploy_button = arena::create<ecs::Entity>();
@@ -258,6 +296,9 @@ inline void init() {
   deploy_button->add(arena::create<layers::ConstLayer>(deploy_config.layer));
   deploy_button->add(arena::create<render_system::CircleRenderable>(
       deploy_radius_px(), engine::UIColor{0.5f, 0.5f, 0.9f, 0.7f}));
+  deploy_button_hidden = arena::create<hidden::HiddenObject>();
+  deploy_button->add(deploy_button_hidden);
+  if (!enabled) deploy_button_hidden->hide();
   deploy_button->add(arena::create<scene::SceneObject>("main"));
   initialized = true;
 }

@@ -24,15 +24,13 @@
 
     body {
       font-family: "Vera", sans-serif;
-      background: #000;
+      background: radial-gradient(circle at 50% 0%, #111224 0%, #08070e 52%, #020203 100%);
       color: #dfd6ab;
-      position: relative;
       overflow-x: hidden;
+      touch-action: manipulation;
     }
 
     main {
-      position: relative;
-      z-index: 1;
       min-height: 100dvh;
       display: grid;
       place-items: center;
@@ -42,37 +40,149 @@
     .content {
       width: min(1100px, 96vw);
       margin-inline: auto;
+      display: grid;
+      gap: 10px;
+      justify-items: center;
+      align-content: start;
     }
 
     h1 {
-      margin: 0 0 8px;
+      margin: 0;
       text-align: center;
       letter-spacing: 0.16em;
       text-transform: uppercase;
-      font-size: clamp(1.2rem, 3vw, 2rem);
+      font-size: clamp(1.1rem, 3vw, 2rem);
       font-weight: 700;
-      font-family: "Vera", sans-serif;
       -webkit-font-smoothing: none;
     }
 
     #status {
-      margin: 0 0 8px;
-      text-align: center;
-      font-size: 0.8rem;
-      color: #cfc6a0;
+      margin: 0;
       min-height: 1rem;
+      text-align: center;
+      font-size: 0.78rem;
+      color: #cfc6a0;
+    }
+
+    #game-shell {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
     }
 
     #canvas {
       display: block;
-      width: 100%;
-      max-width: 100%;
-      aspect-ratio: 16 / 9;
+      width: min(900px, 100%);
+      height: auto;
+      aspect-ratio: 1 / 1;
       background: #000;
       border: none !important;
       outline: none;
       box-shadow: none;
-      margin-inline: auto;
+      touch-action: none;
+      user-select: none;
+    }
+
+    #mobile-controls {
+      width: min(900px, 100%);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      padding: 6px 0 10px;
+      align-items: stretch;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(6px);
+      transition: opacity 120ms ease-out, transform 120ms ease-out;
+    }
+
+    body.mobile-controls-active #mobile-controls {
+      pointer-events: auto;
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .joystick-wrap {
+      display: flex;
+      justify-content: flex-start;
+      align-items: center;
+    }
+
+    #joystick-pad {
+      width: min(42vw, 200px);
+      aspect-ratio: 1 / 1;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.17) 0%, rgba(255, 255, 255, 0.07) 35%, rgba(255, 255, 255, 0.02) 100%);
+      border: 2px solid rgba(230, 225, 200, 0.35);
+      position: relative;
+      touch-action: none;
+      user-select: none;
+      overflow: hidden;
+    }
+
+    #joystick-knob {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 38%;
+      aspect-ratio: 1 / 1;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      background: radial-gradient(circle at 38% 32%, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0.14) 45%, rgba(255, 255, 255, 0.08) 100%);
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      pointer-events: none;
+    }
+
+    .actions-wrap {
+      display: grid;
+      grid-template-rows: 1fr 1fr;
+      gap: 10px;
+      justify-items: stretch;
+      align-items: center;
+    }
+
+    .action-button {
+      border: 0;
+      border-radius: 16px;
+      color: #f3f1e8;
+      font-family: "Vera", sans-serif;
+      font-size: clamp(0.95rem, 3.2vw, 1.15rem);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      font-weight: 700;
+      padding: 14px 8px;
+      min-height: 60px;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      transition: transform 70ms ease, filter 70ms ease;
+    }
+
+    .action-button:active {
+      transform: translateY(1px) scale(0.98);
+      filter: brightness(1.07);
+    }
+
+    #fire-button {
+      background: linear-gradient(160deg, rgba(214, 72, 72, 0.92), rgba(140, 31, 31, 0.96));
+      box-shadow: 0 8px 20px rgba(128, 30, 30, 0.36);
+    }
+
+    #deploy-button {
+      background: linear-gradient(160deg, rgba(78, 110, 214, 0.94), rgba(35, 57, 139, 0.98));
+      box-shadow: 0 8px 20px rgba(38, 54, 126, 0.34);
+    }
+
+    @media (pointer: coarse) and (orientation: portrait) {
+      .content {
+        width: min(620px, 100vw - 16px);
+      }
+
+      main {
+        align-items: start;
+        padding-top: 10px;
+      }
     }
   </style>
 </head>
@@ -81,18 +191,331 @@
     <section class="content">
       <h1>Shrooms</h1>
       <p id="status">Downloading...</p>
-      <canvas id="canvas" width="1280" height="720" tabindex="0" oncontextmenu="event.preventDefault()"></canvas>
+      <div id="game-shell">
+        <canvas id="canvas" width="900" height="900" tabindex="0" oncontextmenu="event.preventDefault()"></canvas>
+      </div>
+      <section id="mobile-controls" aria-label="Mobile controls" hidden>
+        <div class="joystick-wrap">
+          <div id="joystick-pad" aria-label="Move">
+            <div id="joystick-knob"></div>
+          </div>
+        </div>
+        <div class="actions-wrap">
+          <button id="fire-button" class="action-button" type="button">Fire</button>
+          <button id="deploy-button" class="action-button" type="button">Deploy</button>
+        </div>
+      </section>
     </section>
   </main>
 
   <script>
     const statusElement = document.getElementById("status");
+    const canvasElement = document.getElementById("canvas");
+    const contentElement = document.querySelector(".content");
+    const controlsElement = document.getElementById("mobile-controls");
+    const joystickPad = document.getElementById("joystick-pad");
+    const joystickKnob = document.getElementById("joystick-knob");
+    const fireButton = document.getElementById("fire-button");
+    const deployButton = document.getElementById("deploy-button");
+
+    const KEY_A = 65;
+    const KEY_D = 68;
+    const KEY_W = 87;
+    const KEY_E = 69;
+
+    const controlState = {
+      runtimeReady: false,
+      controlsActive: false,
+      gameplayActive: false,
+      joystickPointerId: null,
+      joystickDirection: 0,
+      firePointers: new Set(),
+      deployPointers: new Set(),
+      heldKeys: new Set(),
+      pollTimer: null,
+    };
+
+    const coarsePointerQuery = window.matchMedia("(pointer: coarse)");
+    const portraitQuery = window.matchMedia("(orientation: portrait)");
+
+    function bridgeReady() {
+      return controlState.runtimeReady && typeof Module !== "undefined";
+    }
+
+    function pushKeyState(keyCode, pressed) {
+      if (!bridgeReady() || typeof Module._shrooms_push_key_event !== "function") {
+        return;
+      }
+
+      const hasKey = controlState.heldKeys.has(keyCode);
+      if (pressed) {
+        if (hasKey) return;
+        controlState.heldKeys.add(keyCode);
+      } else {
+        if (!hasKey) return;
+        controlState.heldKeys.delete(keyCode);
+      }
+
+      Module._shrooms_push_key_event(keyCode, pressed ? 1 : 0);
+    }
+
+    function setCanvasTouchscreenEnabled(enabled) {
+      if (!bridgeReady() || typeof Module._shrooms_set_touchscreen_enabled !== "function") {
+        return;
+      }
+      Module._shrooms_set_touchscreen_enabled(enabled ? 1 : 0);
+    }
+
+    function queryGameplayActive() {
+      if (!bridgeReady() || typeof Module._shrooms_is_gameplay_active !== "function") {
+        return false;
+      }
+      return Module._shrooms_is_gameplay_active() !== 0;
+    }
+
+    function setJoystickKnobOffset(xPx, yPx) {
+      joystickKnob.style.transform = `translate(calc(-50% + ${xPx}px), calc(-50% + ${yPx}px))`;
+    }
+
+    function applyJoystickDirection(dir) {
+      if (controlState.joystickDirection === dir) {
+        return;
+      }
+      controlState.joystickDirection = dir;
+
+      if (dir < 0) {
+        pushKeyState(KEY_A, true);
+        pushKeyState(KEY_D, false);
+        return;
+      }
+
+      if (dir > 0) {
+        pushKeyState(KEY_D, true);
+        pushKeyState(KEY_A, false);
+        return;
+      }
+
+      pushKeyState(KEY_A, false);
+      pushKeyState(KEY_D, false);
+    }
+
+    function resetJoystick() {
+      controlState.joystickPointerId = null;
+      applyJoystickDirection(0);
+      setJoystickKnobOffset(0, 0);
+    }
+
+    function updateJoystickFromEvent(evt) {
+      const rect = joystickPad.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) {
+        resetJoystick();
+        return;
+      }
+
+      const cx = rect.left + rect.width * 0.5;
+      const cy = rect.top + rect.height * 0.5;
+      let nx = (evt.clientX - cx) / (rect.width * 0.5);
+      let ny = (evt.clientY - cy) / (rect.height * 0.5);
+      const len = Math.hypot(nx, ny);
+      if (len > 1.0) {
+        nx /= len;
+        ny /= len;
+      }
+
+      const travel = rect.width * 0.22;
+      setJoystickKnobOffset(nx * travel, ny * travel);
+
+      const deadzone = 0.28;
+      if (nx <= -deadzone) {
+        applyJoystickDirection(-1);
+      } else if (nx >= deadzone) {
+        applyJoystickDirection(1);
+      } else {
+        applyJoystickDirection(0);
+      }
+    }
+
+    function releaseButtonPointers(setRef, keyCode) {
+      if (setRef.size === 0) {
+        return;
+      }
+      setRef.clear();
+      pushKeyState(keyCode, false);
+    }
+
+    function releaseAllControlKeys() {
+      resetJoystick();
+      releaseButtonPointers(controlState.firePointers, KEY_W);
+      releaseButtonPointers(controlState.deployPointers, KEY_E);
+      pushKeyState(KEY_A, false);
+      pushKeyState(KEY_D, false);
+      pushKeyState(KEY_W, false);
+      pushKeyState(KEY_E, false);
+    }
+
+    function syncCanvasSize() {
+      const contentRect = contentElement.getBoundingClientRect();
+      const maxWidth = Math.max(240, Math.min(900, contentRect.width));
+
+      const controlsHeight = controlState.controlsActive
+        ? controlsElement.getBoundingClientRect().height + 10
+        : 0;
+      const headerAllowance = 132;
+      const availableHeight = Math.max(240, window.innerHeight - controlsHeight - headerAllowance);
+      const side = Math.max(220, Math.min(maxWidth, availableHeight));
+
+      canvasElement.style.width = `${Math.round(side)}px`;
+      canvasElement.style.height = `${Math.round(side)}px`;
+    }
+
+    function shouldUseMobileControls() {
+      return coarsePointerQuery.matches && portraitQuery.matches && controlState.gameplayActive;
+    }
+
+    function applyControlsMode() {
+      const nextActive = shouldUseMobileControls();
+      if (nextActive === controlState.controlsActive) {
+        syncCanvasSize();
+        return;
+      }
+
+      controlState.controlsActive = nextActive;
+      controlsElement.hidden = !nextActive;
+      document.body.classList.toggle("mobile-controls-active", nextActive);
+
+      if (!nextActive) {
+        releaseAllControlKeys();
+      }
+
+      setCanvasTouchscreenEnabled(!nextActive);
+      syncCanvasSize();
+    }
+
+    function pollGameplayState() {
+      if (!bridgeReady()) {
+        return;
+      }
+      const active = queryGameplayActive();
+      if (active !== controlState.gameplayActive) {
+        controlState.gameplayActive = active;
+        applyControlsMode();
+      }
+    }
+
+    function addMediaListener(query, listener) {
+      if (typeof query.addEventListener === "function") {
+        query.addEventListener("change", listener);
+        return;
+      }
+      query.addListener(listener);
+    }
+
+    function onActionPointerDown(evt, setRef, keyCode) {
+      if (!controlState.controlsActive) {
+        return;
+      }
+      evt.preventDefault();
+      setRef.add(evt.pointerId);
+      if (typeof evt.target.setPointerCapture === "function") {
+        evt.target.setPointerCapture(evt.pointerId);
+      }
+      pushKeyState(keyCode, true);
+    }
+
+    function onActionPointerUp(evt, setRef, keyCode) {
+      if (!setRef.delete(evt.pointerId)) {
+        return;
+      }
+      if (setRef.size === 0) {
+        pushKeyState(keyCode, false);
+      }
+    }
+
+    joystickPad.addEventListener("pointerdown", (evt) => {
+      if (!controlState.controlsActive) {
+        return;
+      }
+      evt.preventDefault();
+      controlState.joystickPointerId = evt.pointerId;
+      if (typeof joystickPad.setPointerCapture === "function") {
+        joystickPad.setPointerCapture(evt.pointerId);
+      }
+      updateJoystickFromEvent(evt);
+    });
+
+    joystickPad.addEventListener("pointermove", (evt) => {
+      if (evt.pointerId !== controlState.joystickPointerId) {
+        return;
+      }
+      evt.preventDefault();
+      updateJoystickFromEvent(evt);
+    });
+
+    const stopJoystick = (evt) => {
+      if (evt.pointerId !== controlState.joystickPointerId) {
+        return;
+      }
+      evt.preventDefault();
+      resetJoystick();
+    };
+
+    joystickPad.addEventListener("pointerup", stopJoystick);
+    joystickPad.addEventListener("pointercancel", stopJoystick);
+    joystickPad.addEventListener("lostpointercapture", stopJoystick);
+
+    fireButton.addEventListener("pointerdown", (evt) => {
+      onActionPointerDown(evt, controlState.firePointers, KEY_W);
+    });
+    fireButton.addEventListener("pointerup", (evt) => {
+      onActionPointerUp(evt, controlState.firePointers, KEY_W);
+    });
+    fireButton.addEventListener("pointercancel", (evt) => {
+      onActionPointerUp(evt, controlState.firePointers, KEY_W);
+    });
+    fireButton.addEventListener("lostpointercapture", (evt) => {
+      onActionPointerUp(evt, controlState.firePointers, KEY_W);
+    });
+
+    deployButton.addEventListener("pointerdown", (evt) => {
+      onActionPointerDown(evt, controlState.deployPointers, KEY_E);
+    });
+    deployButton.addEventListener("pointerup", (evt) => {
+      onActionPointerUp(evt, controlState.deployPointers, KEY_E);
+    });
+    deployButton.addEventListener("pointercancel", (evt) => {
+      onActionPointerUp(evt, controlState.deployPointers, KEY_E);
+    });
+    deployButton.addEventListener("lostpointercapture", (evt) => {
+      onActionPointerUp(evt, controlState.deployPointers, KEY_E);
+    });
+
+    window.addEventListener("blur", () => {
+      releaseAllControlKeys();
+    });
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        releaseAllControlKeys();
+      }
+    });
+
+    window.addEventListener("resize", () => {
+      applyControlsMode();
+    });
+
+    addMediaListener(coarsePointerQuery, () => {
+      applyControlsMode();
+    });
+
+    addMediaListener(portraitQuery, () => {
+      applyControlsMode();
+    });
 
     var Module = {
       print: (...args) => console.log(args.join(" ")),
       printErr: (...args) => console.error(...args),
       canvas: (() => {
-        const canvas = document.getElementById("canvas");
+        const canvas = canvasElement;
         canvas.addEventListener("webglcontextlost", (event) => {
           alert("WebGL context lost. Reload the page to continue.");
           event.preventDefault();
@@ -106,10 +529,20 @@
       monitorRunDependencies: (left) => {
         Module.totalDependencies = Math.max(Module.totalDependencies, left);
         Module.setStatus(left ? `Preparing... (${Module.totalDependencies - left}/${Module.totalDependencies})` : "");
-      }
+      },
+      onRuntimeInitialized: () => {
+        controlState.runtimeReady = true;
+        controlState.gameplayActive = queryGameplayActive();
+        applyControlsMode();
+        if (controlState.pollTimer !== null) {
+          clearInterval(controlState.pollTimer);
+        }
+        controlState.pollTimer = window.setInterval(pollGameplayState, 140);
+      },
     };
 
     Module.setStatus("Downloading...");
+    applyControlsMode();
 
     window.onerror = (message) => {
       Module.setStatus("Error. Check JavaScript console.");

@@ -4,6 +4,8 @@
 
 namespace engine::shrooms {
 
+bool is_gameplay_active();
+
 class ShroomsLogic : public ecs::EcsLogic {
  public:
   ShroomsLogic(int view_width, int view_height);
