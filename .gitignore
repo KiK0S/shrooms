@@ -1,5 +1,5 @@
 build
 build-web
-assets
 shaders
 submodules_ci*
+assets/shrooms/config.changed.toml

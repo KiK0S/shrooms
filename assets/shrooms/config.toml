@@ -1,0 +1,100 @@
+[shrooms.global_fx]
+color_tint = [0, 0, 0, 0.2]
+glow_radius_scale = 0.09
+glow_edge_scale = 0.06
+glow_edge_power = 2.2
+glow_noise_strength = 0.15
+glow_noise_scale = 0.014
+glow_mask_strength = 0.5
+glow_blur_px = 1.9
+glow_divide_strength = 0.52
+glow_divide_epsilon = 0.31
+shake_pad_px = 18
+tint_layer = 30
+glow_layer = -1
+
+[shrooms.ambient_layers]
+color = [0.3, 0.2, 0.45, 0.22]
+lifetime = 2.4
+spawn_period = 0.55
+spawn_jitter = 0.25
+min_radius = 2
+max_radius = 6.5
+min_speed = -6
+max_speed = 8
+layer = 1
+
+[shrooms.bottom_spores]
+color = [0.72, 0.38, 1, 0.55]
+spawn_period = 0.48
+spawn_jitter = 0.18
+min_lifetime = 1
+max_lifetime = 3
+min_radius = 2
+max_radius = 4.8
+min_up_speed = 8
+max_up_speed = 18
+top_band_fraction = 0.25
+layer = 0
+
+[shrooms.camera_shake]
+max_offset_px = 10.8
+decay = 3
+frequency = 24
+
+[shrooms.round_transition]
+overlay_color = [0.92, 0.88, 0.98, 0.35]
+overlay_fade_in = 0.25
+overlay_hold = 0.55
+overlay_fade_out = 0.35
+text_delay = 0.05
+text_fade_in = 0.2
+text_fade_out = 0.35
+text_font_px = 26
+text_color = [1, 1, 1, 1]
+overlay_layer = 108
+text_layer = 109
+ambient_layer = 107
+ambient_spores = 10
+ambient_lifetime = 1.6
+ambient_min_radius = 6
+ambient_max_radius = 14
+ambient_speed = 12
+ambient_color = [0.9, 0.85, 1, 0.4]
+
+[shrooms.game_over]
+overlay_color = [0, 0, 0, 0.58]
+overlay_fade = 0.35
+text_delay = 0.6
+text_fade = 0.4
+shake_duration = 2.2
+total_duration = 3.4
+shake_frequency = 30
+shake_amplitude_px = 18
+text_font_px = 24
+overlay_layer = 110
+text_layer = 112
+
+[shrooms.countdown]
+scale = 0.15
+layer = 120
+
+[shrooms.pause_menu]
+overlay_color = [0, 0, 0, 0.33]
+menu_color = [1, 0.38, 1, 1]
+countdown_scale = 0.15
+overlay_layer = 100
+menu_layer = 101
+button_layer = 102
+text_layer = 103
+
+[shrooms.lives]
+horizontal_spacing = 0.05
+hearts_center_offset_x = 0
+hearts_center_offset_y = -0.04
+layer = 1
+
+[shrooms.scoreboard]
+row_spacing = 0.165
+text_font_px = 20
+layer = 1

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<!-- Created with Vectornator (http://vectornator.io/) -->
+<svg height="100%" stroke-miterlimit="10" style="fill-rule:nonzero;clip-rule:evenodd;stroke-linecap:round;stroke-linejoin:round;" version="1.1" viewBox="-0.005 -0.005 297.69 297.685" width="100%" xml:space="preserve" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<defs>
+<path d="M125.041 92.0033L125.041 192.455L158.682 221.952L197.557 192.455L197.557 92.0033L272.856 92.0033L242.735 18.5258L162.311 0L85.3136 16.7921L47.1111 91.1208L125.041 92.0033Z" id="Fill"/>
+<path d="M126.762 126.03L130.287 209.668L161.277 226.142L192.042 210.83L189.143 126.679L222.933 128.006L188.175 91.2854L270.472 97.9477L246.804 36.9576L158.03 0L90.9972 5.4448L27.2077 76.0668L116.924 83.9803L90.0349 122.754L126.762 126.03Z" id="Fill_2"/>
+</defs>
+<g id="Слой-2">
+<path d="M5.68434e-14-2.84217e-14L297.68-2.84217e-14L297.68 297.675L5.68434e-14 297.675L5.68434e-14-2.84217e-14Z" fill="#000000" fill-rule="nonzero" opacity="0" stroke="#007aff" stroke-linecap="butt" stroke-linejoin="round" stroke-width="0.01"/>
+<g opacity="0">
+<use fill="#dfd6ab" fill-rule="nonzero" opacity="1" stroke="none" xlink:href="#Fill"/>
+<clipPath clip-rule="nonzero" id="ClipPath">
+<use xlink:href="#Fill"/>
+</clipPath>
+<g clip-path="url(#ClipPath)">
+<path d="M17.36 115.583L237.019 109.096C237.019 109.096 286.419 132.217 296.218 109.096C306.018 85.9752 271.229 7.87904 271.263-6.85232C271.297-21.5837 166.742-44.2704 157.659-42.9815C148.576-41.6925 98.1187-37.9758 80.6267-27.3561C63.1346-16.7363 17.36 36.9627 17.36 44.7326C17.36 52.5025 17.36 115.583 17.36 115.583Z" fill="#8a562e" fill-rule="nonzero" opacity="1" stroke="none"/>
+</g>
+</g>
+<g opacity="1">
+<use fill="#dfd6ab" fill-rule="nonzero" opacity="1" stroke="none" xlink:href="#Fill_2"/>
+<clipPath clip-rule="nonzero" id="ClipPath_2">
+<use xlink:href="#Fill_2"/>
+</clipPath>
+<g clip-path="url(#ClipPath_2)">
+<path d="M20.4408 91.2854L245.182 106.684C245.182 106.684 298.786 106.684 303.587 106.684C308.388 106.684 285.489 8.06061 285.489 8.06061C285.489 8.06061 203.866-38.5799 190.94-39.6484C178.013-40.7169 57.2403-19.7029 49.8536-15.4288C42.4669-11.1548 20.4408 42.9831 20.4408 42.9831L20.4408 91.2854Z" fill="#b83c3d" fill-rule="nonzero" opacity="1" stroke="none"/>
+<path d="M58.8737 30.5574C58.8737 15.9442 72.1361 4.09789 88.4961 4.09789C104.856 4.09789 118.119 15.9442 118.119 30.5574C118.119 45.1706 104.856 57.0169 88.4961 57.0169C72.1361 57.0169 58.8737 45.1706 58.8737 30.5574Z" fill="#fcfcfc" fill-rule="nonzero" opacity="1" stroke="none"/>
+<path d="M196.495 30.5984C196.495 14.2324 210.703 0.965179 228.23 0.965179C245.758 0.965179 259.966 14.2324 259.966 30.5984C259.966 46.9644 245.758 60.2317 228.23 60.2317C210.703 60.2317 196.495 46.9644 196.495 30.5984Z" fill="#fcfcfc" fill-rule="nonzero" opacity="1" stroke="none"/>
+<path d="M128.526 59.3833C128.526 44.8661 142.798 33.0976 160.402 33.0976C178.007 33.0976 192.279 44.8661 192.279 59.3833C192.279 73.9005 178.007 85.6691 160.402 85.6691C142.798 85.6691 128.526 73.9005 128.526 59.3833Z" fill="#fcfcfc" fill-rule="nonzero" opacity="1" stroke="none"/>
+</g>
+</g>
+<path d="M208.828 181.459L208.828 297.675L162.383 297.675L162.383 238.47L113.405 297.675L7.10543e-14 297.675L102.873 182.444L208.828 181.459Z" fill="#ff0003" fill-rule="nonzero" opacity="1" stroke="#007aff" stroke-linecap="butt" stroke-linejoin="round" stroke-width="0.01"/>
+</g>
+</svg>
