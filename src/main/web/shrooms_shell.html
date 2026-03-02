@@ -24,31 +24,11 @@
 
     body {
       font-family: "Vera", sans-serif;
-      background: #1b1f22;
+      background: #000;
       color: #dfd6ab;
       position: relative;
       overflow-x: hidden;
     }
-
-    .decor {
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    .decor img {
-      position: absolute;
-      width: clamp(28px, 3.4vw, 52px);
-      opacity: 0.28;
-    }
-
-    .d1 { left: 5%; top: 10%; }
-    .d2 { left: 14%; bottom: 10%; }
-    .d3 { left: 28%; top: 18%; }
-    .d4 { right: 6%; top: 12%; }
-    .d5 { right: 16%; bottom: 11%; }
-    .d6 { right: 30%; top: 45%; }
 
     main {
       position: relative;
@@ -97,15 +77,6 @@
   </style>
 </head>
 <body>
-  <div class="decor" aria-hidden="true">
-    <img class="d1" src="assets/shrooms/mukhomor_small.svg" alt="">
-    <img class="d2" src="assets/shrooms/borovik_small.svg" alt="">
-    <img class="d3" src="assets/shrooms/lisi4ka_small.svg" alt="">
-    <img class="d4" src="assets/shrooms/mukhomor_small.svg" alt="">
-    <img class="d5" src="assets/shrooms/borovik_small.svg" alt="">
-    <img class="d6" src="assets/shrooms/lisi4ka_small.svg" alt="">
-  </div>
-
   <main>
     <section class="content">
       <h1>Shrooms</h1>

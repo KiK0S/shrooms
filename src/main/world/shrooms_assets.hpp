@@ -57,6 +57,10 @@ inline void register_shrooms_svg_assets() {
   register_svg("face_mini_2");
   register_svg("heart");
   register_svg("famiriar");
+  register_svg("familiar_attack");
+  register_svg("digits_1");
+  register_svg("digits_2");
+  register_svg("digits_3");
   register_svg("menu_face");
   register_svg("menu_scoreboard");
   register_svg("background");

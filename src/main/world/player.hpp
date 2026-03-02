@@ -22,6 +22,7 @@
 #include "systems/input/input_system.hpp"
 #include "systems/layer/layered_object.hpp"
 #include "systems/moving/moving_object.hpp"
+#include "engine/math.h"
 #include "engine/resource_ids.h"
 #include "ecs/context.hpp"
 #include "systems/scene/scene_system.hpp"
@@ -92,6 +93,7 @@ enum class FamiliarState {
   Planted,
   Carry,
   StrikeAlign,
+  StrikeCharge,
   StrikeAscend,
   Returning,
 };
@@ -112,7 +114,68 @@ struct FamiliarSprite : public render_system::ImplicitSkeletonedSprite {
                      : render_system::ImplicitSkeletonedSprite::shader_id();
   }
 
+  void emit(engine::RenderPass& pass) override {
+    if (!entity || entity->is_pending_deletion()) return;
+    auto* transform = entity->get<transform::TransformObject>();
+    if (!transform) return;
+
+    engine::UIColor color = tint;
+    if (auto* colored = entity->get<color::ColoredObject>()) {
+      const auto c = colored->get_color();
+      color = engine::UIColor{c.x, c.y, c.z, c.w};
+    }
+
+    if (!uploaded) {
+      pass.uploads.push_back(engine::GeometryUpload{geometry_id, geometry});
+      uploaded = true;
+    }
+
+    const glm::vec2 pos = transform->get_pos();
+    const float half_w = size.x * 0.5f;
+    const float half_h = size.y * 0.5f;
+    const float safe_scale = std::max(0.001f, model_scale);
+    const engine::Mat4 view_offset =
+        engine::mat4_translate(render_system::view_offset_x, render_system::view_offset_y, 0.0f);
+    const engine::Mat4 to_center = engine::mat4_translate(pos.x + half_w, pos.y + half_h, 0.0f);
+    const engine::Mat4 rotation = engine::mat4_rotate_z(model_rotation_rad);
+    const engine::Mat4 scale = engine::mat4_scale(safe_scale, safe_scale, 1.0f);
+    const engine::Mat4 from_center = engine::mat4_translate(-half_w, -half_h, 0.0f);
+
+    engine::DrawItem item{};
+    item.geometry_id = geometry_id;
+    item.model = engine::mat4_mul(
+        view_offset, engine::mat4_mul(to_center, engine::mat4_mul(rotation, engine::mat4_mul(scale, from_center))));
+    item.color = color;
+    item.texture_id = texture_id;
+
+    generated_points.clear();
+    if (point_generator) {
+      point_generator(static_cast<float>(ecs::context().time_seconds), generated_points);
+    }
+    const std::vector<render_system::ImplicitWarpPoint>& active_points =
+        generated_points.empty() ? control_points : generated_points;
+    render_system::append_implicit_warp_uniforms(item, active_points, warp_power, warp_epsilon,
+                                                 warp_rest_weight);
+    pass.draw_items.push_back(std::move(item));
+  }
+
+  void use_idle_wobble(bool enabled) {
+    if (enabled) {
+      point_generator = idle_point_generator;
+    } else {
+      point_generator = {};
+    }
+  }
+
+  void reset_pose() {
+    model_scale = 1.0f;
+    model_rotation_rad = 0.0f;
+  }
+
   bool grayscale = false;
+  float model_scale = 1.0f;
+  float model_rotation_rad = 0.0f;
+  render_system::ImplicitWarpPointGenerator idle_point_generator{};
 };
 
 struct FamiliarLogic : public dynamic::DynamicObject {
@@ -166,13 +229,35 @@ struct FamiliarLogic : public dynamic::DynamicObject {
       if (std::abs(dx) <= step) {
         center.x = strike_lane_x;
         set_center(center);
-        state = FamiliarState::StrikeAscend;
+        begin_strike_charge();
       } else if (dx > 0.0f) {
         center.x += step;
         set_center(center);
       } else {
         center.x -= step;
         set_center(center);
+      }
+    } else if (state == FamiliarState::StrikeCharge) {
+      glm::vec2 center = current_center();
+      center.x += (strike_lane_x - center.x) * std::min(1.0f, strike_lane_blend * dt);
+      set_center(center);
+
+      strike_charge_elapsed += dt;
+      const float raw_t = strike_charge_duration > 0.0f
+                              ? (strike_charge_elapsed / strike_charge_duration)
+                              : 1.0f;
+      const float t = std::clamp(raw_t, 0.0f, 1.0f);
+      const float accel_t = t * t;
+      const float angular_speed =
+          strike_spin_speed_start + (strike_spin_speed_end - strike_spin_speed_start) * accel_t;
+      strike_spin_angle += angular_speed * dt;
+      if (sprite) {
+        const float charge_scale = 1.0f + (strike_charge_scale - 1.0f) * t;
+        sprite->model_scale = std::max(0.1f, charge_scale);
+        sprite->model_rotation_rad = strike_spin_angle;
+      }
+      if (t >= 1.0f) {
+        begin_strike_dash();
       }
     } else if (state == FamiliarState::StrikeAscend) {
       glm::vec2 center = current_center();
@@ -220,7 +305,7 @@ struct FamiliarLogic : public dynamic::DynamicObject {
   bool can_capture() const { return state == FamiliarState::Planted && !carried; }
 
   bool can_strike_hit() const {
-    return state == FamiliarState::StrikeAlign || state == FamiliarState::StrikeAscend;
+    return state == FamiliarState::StrikeAscend;
   }
 
   void launch_strike() {
@@ -233,7 +318,15 @@ struct FamiliarLogic : public dynamic::DynamicObject {
       strike_lane_x = current_center().x;
     }
     strike_top_y = -size.y * 0.6f;
-    state = FamiliarState::StrikeAscend;
+    strike_charge_elapsed = 0.0f;
+    strike_spin_angle = 0.0f;
+    state = FamiliarState::StrikeAlign;
+    if (sprite) {
+      if (normal_texture_id != engine::kInvalidTextureId) {
+        sprite->texture_id = normal_texture_id;
+      }
+      sprite->reset_pose();
+    }
     trail_timer = 0.0f;
     kick_recoil(0.45f);
     vfx::spawn_projectile_flash(current_center(), size);
@@ -288,6 +381,8 @@ struct FamiliarLogic : public dynamic::DynamicObject {
     state = FamiliarState::Orbit;
     return_timer = 0.0f;
     trail_timer = 0.0f;
+    strike_charge_elapsed = 0.0f;
+    strike_spin_angle = 0.0f;
     orbit_angle = orbit_phase;
     if (!transform) {
       transform = entity ? entity->get<transform::NoRotationTransform>() : nullptr;
@@ -304,6 +399,12 @@ struct FamiliarLogic : public dynamic::DynamicObject {
     }
     planted_center = current_center();
     strike_top_y = -size.y * 0.6f;
+    if (sprite) {
+      if (normal_texture_id != engine::kInvalidTextureId) {
+        sprite->texture_id = normal_texture_id;
+      }
+      sprite->reset_pose();
+    }
     update_visual_state();
   }
 
@@ -342,6 +443,12 @@ struct FamiliarLogic : public dynamic::DynamicObject {
   }
 
   void begin_return(float delay = -1.0f) {
+    if (sprite) {
+      if (normal_texture_id != engine::kInvalidTextureId) {
+        sprite->texture_id = normal_texture_id;
+      }
+      sprite->reset_pose();
+    }
     state = FamiliarState::Returning;
     return_timer = delay >= 0.0f ? delay : return_delay;
     if (player_transform) {
@@ -382,12 +489,45 @@ struct FamiliarLogic : public dynamic::DynamicObject {
 
   void update_visual_state() {
     if (!sprite) return;
+    const bool strike_animating = state == FamiliarState::StrikeAlign ||
+                                  state == FamiliarState::StrikeCharge ||
+                                  state == FamiliarState::StrikeAscend;
+    sprite->use_idle_wobble(!strike_animating);
+    if (!strike_animating) {
+      sprite->reset_pose();
+    }
     sprite->grayscale = is_sleeping();
+  }
+
+  void begin_strike_charge() {
+    state = FamiliarState::StrikeCharge;
+    strike_charge_elapsed = 0.0f;
+    strike_spin_angle = 0.0f;
+    if (sprite) {
+      if (normal_texture_id != engine::kInvalidTextureId) {
+        sprite->texture_id = normal_texture_id;
+      }
+      sprite->reset_pose();
+    }
+  }
+
+  void begin_strike_dash() {
+    state = FamiliarState::StrikeAscend;
+    strike_spin_angle = 0.0f;
+    if (sprite) {
+      if (strike_texture_id != engine::kInvalidTextureId) {
+        sprite->texture_id = strike_texture_id;
+      }
+      sprite->reset_pose();
+    }
+    trail_timer = 0.0f;
   }
 
   transform::NoRotationTransform* transform = nullptr;
   FamiliarSprite* sprite = nullptr;
   glm::vec2 size{0.0f, 0.0f};
+  engine::TextureId normal_texture_id = engine::kInvalidTextureId;
+  engine::TextureId strike_texture_id = engine::kInvalidTextureId;
   float orbit_radius_px = 0.0f;
   float orbit_speed = 2.3f;
   float orbit_angle = 0.0f;
@@ -397,6 +537,12 @@ struct FamiliarLogic : public dynamic::DynamicObject {
   float strike_align_speed = 880.0f;
   float strike_up_speed = 980.0f;
   float strike_lane_blend = 8.0f;
+  float strike_charge_duration = 0.35f;
+  float strike_charge_scale = 0.62f;
+  float strike_spin_speed_start = 8.0f;
+  float strike_spin_speed_end = 42.0f;
+  float strike_spin_angle = 0.0f;
+  float strike_charge_elapsed = 0.0f;
   float strike_top_y = -50.0f;
   float strike_lane_x = 0.0f;
   float strike_return_delay = 0.22f;
@@ -485,6 +631,7 @@ inline void init_familiars() {
   const float orbit_radius = player_size.x * 2.0f;
   const float orbit_speed = 2.4f;
   const engine::TextureId tex_id = engine::resources::register_texture("famiriar");
+  const engine::TextureId strike_tex_id = engine::resources::register_texture("familiar_attack");
 
   for (int i = 0; i < kFamiliarCount; ++i) {
     auto* entity = arena::create<ecs::Entity>();
@@ -603,10 +750,13 @@ inline void init_familiars() {
           add_point(right_inner_x_base, right_inner_y_base, right_inner_x, center_y, 0.34f);
           add_point(right_outer_x_base, right_outer_y_base, right_outer_x, center_y, 0.42f);
         };
+    familiar_sprite->idle_point_generator = familiar_sprite->point_generator;
     entity->add(familiar_sprite);
     auto* logic = arena::create<FamiliarLogic>(orbit_radius, orbit_speed, phase);
     logic->size = familiar_size;
     logic->sprite = familiar_sprite;
+    logic->normal_texture_id = tex_id;
+    logic->strike_texture_id = strike_tex_id;
     entity->add(logic);
     entity->add(make_familiar_trigger(logic));
     entity->add(make_familiar_sort_trigger(logic));
