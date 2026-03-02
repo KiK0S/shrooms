@@ -41,7 +41,7 @@ namespace menu {
 
 constexpr size_t kMaxLevelLines = 10;
 constexpr float kMenuTextX = -0.8f;
-constexpr float kLeaderboardTextX = 0.15f;
+constexpr float kLeaderboardTextX = -0.35f;
 constexpr float kMenuTextYOffsetNorm = 0.1f;
 constexpr size_t kLeaderboardLines = static_cast<size_t>(leaderboard::kMaxEntries);
 constexpr size_t kNameMaxLength = 12;
@@ -485,7 +485,7 @@ inline void refresh_gameover_lines() {
   if (!levels::last_result_valid) return;
   const auto& result = levels::last_result;
   show_leaderboard = result.infinite_mode;
-  update_text(gameover_title, result.success ? "Completed" : "Not Completed");
+  update_text(gameover_title, "");
   update_text(gameover_level, "");
   update_text(gameover_collected, "");
   update_text(gameover_sorted, "");
@@ -519,7 +519,7 @@ inline void set_menu_mode(MenuMode mode) {
                         false);
   }
 
-  set_line_visibility(gameover_title, show_game_over, false);
+  set_line_visibility(gameover_title, false, false);
   set_line_visibility(gameover_level, false, false);
   set_line_visibility(gameover_collected, false, false);
   set_line_visibility(gameover_sorted, false, false);
