@@ -706,14 +706,16 @@ inline void on_mushroom_spawned(const std::string& type, ecs::Entity* entity) {
 
 inline void on_mushroom_caught(
     const std::string& type, ecs::Entity* entity,
-    float player_center_x = std::numeric_limits<float>::quiet_NaN(), bool from_familiar = false) {
+    glm::vec2 player_center = glm::vec2{std::numeric_limits<float>::quiet_NaN(),
+                                        std::numeric_limits<float>::quiet_NaN()},
+    bool from_familiar = false) {
   if (!entity || entity->is_pending_deletion()) return;
   if (vfx::is_catch_animating(entity)) return;
   if (tutorial_catch_hook) {
     tutorial_catch_hook(type, entity, from_familiar);
   }
   auto* level = current_level();
-  vfx::spawn_catch_effect(entity, player_center_x);
+  vfx::spawn_catch_effect(entity, player_center);
   if (!level) return;
 
   auto active_it = active_entities.find(type);

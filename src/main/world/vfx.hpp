@@ -164,11 +164,11 @@ struct VfxBurst : public dynamic::DynamicObject {
 };
 
 struct CatchConsumeVanish : public dynamic::DynamicObject {
-  CatchConsumeVanish(glm::vec2 start_center, glm::vec2 base_size, float target_x)
+  CatchConsumeVanish(glm::vec2 start_center, glm::vec2 base_size, glm::vec2 target_center)
       : dynamic::DynamicObject(),
         start_center(start_center),
         base_size(base_size),
-        target_x(target_x) {}
+        target_center(target_center) {}
   ~CatchConsumeVanish() override { Component::component_count--; }
 
   void update() override {
@@ -186,28 +186,25 @@ struct CatchConsumeVanish : public dynamic::DynamicObject {
     const float t = duration > 0.0f ? clamp01(elapsed / duration) : 1.0f;
 
     const float follow_t = ease_out(t);
-    const float fade_t = ease_in(t);
-    const float consumed_x = std::isfinite(target_x) ? target_x : start_center.x;
+    const float consume_t = ease_in(t);
+    const float consumed_x = std::isfinite(target_center.x) ? target_center.x : start_center.x;
+    const float consumed_y = std::isfinite(target_center.y) ? target_center.y : start_center.y;
     const float wobble = std::sin(phase + t * wobble_cycles * 6.28318530718f) * base_size.x *
                          wobble_ratio * (1.0f - follow_t);
-    const float y_lift = base_size.y * lift_ratio * follow_t;
     const float y_jitter =
         std::sin(phase * 1.73f + t * 18.0f) * base_size.y * 0.03f * (1.0f - follow_t);
     const glm::vec2 center{
         lerp(start_center.x, consumed_x, follow_t) + wobble,
-        start_center.y - y_lift + y_jitter,
+        lerp(start_center.y, consumed_y, follow_t) + y_jitter,
     };
-    // Keep the current consume motion, but shrink earlier so the catch reads clearly.
-    const float shrink_window = std::max(0.0001f, 1.0f - shrink_delay_ratio);
-    const float scale_t = ease_out(clamp01((t - shrink_delay_ratio) / shrink_window));
-    const float scale = std::max(min_scale, lerp(1.0f, min_scale, scale_t));
+    const float scale = std::max(min_scale, lerp(1.0f, min_scale, consume_t));
     const glm::vec2 scaled_size = base_size * scale;
 
     sprite->size = scaled_size;
     transform->pos = center - scaled_size * 0.5f;
 
     if (auto* tint = entity->get<color::OneColor>()) {
-      tint->color.w = 1.0f - fade_t;
+      tint->color.w = 1.0f - consume_t;
     }
 
     if (elapsed >= duration) {
@@ -217,14 +214,15 @@ struct CatchConsumeVanish : public dynamic::DynamicObject {
 
   glm::vec2 start_center{0.0f, 0.0f};
   glm::vec2 base_size{0.0f, 0.0f};
-  float target_x = std::numeric_limits<float>::quiet_NaN();
+  glm::vec2 target_center{
+      std::numeric_limits<float>::quiet_NaN(),
+      std::numeric_limits<float>::quiet_NaN(),
+  };
   float duration = 0.45f;
   float phase = static_cast<float>(rnd::get_double(0.0, 6.28318530718));
   float wobble_ratio = 0.09f;
   float wobble_cycles = 2.6f;
-  float lift_ratio = 0.2f;
-  float shrink_delay_ratio = 0.06f;
-  float min_scale = 0.01f;
+  float min_scale = 0.3f;
   float elapsed = 0.0f;
 };
 
@@ -453,7 +451,9 @@ inline bool is_catch_animating(const ecs::Entity* entity) {
 }
 
 inline void start_catch_consume_vanish(
-    ecs::Entity* entity, float target_x = std::numeric_limits<float>::quiet_NaN()) {
+    ecs::Entity* entity,
+    glm::vec2 target_center = glm::vec2{std::numeric_limits<float>::quiet_NaN(),
+                                        std::numeric_limits<float>::quiet_NaN()}) {
   if (!entity || entity->is_pending_deletion()) return;
   if (is_catch_animating(entity)) return;
 
@@ -487,7 +487,7 @@ inline void start_catch_consume_vanish(
   }
 
   const glm::vec2 center = entity_center(entity, size);
-  entity->add(arena::create<CatchConsumeVanish>(center, size, target_x));
+  entity->add(arena::create<CatchConsumeVanish>(center, size, target_center));
 }
 
 inline void spawn_spawn_effect(const glm::vec2& center, const glm::vec2& size) {
@@ -502,13 +502,15 @@ inline void spawn_spawn_effect(const glm::vec2& center, const glm::vec2& size) {
 }
 
 inline void spawn_catch_effect(
-    ecs::Entity* entity, float target_x = std::numeric_limits<float>::quiet_NaN()) {
+    ecs::Entity* entity,
+    glm::vec2 target_center = glm::vec2{std::numeric_limits<float>::quiet_NaN(),
+                                        std::numeric_limits<float>::quiet_NaN()}) {
   if (!entity) return;
   if (is_catch_animating(entity)) return;
   const glm::vec2 size = entity_size(entity);
   if (size.x <= 0.0f || size.y <= 0.0f) return;
   const glm::vec2 center = entity_center(entity, size);
-  start_catch_consume_vanish(entity, target_x);
+  start_catch_consume_vanish(entity, target_center);
   spawn_burst_at(center, size * 0.85f, catch_burst);
   const float extent = std::max(size.x, size.y);
   const float base_radius = std::max(1.8f, extent * 0.045f);

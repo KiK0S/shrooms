@@ -225,7 +225,7 @@ struct FamiliarLogic : public dynamic::DynamicObject {
     } else if (state == FamiliarState::StrikeAlign) {
       glm::vec2 center = current_center();
       const float dx = strike_lane_x - center.x;
-      const float step = strike_align_speed * dt;
+      const float step = strike_align_speed * strike_setup_speed_multiplier * dt;
       if (std::abs(dx) <= step) {
         center.x = strike_lane_x;
         set_center(center);
@@ -242,7 +242,7 @@ struct FamiliarLogic : public dynamic::DynamicObject {
       center.x += (strike_lane_x - center.x) * std::min(1.0f, strike_lane_blend * dt);
       set_center(center);
 
-      strike_charge_elapsed += dt;
+      strike_charge_elapsed += dt * strike_setup_speed_multiplier;
       const float raw_t = strike_charge_duration > 0.0f
                               ? (strike_charge_elapsed / strike_charge_duration)
                               : 1.0f;
@@ -425,11 +425,12 @@ struct FamiliarLogic : public dynamic::DynamicObject {
       return;
     }
 
-    float catch_x = std::numeric_limits<float>::quiet_NaN();
+    const float nan = std::numeric_limits<float>::quiet_NaN();
+    glm::vec2 catch_center{nan, nan};
     if (player_transform) {
       const glm::vec2 player_center =
           player_transform->pos + glm::vec2{player_size.x * 0.5f, player_size.y * 0.5f};
-      catch_x = player_center.x;
+      catch_center = player_center;
       if (carried_transform) {
         carried_transform->pos = shrooms::screen::center_to_top_left(player_center, carried_size);
       }
@@ -437,7 +438,7 @@ struct FamiliarLogic : public dynamic::DynamicObject {
 
     auto* sprite = carried->get<render_system::SpriteRenderable>();
     const std::string type = sprite ? engine::resources::texture_name(sprite->texture_id) : "";
-    levels::on_mushroom_caught(type, carried, catch_x, true);
+    levels::on_mushroom_caught(type, carried, catch_center, true);
     clear_carried(false);
     begin_return();
   }
@@ -537,6 +538,7 @@ struct FamiliarLogic : public dynamic::DynamicObject {
   float strike_align_speed = 880.0f;
   float strike_up_speed = 980.0f;
   float strike_lane_blend = 8.0f;
+  float strike_setup_speed_multiplier = 2.0f;
   float strike_charge_duration = 0.35f;
   float strike_charge_scale = 0.62f;
   float strike_spin_speed_start = 8.0f;
@@ -863,11 +865,12 @@ inline collision::TriggerObject* make_player_trigger() {
         if (entity->get<CarriedMarker>()) return;
         auto* sprite = entity->get<render_system::SpriteRenderable>();
         const std::string type = sprite ? engine::resources::texture_name(sprite->texture_id) : "";
-        float catch_x = std::numeric_limits<float>::quiet_NaN();
+        const float nan = std::numeric_limits<float>::quiet_NaN();
+        glm::vec2 catch_center{nan, nan};
         if (player_transform) {
-          catch_x = player_transform->pos.x + player_size.x * 0.5f;
+          catch_center = player_transform->pos + player_size * 0.5f;
         }
-        levels::on_mushroom_caught(type, entity, catch_x, false);
+        levels::on_mushroom_caught(type, entity, catch_center, false);
       });
 }
 
