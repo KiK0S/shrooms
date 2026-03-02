@@ -104,45 +104,17 @@
     }
 
     .action-button {
-      border: 0;
-      border-radius: 16px;
-      color: #f3f1e8;
-      font-family: "Vera", sans-serif;
-      font-size: clamp(0.95rem, 3.2vw, 1.15rem);
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      font-weight: 700;
-      padding: 12px 8px;
-      min-height: 56px;
+      background: #000;
+      border: 1px solid #fff;
+      border-radius: 8px;
+      color: #fff;
+      font-size: clamp(1.1rem, 5vw, 1.45rem);
+      padding: 10px 8px;
+      min-height: 52px;
+      line-height: 1;
       touch-action: none;
       user-select: none;
       -webkit-user-select: none;
-      transition: transform 70ms ease, filter 70ms ease;
-    }
-
-    .action-button:active {
-      transform: translateY(1px) scale(0.98);
-      filter: brightness(1.07);
-    }
-
-    #move-left-button {
-      background: linear-gradient(160deg, rgba(82, 166, 118, 0.94), rgba(36, 103, 67, 0.98));
-      box-shadow: 0 8px 20px rgba(28, 87, 57, 0.34);
-    }
-
-    #move-right-button {
-      background: linear-gradient(160deg, rgba(98, 184, 134, 0.94), rgba(46, 120, 80, 0.98));
-      box-shadow: 0 8px 20px rgba(32, 98, 65, 0.34);
-    }
-
-    #fire-button {
-      background: linear-gradient(160deg, rgba(214, 72, 72, 0.92), rgba(140, 31, 31, 0.96));
-      box-shadow: 0 8px 20px rgba(128, 30, 30, 0.36);
-    }
-
-    #deploy-button {
-      background: linear-gradient(160deg, rgba(78, 110, 214, 0.94), rgba(35, 57, 139, 0.98));
-      box-shadow: 0 8px 20px rgba(38, 54, 126, 0.34);
     }
 
     body.mobile-controls-active #status {
@@ -165,8 +137,8 @@
 
       .action-button {
         padding: 10px 6px;
-        min-height: 52px;
-        font-size: clamp(0.82rem, 2.9vw, 1rem);
+        min-height: 50px;
+        font-size: clamp(1rem, 4.8vw, 1.3rem);
       }
     }
   </style>
@@ -180,10 +152,10 @@
         <canvas id="canvas" width="900" height="900" tabindex="0" oncontextmenu="event.preventDefault()"></canvas>
       </div>
       <section id="mobile-controls" aria-label="Mobile controls" hidden>
-        <button id="move-left-button" class="action-button" type="button">Left</button>
-        <button id="move-right-button" class="action-button" type="button">Right</button>
-        <button id="fire-button" class="action-button" type="button">Shoot</button>
-        <button id="deploy-button" class="action-button" type="button">Familiar</button>
+        <button id="move-left-button" class="action-button" type="button" aria-label="Move left">&#x2B05;&#xFE0F;</button>
+        <button id="move-right-button" class="action-button" type="button" aria-label="Move right">&#x27A1;&#xFE0F;</button>
+        <button id="fire-button" class="action-button" type="button" aria-label="Explosion">&#x1F4A5;</button>
+        <button id="deploy-button" class="action-button" type="button" aria-label="Bat">&#x1F987;</button>
       </section>
     </section>
   </main>
