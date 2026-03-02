@@ -2,7 +2,7 @@
 <html lang="en-us">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no">
   <title>Shrooms</title>
   <style>
     @font-face {
@@ -320,13 +320,19 @@
       canvasElement.style.height = `${Math.round(side)}px`;
     }
 
+    function shouldUseMobileTouchLayout() {
+      return coarsePointerQuery.matches && portraitQuery.matches;
+    }
+
     function shouldUseMobileControls() {
-      return coarsePointerQuery.matches && portraitQuery.matches && controlState.gameplayActive;
+      return shouldUseMobileTouchLayout() && controlState.gameplayActive;
     }
 
     function applyControlsMode() {
       const nextActive = shouldUseMobileControls();
+      const canvasTouchscreenEnabled = !shouldUseMobileTouchLayout();
       if (nextActive === controlState.controlsActive) {
+        setCanvasTouchscreenEnabled(canvasTouchscreenEnabled);
         syncCanvasSize();
         return;
       }
@@ -339,7 +345,7 @@
         releaseAllControlKeys();
       }
 
-      setCanvasTouchscreenEnabled(!nextActive);
+      setCanvasTouchscreenEnabled(canvasTouchscreenEnabled);
       syncCanvasSize();
     }
 
@@ -475,6 +481,20 @@
     addMediaListener(portraitQuery, () => {
       applyControlsMode();
     });
+
+    document.addEventListener("gesturestart", (evt) => {
+      evt.preventDefault();
+    }, { passive: false });
+
+    document.addEventListener("gesturechange", (evt) => {
+      evt.preventDefault();
+    }, { passive: false });
+
+    window.addEventListener("wheel", (evt) => {
+      if (evt.ctrlKey) {
+        evt.preventDefault();
+      }
+    }, { passive: false });
 
     var Module = {
       print: (...args) => console.log(args.join(" ")),
