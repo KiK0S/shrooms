@@ -5,6 +5,7 @@
 namespace engine::shrooms {
 
 bool is_gameplay_active();
+void set_touchscreen_enabled(bool enabled);
 
 class ShroomsLogic : public ecs::EcsLogic {
  public:

@@ -40,6 +40,10 @@ bool is_gameplay_active() {
   return main_scene && active_scene == main_scene && !scene::is_current_scene_paused();
 }
 
+void set_touchscreen_enabled(bool enabled) {
+  touchscreen::set_enabled(enabled);
+}
+
 void ShroomsLogic::on_init() {
   config_params::register_params();
   config_params::setup_io();

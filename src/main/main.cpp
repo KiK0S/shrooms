@@ -6,7 +6,6 @@
 
 #ifdef __EMSCRIPTEN__
 #include "engine/platform_emscripten.h"
-#include "world/touchscreen.hpp"
 
 #include <emscripten/emscripten.h>
 #else
@@ -35,7 +34,7 @@ EMSCRIPTEN_KEEPALIVE void shrooms_push_key_event(int key_code, int pressed) {
 }
 
 EMSCRIPTEN_KEEPALIVE void shrooms_set_touchscreen_enabled(int enabled) {
-  touchscreen::set_enabled(enabled != 0);
+  engine::shrooms::set_touchscreen_enabled(enabled != 0);
 }
 
 EMSCRIPTEN_KEEPALIVE int shrooms_is_gameplay_active() {
