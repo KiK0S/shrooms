@@ -28,19 +28,22 @@ struct JoystickConfig {
   float inner_radius_norm = 0.12f;
   float activation_margin = 1.1f;
   int layer = 8;
-} config;
+};
+inline JoystickConfig config{};
 
 struct FireButtonConfig {
   glm::vec2 center_norm = glm::vec2(0.7f, -0.6f);
   float radius_norm = 0.12f;
   int layer = 8;
-} fire_config;
+};
+inline FireButtonConfig fire_config{};
 
 struct DeployButtonConfig {
   glm::vec2 center_norm = glm::vec2(0.7f, -0.2f);
   float radius_norm = 0.1f;
   int layer = 8;
-} deploy_config;
+};
+inline DeployButtonConfig deploy_config{};
 
 inline ecs::Entity* joystick_outer = nullptr;
 inline ecs::Entity* joystick_inner = nullptr;
