@@ -1307,10 +1307,10 @@ inline void init() {
   gameover_sorted = make_text_line(glm::vec2{kMenuTextX, 0.14f}, 20.0f, 6);
   gameover_name_prompt = make_text_line(glm::vec2{kMenuTextX, 0.02f}, 18.0f, 6);
   gameover_name_value = make_text_line(glm::vec2{kMenuTextX, -0.1f}, 20.0f, 6);
-  gameover_restart = make_text_line(glm::vec2{kMenuTextX, -0.3f}, 20.0f, 6);
-  gameover_main_menu = make_text_line(glm::vec2{kMenuTextX, -0.46f}, 20.0f, 6);
-  gameover_share = make_text_line(glm::vec2{kMenuTextX, -0.62f}, 20.0f, 6);
-  gameover_hint = make_text_line(glm::vec2{kMenuTextX, -0.75f}, 18.0f, 6);
+  gameover_restart = make_text_line(glm::vec2{kMenuTextX, -0.42f}, 20.0f, 6);
+  gameover_main_menu = make_text_line(glm::vec2{kMenuTextX, -0.58f}, 20.0f, 6);
+  gameover_share = make_text_line(glm::vec2{kMenuTextX, -0.74f}, 20.0f, 6);
+  gameover_hint = make_text_line(glm::vec2{kMenuTextX, -0.88f}, 18.0f, 6);
 
   leaderboard_title = make_text_line(glm::vec2{kLeaderboardTextX, 0.62f}, 22.0f, 6);
   const glm::vec2 leaderboard_base = glm::vec2{kLeaderboardTextX, 0.45f};
