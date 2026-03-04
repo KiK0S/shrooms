@@ -1305,8 +1305,8 @@ inline void init() {
   gameover_level = make_text_line(glm::vec2{kMenuTextX, 0.44f}, 20.0f, 6);
   gameover_collected = make_text_line(glm::vec2{kMenuTextX, 0.28f}, 20.0f, 6);
   gameover_sorted = make_text_line(glm::vec2{kMenuTextX, 0.14f}, 20.0f, 6);
-  gameover_name_prompt = make_text_line(glm::vec2{kMenuTextX, 0.02f}, 18.0f, 6);
-  gameover_name_value = make_text_line(glm::vec2{kMenuTextX, -0.1f}, 20.0f, 6);
+  gameover_name_prompt = make_text_line(glm::vec2{kMenuTextX, -0.42f}, 18.0f, 6);
+  gameover_name_value = make_text_line(glm::vec2{kMenuTextX, -0.58f}, 20.0f, 6);
   gameover_restart = make_text_line(glm::vec2{kMenuTextX, -0.42f}, 20.0f, 6);
   gameover_main_menu = make_text_line(glm::vec2{kMenuTextX, -0.58f}, 20.0f, 6);
   gameover_share = make_text_line(glm::vec2{kMenuTextX, -0.74f}, 20.0f, 6);
