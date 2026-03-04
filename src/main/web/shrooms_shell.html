@@ -145,6 +145,7 @@
       padding: 4px 0 8px;
       align-items: stretch;
       pointer-events: none;
+      visibility: hidden;
       opacity: 0;
       transform: translateY(6px);
       transition: opacity 120ms ease-out, transform 120ms ease-out;
@@ -152,6 +153,7 @@
 
     body.mobile-controls-active #mobile-controls {
       pointer-events: auto;
+      visibility: visible;
       opacity: 1;
       transform: translateY(0);
     }
@@ -226,7 +228,7 @@
       <div id="game-shell">
         <canvas id="canvas" width="900" height="900" tabindex="0" oncontextmenu="event.preventDefault()"></canvas>
       </div>
-      <section id="mobile-controls" aria-label="Mobile controls" hidden>
+      <section id="mobile-controls" aria-label="Mobile controls" aria-hidden="true">
         <button id="move-left-button" class="action-button" type="button" aria-label="Move left">&#x2B05;&#xFE0F;</button>
         <button id="move-right-button" class="action-button" type="button" aria-label="Move right">&#x27A1;&#xFE0F;</button>
         <button id="fire-button" class="action-button" type="button" aria-label="Explosion">&#x1F4A5;</button>
@@ -409,16 +411,17 @@
     }
 
     function syncCanvasSize() {
+      const mobileTouchLayout = shouldUseMobileTouchLayout();
       const contentRect = contentElement.getBoundingClientRect();
       const maxWidth = Math.max(240, Math.min(900, contentRect.width));
 
-      const controlsHeight = controlState.controlsActive
+      const controlsHeight = mobileTouchLayout
         ? controlsElement.getBoundingClientRect().height + 10
         : 0;
       const titleHeight = titleElement ? titleElement.getBoundingClientRect().height : 0;
       const statusVisible = statusElement && statusElement.offsetParent !== null;
       const statusHeight = statusVisible ? statusElement.getBoundingClientRect().height : 0;
-      const verticalChrome = controlState.controlsActive ? 40 : 62;
+      const verticalChrome = mobileTouchLayout ? 40 : 62;
       const headerAllowance = titleHeight + statusHeight + verticalChrome;
       const availableHeight = Math.max(240, window.innerHeight - controlsHeight - headerAllowance);
       const side = Math.max(220, Math.min(maxWidth, availableHeight));
@@ -445,8 +448,8 @@
       }
 
       controlState.controlsActive = nextActive;
-      controlsElement.hidden = !nextActive;
       document.body.classList.toggle("mobile-controls-active", nextActive);
+      controlsElement.setAttribute("aria-hidden", nextActive ? "false" : "true");
 
       if (!nextActive) {
         releaseAllControlKeys();
