@@ -24,13 +24,60 @@
 
     body {
       font-family: "Vera", sans-serif;
-      background: radial-gradient(circle at 50% 0%, #111224 0%, #08070e 52%, #020203 100%);
+      background: #000;
       color: #dfd6ab;
       overflow-x: hidden;
       touch-action: manipulation;
     }
 
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      margin: -1px;
+      padding: 0;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      border: 0;
+    }
+
+    #background-decor {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .bg-sprite {
+      position: absolute;
+      width: clamp(52px, 9vw, 136px);
+      opacity: 0.3;
+      transform-origin: center;
+      filter: drop-shadow(0 0 10px rgba(223, 214, 171, 0.3));
+      user-select: none;
+    }
+
+    .bg-sprite.bat {
+      width: clamp(60px, 10vw, 148px);
+      opacity: 0.35;
+      filter: drop-shadow(0 0 10px rgba(253, 110, 200, 0.3));
+    }
+
+    .mush-1 { top: 4%; left: 4%; transform: rotate(-8deg); }
+    .mush-2 { top: 10%; right: 8%; transform: rotate(9deg); }
+    .mush-3 { top: 37%; left: 6%; transform: rotate(-11deg); }
+    .mush-4 { top: 34%; right: 7%; transform: rotate(13deg); }
+    .mush-5 { bottom: 14%; left: 10%; transform: rotate(-7deg); }
+    .mush-6 { bottom: 8%; right: 9%; transform: rotate(10deg); }
+    .bat-1 { top: 22%; left: 20%; transform: rotate(-6deg) scaleX(-1); }
+    .bat-2 { top: 16%; right: 22%; transform: rotate(8deg); }
+    .bat-3 { bottom: 24%; left: 24%; transform: rotate(-9deg); }
+    .bat-4 { bottom: 20%; right: 24%; transform: rotate(7deg) scaleX(-1); }
+
     main {
+      position: relative;
+      z-index: 1;
       min-height: 100dvh;
       display: grid;
       place-items: center;
@@ -48,12 +95,18 @@
 
     h1 {
       margin: 0;
-      text-align: center;
-      letter-spacing: 0.16em;
-      text-transform: uppercase;
-      font-size: clamp(1.1rem, 3vw, 2rem);
-      font-weight: 700;
-      -webkit-font-smoothing: none;
+      display: flex;
+      justify-content: center;
+      width: 100%;
+    }
+
+    #title-canvas {
+      display: block;
+      max-width: min(92vw, 430px);
+      width: auto;
+      height: auto;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
     }
 
     #status {
@@ -140,13 +193,35 @@
         min-height: 50px;
         font-size: clamp(1rem, 4.8vw, 1.3rem);
       }
+
+      .mush-5,
+      .mush-6,
+      .bat-3,
+      .bat-4 {
+        display: none;
+      }
     }
   </style>
 </head>
 <body>
+  <div id="background-decor" aria-hidden="true">
+    <img class="bg-sprite mush-1" src="assets/shrooms/mukhomor.svg" alt="">
+    <img class="bg-sprite mush-2" src="assets/shrooms/borovik.svg" alt="">
+    <img class="bg-sprite mush-3" src="assets/shrooms/lisi4ka.svg" alt="">
+    <img class="bg-sprite mush-4" src="assets/shrooms/mukhomor.svg" alt="">
+    <img class="bg-sprite mush-5" src="assets/shrooms/borovik.svg" alt="">
+    <img class="bg-sprite mush-6" src="assets/shrooms/lisi4ka.svg" alt="">
+    <img class="bg-sprite bat bat-1" src="assets/shrooms/famiriar.svg" alt="">
+    <img class="bg-sprite bat bat-2" src="assets/shrooms/familiar_attack.svg" alt="">
+    <img class="bg-sprite bat bat-3" src="assets/shrooms/famiriar.svg" alt="">
+    <img class="bg-sprite bat bat-4" src="assets/shrooms/familiar_attack.svg" alt="">
+  </div>
   <main>
     <section class="content">
-      <h1>Shrooms</h1>
+      <h1>
+        <span class="sr-only">Shrooms</span>
+        <canvas id="title-canvas" width="288" height="40" aria-hidden="true"></canvas>
+      </h1>
       <p id="status">Downloading...</p>
       <div id="game-shell">
         <canvas id="canvas" width="900" height="900" tabindex="0" oncontextmenu="event.preventDefault()"></canvas>
@@ -163,6 +238,7 @@
   <script>
     const statusElement = document.getElementById("status");
     const titleElement = document.querySelector("h1");
+    const titleCanvas = document.getElementById("title-canvas");
     const canvasElement = document.getElementById("canvas");
     const contentElement = document.querySelector(".content");
     const controlsElement = document.getElementById("mobile-controls");
@@ -175,6 +251,14 @@
     const KEY_D = 68;
     const KEY_W = 87;
     const KEY_E = 69;
+    const TITLE_TEXT = "SHROOMS";
+    const TITLE_GLYPHS = {
+      S: [0x7c, 0xc6, 0x60, 0x38, 0x0c, 0xc6, 0x7c, 0x00],
+      H: [0xc6, 0xc6, 0xc6, 0xfe, 0xc6, 0xc6, 0xc6, 0x00],
+      R: [0xfc, 0x66, 0x66, 0x7c, 0x6c, 0x66, 0xe6, 0x00],
+      O: [0x38, 0x6c, 0xc6, 0xc6, 0xc6, 0x6c, 0x38, 0x00],
+      M: [0xc6, 0xee, 0xfe, 0xfe, 0xd6, 0xc6, 0xc6, 0x00],
+    };
 
     const controlState = {
       runtimeReady: false,
@@ -190,6 +274,57 @@
 
     const coarsePointerQuery = window.matchMedia("(pointer: coarse)");
     const portraitQuery = window.matchMedia("(orientation: portrait)");
+
+    function drawGameFontTitle() {
+      if (!titleCanvas) return;
+      const context = titleCanvas.getContext("2d");
+      if (!context) return;
+
+      const glyphWidth = 8;
+      const glyphHeight = 8;
+      const spacing = 1;
+      const mobile = window.innerWidth < 640;
+      const pixelSize = mobile ? 4 : 5;
+      const logicalWidth =
+          TITLE_TEXT.length * glyphWidth + (TITLE_TEXT.length - 1) * spacing;
+      const logicalHeight = glyphHeight;
+      const cssWidth = logicalWidth * pixelSize;
+      const cssHeight = logicalHeight * pixelSize;
+      const dpr = window.devicePixelRatio || 1;
+
+      titleCanvas.width = Math.round(cssWidth * dpr);
+      titleCanvas.height = Math.round(cssHeight * dpr);
+      titleCanvas.style.width = `${cssWidth}px`;
+      titleCanvas.style.height = `${cssHeight}px`;
+
+      context.setTransform(dpr, 0, 0, dpr, 0, 0);
+      context.clearRect(0, 0, cssWidth, cssHeight);
+      context.imageSmoothingEnabled = false;
+      context.fillStyle = "#dfd6ab";
+
+      let cursorX = 0;
+      for (const letter of TITLE_TEXT) {
+        const glyph = TITLE_GLYPHS[letter];
+        if (!glyph) {
+          cursorX += (glyphWidth + spacing) * pixelSize;
+          continue;
+        }
+        for (let row = 0; row < glyphHeight; row += 1) {
+          const bits = glyph[row];
+          for (let col = 0; col < glyphWidth; col += 1) {
+            const on = ((bits >> (glyphWidth - 1 - col)) & 1) === 1;
+            if (!on) continue;
+            context.fillRect(
+                cursorX + col * pixelSize,
+                row * pixelSize,
+                pixelSize,
+                pixelSize,
+            );
+          }
+        }
+        cursorX += (glyphWidth + spacing) * pixelSize;
+      }
+    }
 
     function bridgeReady() {
       return controlState.runtimeReady && typeof Module !== "undefined";
@@ -443,6 +578,7 @@
     });
 
     window.addEventListener("resize", () => {
+      drawGameFontTitle();
       applyControlsMode();
     });
 
@@ -499,6 +635,7 @@
     };
 
     Module.setStatus("Downloading...");
+    drawGameFontTitle();
     applyControlsMode();
 
     window.onerror = (message) => {

@@ -41,7 +41,7 @@ namespace menu {
 
 constexpr size_t kMaxLevelLines = 10;
 constexpr float kMenuTextX = -0.8f;
-constexpr float kLeaderboardTextX = -0.35f;
+constexpr float kLeaderboardTextX = kMenuTextX;
 constexpr float kMenuTextYOffsetNorm = 0.1f;
 constexpr size_t kLeaderboardLines = static_cast<size_t>(leaderboard::kMaxEntries);
 constexpr size_t kNameMaxLength = 12;
