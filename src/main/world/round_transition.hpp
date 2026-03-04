@@ -148,15 +148,12 @@ inline void finish_sequence() {
   }
 }
 
-inline void start_round_win(int current_round, int next_round,
-                            std::function<void()> done = nullptr) {
+inline void start_transition(const std::string& message, std::function<void()> done = nullptr) {
   if (active) return;
   active = true;
   elapsed = 0.0f;
   on_done = std::move(done);
 
-  const std::string message = "Round " + std::to_string(current_round) +
-                              " won!\nAdvancing to round " + std::to_string(next_round);
   update_text_layout(message);
   set_overlay_alpha(0.0f);
   set_text_alpha(0.0f);
@@ -170,6 +167,17 @@ inline void start_round_win(int current_round, int next_round,
     main_scene->activate();
     main_scene->set_pause(true);
   }
+}
+
+inline void start_round_win(int current_round, int next_round,
+                            std::function<void()> done = nullptr) {
+  const std::string message = "Round " + std::to_string(current_round) +
+                              " won!\nAdvancing to round " + std::to_string(next_round);
+  start_transition(message, std::move(done));
+}
+
+inline void start_level_completed(std::function<void()> done = nullptr) {
+  start_transition("level completed", std::move(done));
 }
 
 inline bool is_active() { return active; }

@@ -677,6 +677,18 @@ inline void check_completion();
 inline void trigger_failure(LossReason reason, const std::string& type = "");
 inline void finalize_level(bool success);
 
+inline void finalize_success_after_transition() {
+  level_failed = false;
+  level_finished = true;
+  finalize_level(true);
+}
+
+inline void start_level_completed_transition() {
+  if (level_finished || game_over_pending) return;
+  if (round_transition::is_active()) return;
+  round_transition::start_level_completed([]() { finalize_success_after_transition(); });
+}
+
 inline ecs::Entity* spawn_mushroom_now(const std::string& type, const glm::vec2& center_px) {
   auto it = spawners_by_type.find(type);
   if (it == spawners_by_type.end() || !it->second) return nullptr;
@@ -905,9 +917,13 @@ inline void start_tutorial_mode() {
 inline void finish_tutorial(bool success) {
   if (!tutorial_mode) return;
   if (level_finished) return;
-  level_failed = !success;
+  if (success) {
+    start_level_completed_transition();
+    return;
+  }
+  level_failed = true;
   level_finished = true;
-  finalize_level(success);
+  finalize_level(false);
 }
 
 inline void restart_level() {
@@ -1130,9 +1146,7 @@ inline void check_completion() {
     return;
   }
   if (success) {
-    level_failed = false;
-    level_finished = true;
-    finalize_level(true);
+    start_level_completed_transition();
     return;
   }
   LossInfo info = evaluate_loss_info();
