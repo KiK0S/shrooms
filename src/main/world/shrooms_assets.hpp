@@ -83,6 +83,7 @@ inline void register_shrooms_svg_assets() {
   register_svg("emoji_crown");
   register_svg("emoji_strawberry");
   register_svg("emoji_infinity");
+  register_svg("emoji_lock");
 }
 
 }  // namespace shrooms

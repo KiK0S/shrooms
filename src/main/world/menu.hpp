@@ -47,7 +47,7 @@ constexpr float kMenuTextYOffsetNorm = 0.1f;
 constexpr size_t kLeaderboardLines = static_cast<size_t>(leaderboard::kMaxEntries);
 constexpr size_t kNameMaxLength = 12;
 constexpr const char* kDefaultMenuBackgroundTexture = "background";
-constexpr float kMenuLineIconWidthPx = 24.0f;
+constexpr float kMenuLineIconWidthPx = 34.0f;
 constexpr float kMenuLineIconGapPx = 8.0f;
 constexpr int kKeyArrowUpDom = 38;
 constexpr int kKeyArrowDownDom = 40;
@@ -385,8 +385,9 @@ inline void set_line_visual_state(TextLine& line,
     line.text_color->value = text_color;
   }
   if (line.icon_sprite) {
+    const glm::vec4 icon_color = locked ? line.base_text_color : text_color;
     line.icon_sprite->tint =
-        engine::UIColor{text_color.x, text_color.y, text_color.z, text_color.w};
+        engine::UIColor{icon_color.x, icon_color.y, icon_color.z, icon_color.w};
   }
   if (!line.button_quad) return;
   if (selected) {
@@ -461,17 +462,11 @@ inline std::string display_level_name(const std::string& level_id) {
 }
 
 inline std::string format_level_line(size_t index) {
-  if (is_infinite_entry(index)) {
-    return std::to_string(index + 1) + ". Daily Infinity Mode:";
-  }
-  if (index >= levels::parsed_levels.size()) {
-    return "";
-  }
-  const auto& definition = levels::parsed_levels[index];
-  return std::to_string(index + 1) + ". " + display_level_name(definition.id);
+  if (index >= active_level_lines) return "";
+  return std::to_string(index + 1) + ".";
 }
 
-inline std::string level_icon_texture(size_t index) {
+inline std::string base_level_icon_texture(size_t index) {
   if (is_infinite_entry(index)) {
     return "emoji_infinity";
   }
@@ -493,6 +488,16 @@ inline std::string level_icon_texture(size_t index) {
     default:
       return "";
   }
+}
+
+inline std::string level_icon_texture(size_t index) {
+  if (index >= levels::parsed_levels.size()) {
+    return base_level_icon_texture(index);
+  }
+  if (!levels::is_unlocked(index)) {
+    return "emoji_lock";
+  }
+  return base_level_icon_texture(index);
 }
 
 inline void refresh_status_line() {
@@ -954,7 +959,7 @@ struct MenuController : public dynamic::DynamicObject {
       const bool selected = selected_main_slot && slot == *selected_main_slot;
       const bool hovered = hovered_slot && slot == *hovered_slot;
       const bool locked = !selectable;
-      const bool dimmed = locked || (!selected && has_selection);
+      const bool dimmed = !selected && has_selection;
       set_line_visual_state(level_lines[i], selected, hovered, dimmed, locked);
     }
     const bool tutorial_selected = selected_main_slot && *selected_main_slot == kTutorialMainSlot;
