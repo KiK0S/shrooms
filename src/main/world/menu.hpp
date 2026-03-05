@@ -47,6 +47,8 @@ constexpr float kMenuTextYOffsetNorm = 0.1f;
 constexpr size_t kLeaderboardLines = static_cast<size_t>(leaderboard::kMaxEntries);
 constexpr size_t kNameMaxLength = 12;
 constexpr const char* kDefaultMenuBackgroundTexture = "background";
+constexpr float kMenuLineIconWidthPx = 24.0f;
+constexpr float kMenuLineIconGapPx = 8.0f;
 constexpr int kKeyArrowUpDom = 38;
 constexpr int kKeyArrowDownDom = 40;
 constexpr int kKeyArrowUpSdl = 1073741906;
@@ -65,6 +67,13 @@ struct TextLine {
   text::TextObject* text_object = nullptr;
   hidden::HiddenObject* text_hidden = nullptr;
   LineTextColor* text_color = nullptr;
+  ecs::Entity* icon_entity = nullptr;
+  transform::NoRotationTransform* icon_transform = nullptr;
+  render_system::SpriteRenderable* icon_sprite = nullptr;
+  hidden::HiddenObject* icon_hidden = nullptr;
+  glm::vec2 icon_size{0.0f, 0.0f};
+  std::string icon_texture_name{};
+  float icon_gap_px = kMenuLineIconGapPx;
   ecs::Entity* button_entity = nullptr;
   transform::NoRotationTransform* button_transform = nullptr;
   render_system::QuadRenderable* button_quad = nullptr;
@@ -235,17 +244,92 @@ inline void refresh_menu_background() {
   apply_menu_background(kDefaultMenuBackgroundTexture, false);
 }
 
+inline int line_layer(const TextLine& line) {
+  if (line.entity) {
+    if (auto* layer = line.entity->get<layers::LayeredObject>()) {
+      return layer->get_layer();
+    }
+  }
+  return 6;
+}
+
+inline void ensure_line_icon(TextLine& line) {
+  if (line.icon_entity || !line.transform) return;
+  line.icon_entity = arena::create<ecs::Entity>();
+  line.icon_transform = arena::create<transform::NoRotationTransform>();
+  line.icon_transform->pos = line.transform->pos;
+  line.icon_entity->add(line.icon_transform);
+  line.icon_entity->add(arena::create<layers::ConstLayer>(line_layer(line)));
+  line.icon_hidden = arena::create<hidden::HiddenObject>();
+  line.icon_entity->add(line.icon_hidden);
+  line.icon_entity->add(arena::create<scene::SceneObject>("menu"));
+}
+
+inline void set_line_icon_texture(TextLine& line, const std::string& texture_name) {
+  if (texture_name.empty()) {
+    line.icon_texture_name.clear();
+    line.icon_size = glm::vec2{0.0f, 0.0f};
+    if (line.icon_hidden) {
+      line.icon_hidden->hide();
+    }
+    return;
+  }
+
+  ensure_line_icon(line);
+  if (!line.icon_entity || !line.icon_transform) return;
+
+  const engine::TextureId tex_id = engine::resources::register_texture(texture_name);
+  if (tex_id == engine::kInvalidTextureId) {
+    line.icon_texture_name.clear();
+    line.icon_size = glm::vec2{0.0f, 0.0f};
+    if (line.icon_hidden) {
+      line.icon_hidden->hide();
+    }
+    return;
+  }
+
+  const glm::vec2 icon_size =
+      shrooms::texture_sizing::from_width_px(texture_name, kMenuLineIconWidthPx);
+  if (!line.icon_sprite) {
+    line.icon_sprite = arena::create<render_system::SpriteRenderable>(tex_id, icon_size);
+    line.icon_entity->add(line.icon_sprite);
+  } else {
+    line.icon_sprite->texture_id = tex_id;
+    line.icon_sprite->size = icon_size;
+    line.icon_sprite->geometry = engine::geometry::make_quad(icon_size.x, icon_size.y);
+    line.icon_sprite->uploaded = false;
+  }
+
+  line.icon_texture_name = texture_name;
+  line.icon_size = icon_size;
+  if (line.icon_hidden) {
+    line.icon_hidden->show();
+  }
+}
+
 inline void update_text(TextLine& line, const std::string& value) {
   if (!line.text_object) return;
   line.text_object->text = value;
   const auto layout = engine::text::layout_text(value, 0.0f, 0.0f, line.font_px);
-  line.size = glm::vec2{layout.width, layout.height};
+  const glm::vec2 text_size{layout.width, layout.height};
+  const bool has_icon = !line.icon_texture_name.empty() && line.icon_size.x > 0.0f &&
+                        line.icon_size.y > 0.0f && line.icon_transform;
+  const float icon_total_w = has_icon ? (line.icon_size.x + line.icon_gap_px) : 0.0f;
+  const float content_h = std::max(text_size.y, has_icon ? line.icon_size.y : 0.0f);
+  line.size = glm::vec2{text_size.x + icon_total_w, content_h};
+
+  if (has_icon && line.transform) {
+    line.icon_transform->pos =
+        glm::vec2{line.transform->pos.x - icon_total_w,
+                  line.transform->pos.y + (content_h - line.icon_size.y) * 0.5f};
+  }
+
   if (line.button_transform && line.button_quad) {
     const float pad_x = 14.0f;
     const float pad_y = 8.0f;
     line.button_size = glm::vec2{line.size.x + pad_x * 2.0f, line.size.y + pad_y * 2.0f};
     line.button_base_size = line.button_size;
-    line.button_base_pos = line.transform ? (line.transform->pos - glm::vec2{pad_x, pad_y})
+    line.button_base_pos = line.transform ? (line.transform->pos - glm::vec2{pad_x + icon_total_w, pad_y})
                                           : glm::vec2{0.0f, 0.0f};
     line.button_transform->pos = line.button_base_pos;
     line.button_quad->width = line.button_base_size.x;
@@ -257,6 +341,9 @@ inline void update_text(TextLine& line, const std::string& value) {
 inline void set_line_visibility(TextLine& line, bool text_visible, bool button_visible) {
   if (line.text_hidden) {
     line.text_hidden->set_visible(text_visible);
+  }
+  if (line.icon_hidden) {
+    line.icon_hidden->set_visible(text_visible && !line.icon_texture_name.empty());
   }
   if (line.button_hidden) {
     line.button_hidden->set_visible(button_visible);
@@ -290,11 +377,16 @@ inline void set_line_visual_state(TextLine& line,
                                   bool hovered,
                                   bool dimmed,
                                   bool locked = false) {
+  const glm::vec4 text_color =
+      selected ? line.selected_text_color
+               : (locked ? line.locked_text_color
+                         : (dimmed ? line.dimmed_text_color : line.base_text_color));
   if (line.text_color) {
-    line.text_color->value = selected ? line.selected_text_color
-                                      : (locked ? line.locked_text_color
-                                                : (dimmed ? line.dimmed_text_color
-                                                          : line.base_text_color));
+    line.text_color->value = text_color;
+  }
+  if (line.icon_sprite) {
+    line.icon_sprite->tint =
+        engine::UIColor{text_color.x, text_color.y, text_color.z, text_color.w};
   }
   if (!line.button_quad) return;
   if (selected) {
@@ -379,6 +471,30 @@ inline std::string format_level_line(size_t index) {
   return std::to_string(index + 1) + ". " + display_level_name(definition.id);
 }
 
+inline std::string level_icon_texture(size_t index) {
+  if (is_infinite_entry(index)) {
+    return "emoji_infinity";
+  }
+  switch (index) {
+    case 0:
+      return "emoji_hedgehog";
+    case 1:
+      return "emoji_tree";
+    case 2:
+      return "emoji_house";
+    case 3:
+      return "emoji_frog";
+    case 4:
+      return "emoji_fly";
+    case 5:
+      return "emoji_crown";
+    case 6:
+      return "emoji_strawberry";
+    default:
+      return "";
+  }
+}
+
 inline void refresh_status_line() {
   update_text(status_line, "");
 }
@@ -399,8 +515,10 @@ inline void refresh_level_lines() {
   active_level_lines = available_levels();
   for (size_t i = 0; i < kMaxLevelLines; ++i) {
     if (i < active_level_lines) {
+      set_line_icon_texture(level_lines[i], level_icon_texture(i));
       update_text(level_lines[i], format_level_line(i));
     } else {
+      set_line_icon_texture(level_lines[i], "");
       update_text(level_lines[i], "");
     }
   }

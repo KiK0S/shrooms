@@ -74,6 +74,15 @@ inline void register_shrooms_svg_assets() {
   register_svg("level_5_mol");
   register_svg("level_6_tzar");
   register_svg("level_7_yagoda");
+
+  register_svg("emoji_hedgehog");
+  register_svg("emoji_tree");
+  register_svg("emoji_house");
+  register_svg("emoji_frog");
+  register_svg("emoji_fly");
+  register_svg("emoji_crown");
+  register_svg("emoji_strawberry");
+  register_svg("emoji_infinity");
 }
 
 }  // namespace shrooms
