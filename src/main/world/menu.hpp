@@ -1021,7 +1021,11 @@ struct MenuController : public dynamic::DynamicObject {
           shrooms::scenes::main->set_pause(true);
         }
         player::reset_for_new_level();
-        enter_game_over_mode();
+        if (levels::last_result.infinite_mode) {
+          enter_game_over_mode();
+        } else {
+          enter_main_menu_mode();
+        }
         completion_acknowledged = true;
       }
     } else {
