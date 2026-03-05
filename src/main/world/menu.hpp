@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <string_view>
 #include <ctime>
 #include <iomanip>
 #include <limits>
@@ -343,6 +344,30 @@ inline bool is_selectable_level(size_t index) {
   return is_infinite_entry(index) || levels::is_unlocked(index);
 }
 
+inline std::string display_level_name(const std::string& level_id) {
+  std::string_view view{level_id};
+  constexpr std::string_view kLevelPrefix = "level_";
+  if (!view.starts_with(kLevelPrefix)) {
+    return level_id;
+  }
+
+  size_t cursor = kLevelPrefix.size();
+  if (cursor >= view.size() || view[cursor] < '0' || view[cursor] > '9') {
+    return level_id;
+  }
+  while (cursor < view.size() && view[cursor] >= '0' && view[cursor] <= '9') {
+    ++cursor;
+  }
+  if (cursor >= view.size() || view[cursor] != '_') {
+    return level_id;
+  }
+  ++cursor;
+  if (cursor >= view.size()) {
+    return level_id;
+  }
+  return std::string(view.substr(cursor));
+}
+
 inline std::string format_level_line(size_t index) {
   if (is_infinite_entry(index)) {
     return std::to_string(index + 1) + ". Daily Infinity Mode:";
@@ -351,7 +376,7 @@ inline std::string format_level_line(size_t index) {
     return "";
   }
   const auto& definition = levels::parsed_levels[index];
-  return std::to_string(index + 1) + ". " + definition.id;
+  return std::to_string(index + 1) + ". " + display_level_name(definition.id);
 }
 
 inline void refresh_status_line() {
@@ -439,7 +464,7 @@ inline void refresh_objective_lines(size_t level_index) {
   }
   const auto& level = levels::parsed_levels[level_index];
   refresh_objective_lines_from_level(
-      level, "Level " + std::to_string(level_index + 1) + ": " + level.id);
+      level, "Level " + std::to_string(level_index + 1) + ": " + display_level_name(level.id));
 }
 
 inline void refresh_leaderboard_lines() {
