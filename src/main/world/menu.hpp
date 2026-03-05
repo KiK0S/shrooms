@@ -314,14 +314,18 @@ inline void update_text(TextLine& line, const std::string& value) {
   const glm::vec2 text_size{layout.width, layout.height};
   const bool has_icon = !line.icon_texture_name.empty() && line.icon_size.x > 0.0f &&
                         line.icon_size.y > 0.0f && line.icon_transform;
-  const float icon_total_w = has_icon ? (line.icon_size.x + line.icon_gap_px) : 0.0f;
-  const float content_h = std::max(text_size.y, has_icon ? line.icon_size.y : 0.0f);
-  line.size = glm::vec2{text_size.x + icon_total_w, content_h};
+  const float icon_w = has_icon ? line.icon_size.x : 0.0f;
+  const float icon_h = has_icon ? line.icon_size.y : 0.0f;
+  const float icon_x = has_icon ? (text_size.x + line.icon_gap_px) : 0.0f;
+  const float icon_y = has_icon ? ((text_size.y - icon_h) * 0.5f) : 0.0f;
+  const float content_top = has_icon ? std::min(0.0f, icon_y) : 0.0f;
+  const float content_right = has_icon ? (icon_x + icon_w) : text_size.x;
+  const float content_bottom = has_icon ? std::max(text_size.y, icon_y + icon_h) : text_size.y;
+  line.size = glm::vec2{std::max(0.0f, content_right), std::max(0.0f, content_bottom - content_top)};
 
   if (has_icon && line.transform) {
     line.icon_transform->pos =
-        glm::vec2{line.transform->pos.x - icon_total_w,
-                  line.transform->pos.y + (content_h - line.icon_size.y) * 0.5f};
+        glm::vec2{line.transform->pos.x + icon_x, line.transform->pos.y + icon_y};
   }
 
   if (line.button_transform && line.button_quad) {
@@ -329,8 +333,9 @@ inline void update_text(TextLine& line, const std::string& value) {
     const float pad_y = 8.0f;
     line.button_size = glm::vec2{line.size.x + pad_x * 2.0f, line.size.y + pad_y * 2.0f};
     line.button_base_size = line.button_size;
-    line.button_base_pos = line.transform ? (line.transform->pos - glm::vec2{pad_x + icon_total_w, pad_y})
-                                          : glm::vec2{0.0f, 0.0f};
+    line.button_base_pos = line.transform ? (line.transform->pos + glm::vec2{0.0f, content_top} -
+                                             glm::vec2{pad_x, pad_y})
+                                          : glm::vec2{0.0f, content_top};
     line.button_transform->pos = line.button_base_pos;
     line.button_quad->width = line.button_base_size.x;
     line.button_quad->height = line.button_base_size.y;
