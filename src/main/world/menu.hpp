@@ -208,6 +208,13 @@ inline std::string build_share_text(int score) {
          kMushroomEmoji + "\nPlay: https://kik0s.github.io/shrooms\nDate: " + current_date_ymd();
 }
 
+inline std::string infinity_objective_label() {
+  const int round = std::max(1, levels::infinite_round_index + 1);
+  const int score = std::max(0, levels::infinite_global_score);
+  return "Daily Infinity Mode: Round " + std::to_string(round) + " (score " +
+         std::to_string(score) + ")";
+}
+
 inline void apply_menu_background(const std::string& texture_name, bool level_layout) {
   if (!menu_background_sprite || !menu_background_transform) return;
 
@@ -761,7 +768,7 @@ inline void enter_infinite_objective_mode() {
   pending_infinite = true;
   pending_tutorial = false;
   levels::prepare_infinite_preview();
-  const std::string label = "Daily Infinity Mode: Round 1";
+  const std::string label = infinity_objective_label();
   refresh_objective_lines_from_level(levels::infinite_level, label);
   set_menu_mode(MenuMode::Objective);
 }
