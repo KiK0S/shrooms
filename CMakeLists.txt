@@ -77,7 +77,6 @@ target_compile_features(shrooms PRIVATE cxx_std_20)
 
 set(SHROOMS_ENGINE_ASSET_DIR "${CMAKE_CURRENT_SOURCE_DIR}/3rd-party/engine/assets")
 set(SHROOMS_PROJECT_ASSET_DIR "${CMAKE_CURRENT_SOURCE_DIR}/assets")
-set(SHROOMS_CUSTOM_ASSET_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/main/custom_assets")
 set(SHROOMS_SHADER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/3rd-party/engine/shaders")
 set(SHROOMS_CUSTOM_SHADER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/main/custom_shaders")
 
@@ -91,16 +90,6 @@ if(NOT EXISTS "${SHROOMS_ASSET_DIR}")
   message(FATAL_ERROR "Missing assets directory: ${SHROOMS_ASSET_DIR}")
 endif()
 
-if(EXISTS "${SHROOMS_CUSTOM_ASSET_DIR}")
-  add_custom_command(TARGET shrooms POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-    ${SHROOMS_CUSTOM_ASSET_DIR}
-    $<TARGET_FILE_DIR:shrooms>/assets
-  )
-endif()
-
-# Copy canonical assets after optional custom assets so duplicate files resolve
-# to the main project assets in both native and web outputs.
 add_custom_command(TARGET shrooms POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy_directory
   ${SHROOMS_ASSET_DIR}
@@ -134,11 +123,6 @@ if(ENGINE_PLATFORM STREQUAL "web")
     "SHELL:--preload-file ${SHROOMS_SHADER_DIR}@/shaders"
     "SHELL:--preload-file ${SHROOMS_CUSTOM_SHADER_DIR}@/shaders"
   )
-  if(EXISTS "${SHROOMS_CUSTOM_ASSET_DIR}")
-    target_link_options(shrooms PRIVATE
-      "SHELL:--preload-file ${SHROOMS_CUSTOM_ASSET_DIR}@/assets"
-    )
-  endif()
 else()
   find_package(SDL2 REQUIRED)
   target_link_libraries(shrooms PRIVATE SDL2::SDL2)
