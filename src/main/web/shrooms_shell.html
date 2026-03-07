@@ -333,9 +333,19 @@
       return controlState.runtimeReady && typeof Module !== "undefined";
     }
 
+    function requestAudioUnlock() {
+      if (!bridgeReady() || typeof Module._shrooms_request_audio_unlock !== "function") {
+        return;
+      }
+      Module._shrooms_request_audio_unlock();
+    }
+
     function pushKeyState(keyCode, pressed) {
       if (!bridgeReady() || typeof Module._shrooms_push_key_event !== "function") {
         return;
+      }
+      if (pressed) {
+        requestAudioUnlock();
       }
 
       const hasKey = controlState.heldKeys.has(keyCode);
