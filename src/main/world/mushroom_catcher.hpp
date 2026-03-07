@@ -6,6 +6,7 @@
 #include "level_manager.hpp"
 #include "lives.hpp"
 #include "player.hpp"
+#include "game_audio.hpp"
 #include "engine/resource_ids.h"
 #include "systems/render/sprite_system.hpp"
 #include "vfx.hpp"
@@ -21,6 +22,7 @@ inline void mushroom_fall_handler(ecs::Entity*, collision::ColliderObject* colli
   auto* sprite = entity->get<render_system::SpriteRenderable>();
   const std::string type = sprite ? engine::resources::texture_name(sprite->texture_id) : "";
   levels::on_mushroom_missed(type, entity);
+  shrooms::audio::play_fall_negative();
   entity->mark_deleted();
   if (levels::is_tutorial_mode()) {
     return;

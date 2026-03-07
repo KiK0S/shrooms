@@ -26,6 +26,7 @@
 
 #include "scoreboard.hpp"
 #include "shrooms_assets.hpp"
+#include "game_audio.hpp"
 #include "shrooms_screen.hpp"
 #include "shrooms_texture_sizing.hpp"
 #include "engine/geometry_builder.h"
@@ -726,6 +727,7 @@ inline void on_mushroom_caught(
   if (tutorial_catch_hook) {
     tutorial_catch_hook(type, entity, from_familiar);
   }
+  shrooms::audio::play_mushroom_bite();
   auto* level = current_level();
   vfx::spawn_catch_effect(entity, player_center);
   if (!level) return;
@@ -794,6 +796,7 @@ inline void on_mushroom_sorted(ecs::Entity* entity) {
   if (recipe_it != level->recipe.end() && progress_for_type(*level, type) > recipe_it->second) {
     trigger_failure(LossReason::TooMany, type);
   }
+  shrooms::audio::play_familiar_shot_explosion();
   vfx::spawn_destroy_effect(entity);
   camera_shake::add_trauma(0.1f);
   entity->mark_deleted();

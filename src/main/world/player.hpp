@@ -28,6 +28,7 @@
 #include "systems/scene/scene_system.hpp"
 
 #include "level_manager.hpp"
+#include "game_audio.hpp"
 #include "vfx.hpp"
 #include "camera_shake.hpp"
 #include "shrooms_screen.hpp"
@@ -515,6 +516,7 @@ struct FamiliarLogic : public dynamic::DynamicObject {
   void begin_strike_dash() {
     state = FamiliarState::StrikeAscend;
     strike_spin_angle = 0.0f;
+    shrooms::audio::play_familiar_shot_wind();
     if (sprite) {
       if (strike_texture_id != engine::kInvalidTextureId) {
         sprite->texture_id = strike_texture_id;

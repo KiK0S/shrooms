@@ -2,6 +2,7 @@
 
 #include "ecs/ecs.hpp"
 #include "systems/animation/animation_system.hpp"
+#include "systems/audio/audio_system.hpp"
 #include "systems/collision/collision_system.hpp"
 #include "systems/render/render_system.hpp"
 #include "systems/spawning/periodic_spawner_system.hpp"
@@ -17,6 +18,7 @@
 #include "world/round_transition.hpp"
 #include "world/menu.hpp"
 #include "world/shrooms_assets.hpp"
+#include "world/game_audio.hpp"
 #include "world/mushroom_catcher.hpp"
 #include "world/pause_menu.hpp"
 #include "world/player.hpp"
@@ -49,6 +51,7 @@ void ShroomsLogic::on_init() {
   config_params::setup_io();
 
   ::shrooms::register_shrooms_svg_assets();
+  ::shrooms::audio::init();
 
   ::shrooms::screen::set_view(view_width_, view_height_);
   ::shrooms::scenes::init();
@@ -70,6 +73,7 @@ void ShroomsLogic::on_init() {
 
   auto* system_entity = arena::create<ecs::Entity>();
   system_entity->add(arena::create<animation::Animation>());
+  system_entity->add(arena::create<audio_system::AudioSyncSystem>());
   system_entity->add(arena::create<collision::CollisionSystem>());
   system_entity->add(arena::create<periodic_spawn::PeriodicSpawnerSystem>());
   system_entity->add(arena::create<deferred::DeferredSystem>());
