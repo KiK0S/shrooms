@@ -2,12 +2,14 @@
 
 #include <iostream>
 #include <string>
+#include <vector>
 
 #include "ecs/ecs.hpp"
 #include "utils/arena.hpp"
 #include "engine/audio.h"
 #include "engine/resource_ids.h"
 #include "systems/audio/audio_system.hpp"
+#include "systems/dynamic/dynamic_object.hpp"
 
 #include "shrooms_assets.hpp"
 
@@ -29,6 +31,29 @@ inline engine::SoundId fall_negative_sound_id = engine::kInvalidSoundId;
 
 inline ecs::Entity* bgm_entity = nullptr;
 inline audio_system::AudioObject* bgm_audio = nullptr;
+inline ecs::Entity* oneshot_voice_gc_entity = nullptr;
+inline std::vector<engine::audio::VoiceId> active_oneshot_voices{};
+
+struct OneShotVoiceGcSystem : public dynamic::DynamicObject {
+  OneShotVoiceGcSystem() : dynamic::DynamicObject() {}
+  ~OneShotVoiceGcSystem() override { Component::component_count--; }
+
+  void update() override {
+    size_t write_index = 0;
+    for (size_t i = 0; i < active_oneshot_voices.size(); ++i) {
+      const engine::audio::VoiceId voice_id = active_oneshot_voices[i];
+      if (voice_id == engine::audio::kInvalidVoiceId) {
+        continue;
+      }
+      if (engine::audio::voice_finished(voice_id)) {
+        engine::audio::destroy_voice(voice_id);
+        continue;
+      }
+      active_oneshot_voices[write_index++] = voice_id;
+    }
+    active_oneshot_voices.resize(write_index);
+  }
+};
 
 inline engine::SoundId register_and_load_sound(const char* sound_name,
                                                const char* relative_asset_path) {
@@ -49,14 +74,13 @@ inline engine::SoundId register_and_load_sound(const char* sound_name,
 inline void spawn_one_shot(engine::SoundId sound_id, float gain) {
   if (sound_id == engine::kInvalidSoundId) return;
 
-  auto* entity = arena::create<ecs::Entity>();
-  auto* audio_obj = arena::create<audio_system::AudioObject>();
-  audio_obj->sound = sound_id;
-  audio_obj->playing = true;
-  audio_obj->loop = false;
-  audio_obj->gain = gain;
-  audio_obj->destroy_on_finish = true;
-  entity->add(audio_obj);
+  const engine::audio::VoiceId voice_id = engine::audio::create_voice();
+  if (voice_id == engine::audio::kInvalidVoiceId) return;
+  engine::audio::set_voice_loop(voice_id, false);
+  engine::audio::set_voice_gain(voice_id, gain);
+  engine::audio::set_voice_sound(voice_id, sound_id, true);
+  engine::audio::set_voice_playing(voice_id, true);
+  active_oneshot_voices.push_back(voice_id);
 }
 
 inline void init() {
@@ -84,6 +108,11 @@ inline void init() {
   bgm_audio->gain = kBgmGain;
   bgm_audio->destroy_on_finish = false;
   bgm_entity->add(bgm_audio);
+
+  if (!oneshot_voice_gc_entity) {
+    oneshot_voice_gc_entity = arena::create<ecs::Entity>();
+    oneshot_voice_gc_entity->add(arena::create<OneShotVoiceGcSystem>());
+  }
 }
 
 inline void play_mushroom_bite() { spawn_one_shot(bite_sound_id, kBiteGain); }
