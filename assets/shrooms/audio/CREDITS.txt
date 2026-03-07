@@ -1,0 +1,56 @@
+Shrooms Audio Asset Credits (CC0)
+Import date: 2026-03-06
+
+1) bgm/lofi_menu_loop.wav
+- Original title: Menu Chill Music
+- Original file: menu_chill.wav
+- Author: etrock
+- License: CC0 (Creative Commons Zero 1.0)
+- Source page URL: https://opengameart.org/content/menu-chill-music
+- Download URL: https://opengameart.org/sites/default/files/menu_chill.wav
+- Imported as: bgm/lofi_menu_loop.wav
+
+2) sfx/mushroom_bite.wav
+- Original title: Various Sound Effects
+- Original file: nom.wav
+- Author: laleksic
+- License: CC0 (Creative Commons Zero 1.0)
+- Source page URL: https://opengameart.org/content/various-sound-effects
+- Download URL: https://opengameart.org/sites/default/files/nom.wav
+- Imported as: sfx/mushroom_bite.wav
+
+3) sfx/familiar_shot_wind.wav
+- Original title: Air whoosh
+- Original file: whoosh2.wav
+- Author: pyranostudios
+- License: CC0 (Creative Commons Zero 1.0)
+- Source page URL: https://opengameart.org/content/air-whoosh
+- Download URL: https://opengameart.org/sites/default/files/whoosh2_0.wav
+- Imported as: sfx/familiar_shot_wind.wav
+
+4) sfx/familiar_shot_explosion.wav
+- Original title: Mechanical Explosion
+- Original file: mechanical_explosion.wav
+- Author: Spring Spring
+- License: CC0 (Creative Commons Zero 1.0)
+- Source page URL: https://opengameart.org/content/mechanical-explosion
+- Download URL: https://opengameart.org/sites/default/files/mechanical_explosion.wav
+- Imported as: sfx/familiar_shot_explosion.wav
+
+5) sfx/fall_negative.wav
+- Original title: Game Over - Bad chest SFX
+- Original file: game_over_bad_chest.wav
+- Author: Oiboo
+- License: CC0 (Creative Commons Zero 1.0)
+- Source page URL: https://opengameart.org/content/game-over-bad-chest-sfx
+- Download URL: https://opengameart.org/sites/default/files/game_over_bad_chest.wav
+- Imported as: sfx/fall_negative.wav
+
+6) sfx/fall_negative_alt.wav (optional backup)
+- Original title: Various Sound Effects
+- Original file: fall.wav
+- Author: laleksic
+- License: CC0 (Creative Commons Zero 1.0)
+- Source page URL: https://opengameart.org/content/various-sound-effects
+- Download URL: https://opengameart.org/sites/default/files/fall.wav
+- Imported as: sfx/fall_negative_alt.wav
