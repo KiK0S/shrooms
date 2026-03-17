@@ -267,6 +267,9 @@
       runtimeReady: false,
       controlsActive: false,
       gameplayActive: false,
+      pageAudioActive:
+        !document.hidden &&
+        (typeof document.hasFocus !== "function" || document.hasFocus()),
       moveLeftPointers: new Set(),
       moveRightPointers: new Set(),
       firePointers: new Set(),
@@ -338,6 +341,21 @@
         return;
       }
       Module._shrooms_request_audio_unlock();
+    }
+
+    function setPageAudioActive(active) {
+      controlState.pageAudioActive = active;
+      if (!bridgeReady() || typeof Module._shrooms_set_page_audio_active !== "function") {
+        return;
+      }
+      Module._shrooms_set_page_audio_active(active ? 1 : 0);
+    }
+
+    function syncPageAudioActive() {
+      setPageAudioActive(
+        !document.hidden &&
+        (typeof document.hasFocus !== "function" || document.hasFocus()),
+      );
     }
 
     function pushKeyState(keyCode, pressed) {
@@ -583,12 +601,27 @@
 
     window.addEventListener("blur", () => {
       releaseAllControlKeys();
+      setPageAudioActive(false);
+    });
+
+    window.addEventListener("focus", () => {
+      syncPageAudioActive();
     });
 
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) {
         releaseAllControlKeys();
       }
+      syncPageAudioActive();
+    });
+
+    window.addEventListener("pagehide", () => {
+      releaseAllControlKeys();
+      setPageAudioActive(false);
+    });
+
+    window.addEventListener("pageshow", () => {
+      syncPageAudioActive();
     });
 
     window.addEventListener("resize", () => {
@@ -640,6 +673,7 @@
       onRuntimeInitialized: () => {
         controlState.runtimeReady = true;
         controlState.gameplayActive = queryGameplayActive();
+        setPageAudioActive(controlState.pageAudioActive);
         applyControlsMode();
         if (controlState.pollTimer !== null) {
           clearInterval(controlState.pollTimer);
@@ -650,6 +684,7 @@
 
     Module.setStatus("Downloading...");
     drawGameFontTitle();
+    syncPageAudioActive();
     applyControlsMode();
 
     window.onerror = (message) => {

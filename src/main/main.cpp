@@ -17,6 +17,7 @@ namespace {
 
 engine::InputQueue* web_input_queue = nullptr;
 engine::EmscriptenPlatform* web_platform = nullptr;
+bool web_page_audio_active = true;
 
 void push_web_key_event(int key_code, bool pressed) {
   if (!web_input_queue) return;
@@ -41,6 +42,12 @@ EMSCRIPTEN_KEEPALIVE void shrooms_set_touchscreen_enabled(int enabled) {
 EMSCRIPTEN_KEEPALIVE void shrooms_request_audio_unlock() {
   if (!web_platform) return;
   web_platform->request_audio_unlock();
+}
+
+EMSCRIPTEN_KEEPALIVE void shrooms_set_page_audio_active(int active) {
+  web_page_audio_active = active != 0;
+  if (!web_platform) return;
+  web_platform->set_audio_active(web_page_audio_active);
 }
 
 EMSCRIPTEN_KEEPALIVE int shrooms_is_gameplay_active() {
@@ -68,6 +75,7 @@ int main() {
 #ifdef __EMSCRIPTEN__
   web_input_queue = &input;
   web_platform = &platform;
+  web_platform->set_audio_active(web_page_audio_active);
 #endif
 
   platform.init(config, input);
