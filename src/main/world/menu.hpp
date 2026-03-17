@@ -32,6 +32,7 @@
 #include "share_bridge.hpp"
 #include "tutorial.hpp"
 #include "camera_shake.hpp"
+#include "game_audio.hpp"
 #include "vfx.hpp"
 #include "shrooms_screen.hpp"
 #include "shrooms_texture_sizing.hpp"
@@ -98,6 +99,7 @@ struct TextLine {
 inline TextLine status_line{};
 inline TextLine instruction_line{};
 inline TextLine difficulty_line{};
+inline TextLine audio_line{};
 inline TextLine tutorial_line{};
 inline TextLine credits_line{};
 inline std::array<TextLine, kMaxLevelLines> level_lines{};
@@ -524,6 +526,10 @@ inline void refresh_difficulty_line() {
   update_text(difficulty_line, "Difficulty: " + levels::difficulty_label());
 }
 
+inline void refresh_audio_line() {
+  update_text(audio_line, shrooms::audio::audio_toggle_label());
+}
+
 inline void refresh_tutorial_line() {
   update_text(tutorial_line, "Tutorial");
 }
@@ -666,6 +672,7 @@ inline void set_menu_mode(MenuMode mode) {
   set_line_visibility(status_line, false, false);
   set_line_visibility(instruction_line, false, false);
   set_line_visibility(difficulty_line, show_main, show_main);
+  set_line_visibility(audio_line, show_main, show_main);
   set_line_visibility(tutorial_line, show_main, show_main);
   set_line_visibility(credits_line, show_main, false);
   for (size_t i = 0; i < kMaxLevelLines; ++i) {
@@ -828,6 +835,7 @@ inline void enter_main_menu_mode() {
   refresh_level_lines();
   refresh_instruction_line();
   refresh_difficulty_line();
+  refresh_audio_line();
   refresh_tutorial_line();
   refresh_status_line();
   has_pending_level = false;
@@ -841,8 +849,9 @@ struct MenuController : public dynamic::DynamicObject {
   MenuController() : dynamic::DynamicObject() {}
 
   static constexpr size_t kDifficultyMainSlot = 0;
-  static constexpr size_t kTutorialMainSlot = 1;
-  static constexpr size_t kLevelMainSlotOffset = 2;
+  static constexpr size_t kAudioMainSlot = 1;
+  static constexpr size_t kTutorialMainSlot = 2;
+  static constexpr size_t kLevelMainSlotOffset = 3;
 
   void update_pointer() {
     for (const auto& evt : input::events()) {
@@ -865,7 +874,7 @@ struct MenuController : public dynamic::DynamicObject {
   }
 
   bool is_main_slot_selectable(size_t slot, size_t current_levels) const {
-    if (slot == kDifficultyMainSlot || slot == kTutorialMainSlot) {
+    if (slot == kDifficultyMainSlot || slot == kAudioMainSlot || slot == kTutorialMainSlot) {
       return true;
     }
     const auto level_index = main_slot_level_index(slot, current_levels);
@@ -876,6 +885,9 @@ struct MenuController : public dynamic::DynamicObject {
   std::optional<size_t> main_slot_at_point(const glm::vec2& point, size_t current_levels) const {
     if (point_hits_line(difficulty_line, point)) {
       return kDifficultyMainSlot;
+    }
+    if (point_hits_line(audio_line, point)) {
+      return kAudioMainSlot;
     }
     if (point_hits_line(tutorial_line, point)) {
       return kTutorialMainSlot;
@@ -945,9 +957,21 @@ struct MenuController : public dynamic::DynamicObject {
     update_hover_state(refreshed_levels);
   }
 
+  void toggle_audio(size_t current_levels) {
+    shrooms::audio::toggle_muted();
+    cached_audio_muted = shrooms::audio::is_muted();
+    refresh_audio_line();
+    ensure_main_selection(current_levels);
+    update_hover_state(current_levels);
+  }
+
   void handle_selected_main_action(size_t slot, size_t current_levels) {
     if (slot == kDifficultyMainSlot) {
       toggle_difficulty();
+      return;
+    }
+    if (slot == kAudioMainSlot) {
+      toggle_audio(current_levels);
       return;
     }
     if (slot == kTutorialMainSlot) {
@@ -983,6 +1007,10 @@ struct MenuController : public dynamic::DynamicObject {
     const bool difficulty_hovered = hovered_slot && *hovered_slot == kDifficultyMainSlot;
     set_line_visual_state(difficulty_line, difficulty_selected, difficulty_hovered,
                           !difficulty_selected && has_selection);
+    const bool audio_selected = selected_main_slot && *selected_main_slot == kAudioMainSlot;
+    const bool audio_hovered = hovered_slot && *hovered_slot == kAudioMainSlot;
+    set_line_visual_state(audio_line, audio_selected, audio_hovered,
+                          !audio_selected && has_selection);
     set_line_visual_state(gameover_restart, false, false, false);
     set_line_visual_state(gameover_main_menu, false, false, false);
     set_line_visual_state(gameover_share, false, false, false);
@@ -1023,6 +1051,7 @@ struct MenuController : public dynamic::DynamicObject {
     }
     set_line_visual_state(tutorial_line, false, false, false);
     set_line_visual_state(difficulty_line, false, false, false);
+    set_line_visual_state(audio_line, false, false, false);
   }
 
   void clear_hover(size_t current_levels) {
@@ -1037,6 +1066,7 @@ struct MenuController : public dynamic::DynamicObject {
       }
       set_line_visual_state(tutorial_line, false, false, false);
       set_line_visual_state(difficulty_line, false, false, false);
+      set_line_visual_state(audio_line, false, false, false);
     }
     if (menu_mode == MenuMode::GameOver && !awaiting_name_entry) {
       apply_gameover_visuals(false, false, false);
@@ -1072,6 +1102,7 @@ struct MenuController : public dynamic::DynamicObject {
         set_line_visual_state(gameover_restart, false, false, false);
         set_line_visual_state(gameover_main_menu, false, false, false);
         set_line_visual_state(gameover_share, false, false, false);
+        set_line_visual_state(audio_line, false, false, false);
         return;
       }
       bool hover_restart = false;
@@ -1161,6 +1192,11 @@ struct MenuController : public dynamic::DynamicObject {
       refresh_status_line();
     }
 
+    if (cached_audio_muted != shrooms::audio::is_muted()) {
+      cached_audio_muted = shrooms::audio::is_muted();
+      refresh_audio_line();
+    }
+
     if (menu_mode != previous_mode) {
       if (menu_mode == MenuMode::Main) {
         ensure_main_selection(current_levels);
@@ -1222,6 +1258,10 @@ struct MenuController : public dynamic::DynamicObject {
         const int key = input::normalize_key_code(evt.key_code);
         if (key == 'T') {
           enter_tutorial_objective_mode();
+          return;
+        }
+        if (key == 'A' || key == 'V') {
+          toggle_audio(current_levels);
           return;
         }
         if (is_arrow_up_key(key)) {
@@ -1363,6 +1403,7 @@ struct MenuController : public dynamic::DynamicObject {
   size_t cached_unlocked = std::numeric_limits<size_t>::max();
   levels::Difficulty cached_difficulty = levels::Difficulty::Normal;
   std::string cached_status;
+  bool cached_audio_muted = shrooms::audio::is_muted();
   bool completion_acknowledged = false;
   std::optional<glm::vec2> last_pointer;
   std::optional<size_t> selected_main_slot;
@@ -1432,6 +1473,7 @@ inline void init() {
   status_line = make_text_line(glm::vec2{kMenuTextX, 0.72f}, 22.0f, 6);
   instruction_line = make_text_line(glm::vec2{kMenuTextX, 0.58f}, 20.0f, 6);
   difficulty_line = make_text_line(glm::vec2{kMenuTextX, 0.43f}, 19.0f, 6);
+  audio_line = make_text_line(glm::vec2{kMenuTextX, 0.35f}, 19.0f, 6);
   tutorial_line = make_text_line(glm::vec2{kMenuTextX, 0.28f}, 20.0f, 6);
   credits_line = make_text_line(glm::vec2{kMenuTextX, -0.9f}, 18.0f, 6);
   update_text(credits_line, "Game by KiK0S, art by deadmarla.");
@@ -1446,6 +1488,7 @@ inline void init() {
     line.selected_scale = 1.0f;
   };
   style_menu_action(difficulty_line);
+  style_menu_action(audio_line);
   style_menu_action(tutorial_line);
 
   const glm::vec2 base = glm::vec2{kMenuTextX, 0.08f};

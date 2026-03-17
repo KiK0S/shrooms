@@ -21,6 +21,7 @@
 
 #include "camera_shake.hpp"
 #include "countdown.hpp"
+#include "game_audio.hpp"
 #include "level_manager.hpp"
 #include "lives.hpp"
 #include "menu.hpp"
@@ -52,9 +53,11 @@ struct Config {
   glm::vec2 resume_scale = glm::vec2(0.25f, 0.08f);
   glm::vec2 resume_offset = glm::vec2(0.0f, -0.03f);
   glm::vec2 restart_scale = glm::vec2(0.25f, 0.08f);
-  glm::vec2 restart_offset = glm::vec2(0.0f, -0.2f);
+  glm::vec2 restart_offset = glm::vec2(0.0f, -0.17f);
+  glm::vec2 audio_scale = glm::vec2(0.25f, 0.08f);
+  glm::vec2 audio_offset = glm::vec2(0.0f, -0.31f);
   glm::vec2 main_menu_scale = glm::vec2(0.25f, 0.08f);
-  glm::vec2 main_menu_offset = glm::vec2(0.0f, -0.37f);
+  glm::vec2 main_menu_offset = glm::vec2(0.0f, -0.45f);
   glm::vec2 pause_button_position = glm::vec2(0.88f, -0.84f);
   glm::vec2 pause_button_scale = glm::vec2(0.11f, 0.11f);
   glm::vec2 pause_icon_scale = glm::vec2(0.065f, 0.065f);
@@ -89,12 +92,14 @@ struct ActionLine {
   glm::vec4 dimmed_text_color{0.72f, 0.72f, 0.72f, 0.92f};
   float hover_scale = 1.05f;
   float selected_scale = 1.0f;
+  float font_px = 24.0f;
 };
 
 inline constexpr size_t kResumeAction = 0;
 inline constexpr size_t kRestartAction = 1;
-inline constexpr size_t kMainMenuAction = 2;
-inline constexpr size_t kActionCount = 3;
+inline constexpr size_t kAudioAction = 2;
+inline constexpr size_t kMainMenuAction = 3;
+inline constexpr size_t kActionCount = 4;
 
 inline ecs::Entity* overlay = nullptr;
 inline ecs::Entity* menu_window = nullptr;
@@ -234,6 +239,19 @@ inline void apply_pause_toggle_hover(bool hovered) {
   }
 }
 
+inline void update_action_label(ActionLine& action, const std::string& label) {
+  if (!action.text_object || !action.text_transform) return;
+  action.text_object->text = label;
+  const auto layout = engine::text::layout_text(label, 0.0f, 0.0f, action.font_px);
+  const glm::vec2 text_size{layout.width, layout.height};
+  const glm::vec2 center = action.button_base_pos + action.button_base_size * 0.5f;
+  action.text_transform->pos = shrooms::screen::center_to_top_left(center, text_size);
+}
+
+inline void refresh_audio_action_label() {
+  update_action_label(action_lines[kAudioAction], shrooms::audio::audio_toggle_label());
+}
+
 inline ActionLine make_action_line(const std::string& label, const glm::vec2& center_norm,
                                    const glm::vec2& button_scale) {
   ActionLine action{};
@@ -257,7 +275,7 @@ inline ActionLine make_action_line(const std::string& label, const glm::vec2& ce
 
   action.text_entity = arena::create<ecs::Entity>();
   action.text_transform = arena::create<transform::NoRotationTransform>();
-  const float font_px = 24.0f;
+  const float font_px = action.font_px;
   const auto layout = engine::text::layout_text(label, 0.0f, 0.0f, font_px);
   const glm::vec2 text_size{layout.width, layout.height};
   action.text_transform->pos = shrooms::screen::center_to_top_left(center, text_size);
@@ -312,6 +330,10 @@ struct PauseMenuController : public dynamic::DynamicObject {
       handle_restart();
       return;
     }
+    if (index == kAudioAction) {
+      handle_audio_toggle();
+      return;
+    }
     if (index == kMainMenuAction) {
       handle_main_menu();
       return;
@@ -320,6 +342,11 @@ struct PauseMenuController : public dynamic::DynamicObject {
   }
 
   void update() override {
+    if (cached_audio_muted != shrooms::audio::is_muted()) {
+      cached_audio_muted = shrooms::audio::is_muted();
+      refresh_audio_action_label();
+    }
+
     update_pointer();
 
     const bool main_active = is_main_scene_active();
@@ -412,6 +439,10 @@ struct PauseMenuController : public dynamic::DynamicObject {
         trigger_action(kRestartAction);
         return;
       }
+      if (key == 'A' || key == 'V') {
+        trigger_action(kAudioAction);
+        return;
+      }
       if (key == 'M') {
         trigger_action(kMainMenuAction);
         return;
@@ -489,8 +520,16 @@ struct PauseMenuController : public dynamic::DynamicObject {
     menu::suppress_input_for_frames(2);
   }
 
+  void handle_audio_toggle() {
+    shrooms::audio::toggle_muted();
+    cached_audio_muted = shrooms::audio::is_muted();
+    refresh_audio_action_label();
+    apply_action_visuals(std::nullopt);
+  }
+
   std::optional<glm::vec2> last_pointer;
   size_t selected_action_index = kResumeAction;
+  bool cached_audio_muted = shrooms::audio::is_muted();
 };
 
 inline PauseMenuController pause_menu_controller{};
@@ -537,9 +576,13 @@ inline void init() {
       make_action_line("Resume", config.menu_position + config.resume_offset, config.resume_scale);
   action_lines[kRestartAction] = make_action_line("Restart", config.menu_position + config.restart_offset,
                                                   config.restart_scale);
+  action_lines[kAudioAction] =
+      make_action_line(shrooms::audio::audio_toggle_label(),
+                       config.menu_position + config.audio_offset, config.audio_scale);
   action_lines[kMainMenuAction] =
       make_action_line("Main Menu", config.menu_position + config.main_menu_offset,
                        config.main_menu_scale);
+  refresh_audio_action_label();
 
   pause_toggle_button = arena::create<ecs::Entity>();
   pause_toggle_transform = arena::create<transform::NoRotationTransform>();

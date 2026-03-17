@@ -20,8 +20,11 @@ inline constexpr float kBiteGain = 0.85f;
 inline constexpr float kWindGain = 0.45f;
 inline constexpr float kExplosionGain = 0.75f;
 inline constexpr float kFallNegativeGain = 0.70f;
+inline constexpr float kDefaultMasterGain = 1.0f;
 
 inline bool initialized = false;
+inline bool muted = false;
+inline float master_gain = kDefaultMasterGain;
 
 inline engine::SoundId bgm_sound_id = engine::kInvalidSoundId;
 inline engine::SoundId bite_sound_id = engine::kInvalidSoundId;
@@ -33,6 +36,26 @@ inline ecs::Entity* bgm_entity = nullptr;
 inline audio_system::AudioObject* bgm_audio = nullptr;
 inline ecs::Entity* oneshot_voice_gc_entity = nullptr;
 inline std::vector<engine::audio::VoiceId> active_oneshot_voices{};
+
+inline float effective_master_gain() { return muted ? 0.0f : master_gain; }
+
+inline void apply_master_gain() { engine::audio::set_master_gain(effective_master_gain()); }
+
+inline void set_master_gain(float gain) {
+  master_gain = gain < 0.0f ? 0.0f : gain;
+  apply_master_gain();
+}
+
+inline void set_muted(bool value) {
+  muted = value;
+  apply_master_gain();
+}
+
+inline void toggle_muted() { set_muted(!muted); }
+
+inline bool is_muted() { return muted; }
+
+inline std::string audio_toggle_label() { return muted ? "Audio: Muted" : "Audio: On"; }
 
 struct OneShotVoiceGcSystem : public dynamic::DynamicObject {
   OneShotVoiceGcSystem() : dynamic::DynamicObject() {}
@@ -84,7 +107,10 @@ inline void spawn_one_shot(engine::SoundId sound_id, float gain) {
 }
 
 inline void init() {
-  if (initialized) return;
+  if (initialized) {
+    apply_master_gain();
+    return;
+  }
   initialized = true;
 
   bgm_sound_id =
@@ -98,7 +124,10 @@ inline void init() {
   fall_negative_sound_id =
       register_and_load_sound("shrooms_sfx_fall_negative", "shrooms/audio/sfx/fall_negative_alt.wav");
 
-  if (bgm_sound_id == engine::kInvalidSoundId || bgm_audio) return;
+  if (bgm_sound_id == engine::kInvalidSoundId || bgm_audio) {
+    apply_master_gain();
+    return;
+  }
 
   bgm_entity = arena::create<ecs::Entity>();
   bgm_audio = arena::create<audio_system::AudioObject>();
@@ -113,6 +142,8 @@ inline void init() {
     oneshot_voice_gc_entity = arena::create<ecs::Entity>();
     oneshot_voice_gc_entity->add(arena::create<OneShotVoiceGcSystem>());
   }
+
+  apply_master_gain();
 }
 
 inline void play_mushroom_bite() { spawn_one_shot(bite_sound_id, kBiteGain); }
