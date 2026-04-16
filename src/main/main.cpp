@@ -3,6 +3,7 @@
 #include "engine/platform.h"
 #include "shrooms_app.hpp"
 #include "systems/render/renderable.hpp"
+#include "world/visual_constants.hpp"
 
 #ifdef __EMSCRIPTEN__
 #include "engine/platform_emscripten.h"
@@ -87,7 +88,7 @@ int main() {
   platform.init(config, input);
   auto renderer = platform.create_renderer(config);
   renderer->set_view_size(view_w, view_h);
-  renderer->set_clear_color(engine::UIColor{0.05f, 0.05f, 0.08f, 1.0f});
+  renderer->set_clear_color(engine::shrooms::kScreenClearColor);
   render_system::set_view_size(static_cast<float>(view_w), static_cast<float>(view_h));
 
   engine::shrooms::ShroomsLogic logic{view_w, view_h};

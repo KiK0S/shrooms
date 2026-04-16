@@ -21,6 +21,7 @@
 #include "camera_shake.hpp"
 #include "shrooms_screen.hpp"
 #include "player.hpp"
+#include "visual_constants.hpp"
 
 namespace global_fx {
 
@@ -191,7 +192,7 @@ inline void append_post_process(engine::Frame& frame) {
   clear_pass.name = "scene-clear";
   clear_pass.target = kColorTarget;
   clear_pass.clear = true;
-  clear_pass.clear_color = engine::UIColor{0.05f, 0.05f, 0.08f, 1.0f};
+  clear_pass.clear_color = engine::shrooms::kScreenClearColor;
   frame.plan.passes.insert(frame.plan.passes.begin(), std::move(clear_pass));
   frame.plan.passes.insert(frame.plan.passes.begin(), std::move(clear_mask));
 
