@@ -66,13 +66,13 @@ inline glm::vec2 panel_center_norm() {
   const glm::vec2 size = panel_size_px();
   const glm::vec2 top_left_norm = panel_top_left_norm();
   return glm::vec2{
-      top_left_norm.x + (size.x / static_cast<float>(shrooms::screen::view_width)) * 0.5f,
-      top_left_norm.y - (size.y / static_cast<float>(shrooms::screen::view_height)) * 0.5f,
+      top_left_norm.x + (size.x / static_cast<float>(shrooms::screen::view_width)),
+      top_left_norm.y - (size.y / static_cast<float>(shrooms::screen::view_height)),
   };
 }
 
 inline glm::vec2 score_anchor_px() {
-  return shrooms::screen::norm_to_pixels(panel_center_norm() + config.score_offset);
+  return panel_center_px() + shrooms::screen::scale_to_pixels(config.score_offset);
 }
 
 inline void update_score_layout() {
