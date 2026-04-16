@@ -7,6 +7,7 @@
 #include "ambient_layers.hpp"
 #include "camera_shake.hpp"
 #include "countdown.hpp"
+#include "game_audio.hpp"
 #include "game_over_sequence.hpp"
 #include "global_fx.hpp"
 #include "score_hud.hpp"
@@ -249,6 +250,11 @@ inline void register_params() {
   reg.add(pause_group, "text_layer", pause_menu::config.text_layer)
       .label("Text Layer")
       .range(0.0f, 200.0f, 1.0f);
+
+  auto& audio_group = reg.group("shrooms/audio");
+  reg.add(audio_group, "master_gain", ::shrooms::audio::master_gain_value)
+      .label("Master Gain")
+      .range(0.0f, 1.0f, 0.01f);
 
   auto& score_hud_group = reg.group("shrooms/score_hud");
   reg.add(score_hud_group, "score_offset_x", score_hud::config.score_offset.x)

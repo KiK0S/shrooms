@@ -54,6 +54,7 @@ constexpr int kKeyArrowUpDom = 38;
 constexpr int kKeyArrowDownDom = 40;
 constexpr int kKeyArrowUpSdl = 1073741906;
 constexpr int kKeyArrowDownSdl = 1073741905;
+constexpr float kVolumeAdjustStep = 0.05f;
 
 struct LineTextColor : public color::ColoredObject {
   explicit LineTextColor(const glm::vec4& value) : color::ColoredObject(), value(value) {}
@@ -79,14 +80,33 @@ struct TextLine {
   transform::NoRotationTransform* button_transform = nullptr;
   render_system::QuadRenderable* button_quad = nullptr;
   hidden::HiddenObject* button_hidden = nullptr;
+  ecs::Entity* slider_track_entity = nullptr;
+  transform::NoRotationTransform* slider_track_transform = nullptr;
+  render_system::QuadRenderable* slider_track_quad = nullptr;
+  hidden::HiddenObject* slider_track_hidden = nullptr;
+  ecs::Entity* slider_fill_entity = nullptr;
+  transform::NoRotationTransform* slider_fill_transform = nullptr;
+  render_system::QuadRenderable* slider_fill_quad = nullptr;
+  hidden::HiddenObject* slider_fill_hidden = nullptr;
+  ecs::Entity* slider_knob_entity = nullptr;
+  transform::NoRotationTransform* slider_knob_transform = nullptr;
+  render_system::QuadRenderable* slider_knob_quad = nullptr;
+  hidden::HiddenObject* slider_knob_hidden = nullptr;
   glm::vec2 size{0.0f, 0.0f};
   glm::vec2 button_size{0.0f, 0.0f};
   glm::vec2 button_base_pos{0.0f, 0.0f};
   glm::vec2 button_base_size{0.0f, 0.0f};
+  glm::vec2 slider_track_pos{0.0f, 0.0f};
+  glm::vec2 slider_track_size{0.0f, 0.0f};
+  float slider_value = 1.0f;
   engine::UIColor base_button_color{0.0f, 0.0f, 0.0f, 0.0f};
   engine::UIColor hover_button_color{0.2f, 0.15f, 0.3f, 0.85f};
   engine::UIColor selected_button_color{0.15f, 0.15f, 0.15f, 0.95f};
   engine::UIColor dimmed_button_color{0.1f, 0.1f, 0.1f, 0.5f};
+  engine::UIColor slider_track_color{0.22f, 0.22f, 0.24f, 0.95f};
+  engine::UIColor slider_fill_color{0.48f, 0.7f, 0.96f, 0.98f};
+  engine::UIColor slider_knob_color{0.95f, 0.97f, 1.0f, 1.0f};
+  engine::UIColor slider_dimmed_color{0.34f, 0.34f, 0.36f, 0.88f};
   glm::vec4 base_text_color{1.0f, 1.0f, 1.0f, 1.0f};
   glm::vec4 selected_text_color{1.0f, 1.0f, 1.0f, 1.0f};
   glm::vec4 dimmed_text_color{0.74f, 0.74f, 0.74f, 0.92f};
@@ -316,6 +336,113 @@ inline void set_line_icon_texture(TextLine& line, const std::string& texture_nam
   }
 }
 
+inline float clamp_unit(float value) {
+  return std::clamp(value, 0.0f, 1.0f);
+}
+
+inline void update_line_slider_geometry(TextLine& line) {
+  if (!line.slider_track_quad || !line.slider_fill_quad || !line.slider_knob_quad ||
+      !line.slider_track_transform || !line.slider_fill_transform || !line.slider_knob_transform ||
+      !line.button_transform || !line.button_quad) {
+    return;
+  }
+
+  const glm::vec2 button_pos = line.button_transform->pos;
+  const glm::vec2 button_size{line.button_quad->width, line.button_quad->height};
+  if (button_size.x <= 0.0f || button_size.y <= 0.0f) return;
+
+  const float track_w = std::clamp(button_size.x * 0.36f, 90.0f, 180.0f);
+  const float track_h = std::max(6.0f, button_size.y * 0.16f);
+  const float pad_x = std::min(16.0f, button_size.x * 0.1f);
+  const float track_x = button_pos.x + button_size.x - track_w - pad_x;
+  const float track_y = button_pos.y + (button_size.y - track_h) * 0.5f;
+  const float knob_size = std::max(10.0f, button_size.y * 0.36f);
+  const float t = clamp_unit(line.slider_value);
+
+  line.slider_track_pos = glm::vec2{track_x, track_y};
+  line.slider_track_size = glm::vec2{track_w, track_h};
+
+  line.slider_track_transform->pos = line.slider_track_pos;
+  line.slider_track_quad->width = track_w;
+  line.slider_track_quad->height = track_h;
+
+  line.slider_fill_transform->pos = line.slider_track_pos;
+  line.slider_fill_quad->width = track_w * t;
+  line.slider_fill_quad->height = track_h;
+
+  const float knob_center_x = track_x + track_w * t;
+  const float knob_center_y = track_y + track_h * 0.5f;
+  line.slider_knob_transform->pos =
+      glm::vec2{knob_center_x - knob_size * 0.5f, knob_center_y - knob_size * 0.5f};
+  line.slider_knob_quad->width = knob_size;
+  line.slider_knob_quad->height = knob_size;
+}
+
+inline void ensure_line_slider(TextLine& line) {
+  if (line.slider_track_entity || !line.button_entity) return;
+
+  const int layer = line_layer(line);
+  line.slider_track_entity = arena::create<ecs::Entity>();
+  line.slider_track_transform = arena::create<transform::NoRotationTransform>();
+  line.slider_track_entity->add(line.slider_track_transform);
+  line.slider_track_entity->add(arena::create<layers::ConstLayer>(layer));
+  line.slider_track_quad = arena::create<render_system::QuadRenderable>(0.0f, 0.0f, line.slider_track_color);
+  line.slider_track_entity->add(line.slider_track_quad);
+  line.slider_track_hidden = arena::create<hidden::HiddenObject>();
+  line.slider_track_entity->add(line.slider_track_hidden);
+  line.slider_track_hidden->hide();
+  line.slider_track_entity->add(arena::create<scene::SceneObject>("menu"));
+
+  line.slider_fill_entity = arena::create<ecs::Entity>();
+  line.slider_fill_transform = arena::create<transform::NoRotationTransform>();
+  line.slider_fill_entity->add(line.slider_fill_transform);
+  line.slider_fill_entity->add(arena::create<layers::ConstLayer>(layer));
+  line.slider_fill_quad = arena::create<render_system::QuadRenderable>(0.0f, 0.0f, line.slider_fill_color);
+  line.slider_fill_entity->add(line.slider_fill_quad);
+  line.slider_fill_hidden = arena::create<hidden::HiddenObject>();
+  line.slider_fill_entity->add(line.slider_fill_hidden);
+  line.slider_fill_hidden->hide();
+  line.slider_fill_entity->add(arena::create<scene::SceneObject>("menu"));
+
+  line.slider_knob_entity = arena::create<ecs::Entity>();
+  line.slider_knob_transform = arena::create<transform::NoRotationTransform>();
+  line.slider_knob_entity->add(line.slider_knob_transform);
+  line.slider_knob_entity->add(arena::create<layers::ConstLayer>(layer + 1));
+  line.slider_knob_quad = arena::create<render_system::QuadRenderable>(0.0f, 0.0f, line.slider_knob_color);
+  line.slider_knob_entity->add(line.slider_knob_quad);
+  line.slider_knob_hidden = arena::create<hidden::HiddenObject>();
+  line.slider_knob_entity->add(line.slider_knob_hidden);
+  line.slider_knob_hidden->hide();
+  line.slider_knob_entity->add(arena::create<scene::SceneObject>("menu"));
+
+  update_line_slider_geometry(line);
+}
+
+inline void set_line_slider_value(TextLine& line, float value) {
+  line.slider_value = clamp_unit(value);
+  update_line_slider_geometry(line);
+}
+
+inline void set_line_slider_visibility(TextLine& line, bool visible) {
+  if (line.slider_track_hidden) line.slider_track_hidden->set_visible(visible);
+  if (line.slider_fill_hidden) line.slider_fill_hidden->set_visible(visible);
+  if (line.slider_knob_hidden) line.slider_knob_hidden->set_visible(visible);
+}
+
+inline void apply_line_slider_visual(TextLine& line, bool selected, bool hovered, bool dimmed) {
+  if (!line.slider_track_quad || !line.slider_fill_quad || !line.slider_knob_quad) return;
+  if (dimmed) {
+    line.slider_track_quad->color = line.slider_dimmed_color;
+    line.slider_fill_quad->color = line.slider_dimmed_color;
+    line.slider_knob_quad->color = line.slider_dimmed_color;
+    return;
+  }
+  line.slider_track_quad->color = line.slider_track_color;
+  line.slider_fill_quad->color = line.slider_fill_color;
+  line.slider_knob_quad->color =
+      (selected || hovered) ? engine::UIColor{1.0f, 1.0f, 1.0f, 1.0f} : line.slider_knob_color;
+}
+
 inline void update_text(TextLine& line, const std::string& value) {
   if (!line.text_object) return;
   line.text_object->text = value;
@@ -350,6 +477,7 @@ inline void update_text(TextLine& line, const std::string& value) {
     line.button_quad->height = line.button_base_size.y;
     line.button_quad->color = line.base_button_color;
   }
+  update_line_slider_geometry(line);
 }
 
 inline void set_line_visibility(TextLine& line, bool text_visible, bool button_visible) {
@@ -362,6 +490,7 @@ inline void set_line_visibility(TextLine& line, bool text_visible, bool button_v
   if (line.button_hidden) {
     line.button_hidden->set_visible(button_visible);
   }
+  set_line_slider_visibility(line, button_visible && line.slider_track_entity);
 }
 
 inline void apply_button_visual(TextLine& line, float scale, const engine::UIColor& color) {
@@ -372,6 +501,7 @@ inline void apply_button_visual(TextLine& line, float scale, const engine::UICol
   line.button_quad->width = size.x;
   line.button_quad->height = size.y;
   line.button_quad->color = color;
+  update_line_slider_geometry(line);
 }
 
 inline bool is_arrow_up_key(int key) {
@@ -405,17 +535,21 @@ inline void set_line_visual_state(TextLine& line,
   }
   if (!line.button_quad) return;
   if (selected) {
+    apply_line_slider_visual(line, selected, hovered, dimmed);
     apply_button_visual(line, line.selected_scale, line.selected_button_color);
     return;
   }
   if (hovered) {
+    apply_line_slider_visual(line, selected, hovered, dimmed);
     apply_button_visual(line, line.hover_scale, line.hover_button_color);
     return;
   }
   if (dimmed) {
+    apply_line_slider_visual(line, selected, hovered, dimmed);
     apply_button_visual(line, 1.0f, line.dimmed_button_color);
     return;
   }
+  apply_line_slider_visual(line, selected, hovered, dimmed);
   apply_button_visual(line, 1.0f, line.base_button_color);
 }
 
@@ -527,7 +661,8 @@ inline void refresh_difficulty_line() {
 }
 
 inline void refresh_audio_line() {
-  update_text(audio_line, shrooms::audio::audio_toggle_label());
+  update_text(audio_line, shrooms::audio::volume_label());
+  set_line_slider_value(audio_line, shrooms::audio::master_gain());
 }
 
 inline void refresh_tutorial_line() {
@@ -553,6 +688,17 @@ inline bool point_hits_line(const TextLine& line, const glm::vec2& point) {
   const glm::vec2 size = line.button_transform ? line.button_base_size : line.size;
   if (point.x < pos.x || point.x > pos.x + size.x) return false;
   if (point.y < pos.y || point.y > pos.y + size.y) return false;
+  return true;
+}
+
+inline bool point_hits_slider(const TextLine& line, const glm::vec2& point) {
+  if (!line.slider_track_quad) return false;
+  const float extra_y = 10.0f;
+  const glm::vec2 min_bound{line.slider_track_pos.x, line.slider_track_pos.y - extra_y};
+  const glm::vec2 max_bound{line.slider_track_pos.x + line.slider_track_size.x,
+                            line.slider_track_pos.y + line.slider_track_size.y + extra_y};
+  if (point.x < min_bound.x || point.x > max_bound.x) return false;
+  if (point.y < min_bound.y || point.y > max_bound.y) return false;
   return true;
 }
 
@@ -957,9 +1103,27 @@ struct MenuController : public dynamic::DynamicObject {
     update_hover_state(refreshed_levels);
   }
 
-  void toggle_audio(size_t current_levels) {
+  void toggle_mute(size_t current_levels) {
     shrooms::audio::toggle_muted();
     cached_audio_muted = shrooms::audio::is_muted();
+    refresh_audio_line();
+    ensure_main_selection(current_levels);
+    update_hover_state(current_levels);
+  }
+
+  void change_volume(float delta, size_t current_levels) {
+    shrooms::audio::set_master_gain(shrooms::audio::master_gain() + delta);
+    cached_master_gain = shrooms::audio::master_gain();
+    refresh_audio_line();
+    ensure_main_selection(current_levels);
+    update_hover_state(current_levels);
+  }
+
+  void set_volume_from_pointer(const glm::vec2& point, size_t current_levels) {
+    if (audio_line.slider_track_size.x <= 0.0f) return;
+    const float t = clamp_unit((point.x - audio_line.slider_track_pos.x) / audio_line.slider_track_size.x);
+    shrooms::audio::set_master_gain(t);
+    cached_master_gain = shrooms::audio::master_gain();
     refresh_audio_line();
     ensure_main_selection(current_levels);
     update_hover_state(current_levels);
@@ -971,7 +1135,7 @@ struct MenuController : public dynamic::DynamicObject {
       return;
     }
     if (slot == kAudioMainSlot) {
-      toggle_audio(current_levels);
+      toggle_mute(current_levels);
       return;
     }
     if (slot == kTutorialMainSlot) {
@@ -1196,6 +1360,10 @@ struct MenuController : public dynamic::DynamicObject {
       cached_audio_muted = shrooms::audio::is_muted();
       refresh_audio_line();
     }
+    if (cached_master_gain != shrooms::audio::master_gain()) {
+      cached_master_gain = shrooms::audio::master_gain();
+      refresh_audio_line();
+    }
 
     if (menu_mode != previous_mode) {
       if (menu_mode == MenuMode::Main) {
@@ -1230,10 +1398,12 @@ struct MenuController : public dynamic::DynamicObject {
 
     update_pointer();
     if (!shrooms::scenes::menu || !shrooms::scenes::menu->is_active) {
+      dragging_audio_slider = false;
       clear_hover(current_levels);
       return;
     }
     if (block_input_frames > 0) {
+      dragging_audio_slider = false;
       block_input_frames--;
       clear_hover(current_levels);
       return;
@@ -1242,6 +1412,11 @@ struct MenuController : public dynamic::DynamicObject {
 
     if (menu_mode == MenuMode::Main) {
       ensure_main_selection(current_levels);
+      for (const auto& evt : input::events()) {
+        if (evt.kind == engine::InputKind::PointerUp) {
+          dragging_audio_slider = false;
+        }
+      }
       for (size_t i = 0; i < kMaxLevelLines; ++i) {
         const int key_code = (i == 9) ? '0' : static_cast<int>('1' + i);
         const bool pressed = input::get_button_state(key_code);
@@ -1260,8 +1435,16 @@ struct MenuController : public dynamic::DynamicObject {
           enter_tutorial_objective_mode();
           return;
         }
-        if (key == 'A' || key == 'V') {
-          toggle_audio(current_levels);
+        if (key == 'V') {
+          toggle_mute(current_levels);
+          return;
+        }
+        if (key == 'A' && selected_main_slot && *selected_main_slot == kAudioMainSlot) {
+          change_volume(-kVolumeAdjustStep, current_levels);
+          return;
+        }
+        if (key == 'D' && selected_main_slot && *selected_main_slot == kAudioMainSlot) {
+          change_volume(kVolumeAdjustStep, current_levels);
           return;
         }
         if (is_arrow_up_key(key)) {
@@ -1280,9 +1463,27 @@ struct MenuController : public dynamic::DynamicObject {
         }
       }
 
+      if (dragging_audio_slider) {
+        for (const auto& evt : input::events()) {
+          if (evt.kind != engine::InputKind::PointerMove &&
+              evt.kind != engine::InputKind::PointerDown) {
+            continue;
+          }
+          set_volume_from_pointer(glm::vec2{static_cast<float>(evt.x), static_cast<float>(evt.y)},
+                                  current_levels);
+          return;
+        }
+      }
+
       for (const auto& evt : input::events()) {
         if (evt.kind != engine::InputKind::PointerDown) continue;
         const glm::vec2 point{static_cast<float>(evt.x), static_cast<float>(evt.y)};
+        if (point_hits_slider(audio_line, point)) {
+          dragging_audio_slider = true;
+          selected_main_slot = kAudioMainSlot;
+          set_volume_from_pointer(point, current_levels);
+          return;
+        }
         auto slot = main_slot_at_point(point, current_levels);
         if (slot && is_main_slot_selectable(*slot, current_levels)) {
           selected_main_slot = *slot;
@@ -1294,6 +1495,7 @@ struct MenuController : public dynamic::DynamicObject {
     }
 
     if (menu_mode == MenuMode::Objective) {
+      dragging_audio_slider = false;
       for (const auto& evt : input::events()) {
         if (evt.kind == engine::InputKind::PointerDown) {
           start_pending_level();
@@ -1310,6 +1512,7 @@ struct MenuController : public dynamic::DynamicObject {
     }
 
     if (menu_mode == MenuMode::GameOver) {
+      dragging_audio_slider = false;
       if (!levels::last_result_valid) {
         enter_main_menu_mode();
         return;
@@ -1404,7 +1607,9 @@ struct MenuController : public dynamic::DynamicObject {
   levels::Difficulty cached_difficulty = levels::Difficulty::Normal;
   std::string cached_status;
   bool cached_audio_muted = shrooms::audio::is_muted();
+  float cached_master_gain = shrooms::audio::master_gain();
   bool completion_acknowledged = false;
+  bool dragging_audio_slider = false;
   std::optional<glm::vec2> last_pointer;
   std::optional<size_t> selected_main_slot;
   size_t selected_gameover_index = 0;
@@ -1490,6 +1695,8 @@ inline void init() {
   style_menu_action(difficulty_line);
   style_menu_action(audio_line);
   style_menu_action(tutorial_line);
+  ensure_line_slider(audio_line);
+  set_line_slider_value(audio_line, shrooms::audio::master_gain());
 
   const glm::vec2 base = glm::vec2{kMenuTextX, 0.08f};
   const float spacing = 0.12f;

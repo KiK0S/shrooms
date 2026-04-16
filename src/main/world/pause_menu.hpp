@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <optional>
 #include <string>
@@ -36,6 +37,7 @@ constexpr int kKeyArrowUpDom = 38;
 constexpr int kKeyArrowDownDom = 40;
 constexpr int kKeyArrowUpSdl = 1073741906;
 constexpr int kKeyArrowDownSdl = 1073741905;
+constexpr float kVolumeAdjustStep = 0.05f;
 
 struct ActionTextColor : public color::ColoredObject {
   explicit ActionTextColor(const glm::vec4& value) : color::ColoredObject(), value(value) {}
@@ -80,13 +82,32 @@ struct ActionLine {
   text::TextObject* text_object = nullptr;
   hidden::HiddenObject* text_hidden = nullptr;
   ActionTextColor* text_color = nullptr;
+  ecs::Entity* slider_track_entity = nullptr;
+  transform::NoRotationTransform* slider_track_transform = nullptr;
+  render_system::QuadRenderable* slider_track_quad = nullptr;
+  hidden::HiddenObject* slider_track_hidden = nullptr;
+  ecs::Entity* slider_fill_entity = nullptr;
+  transform::NoRotationTransform* slider_fill_transform = nullptr;
+  render_system::QuadRenderable* slider_fill_quad = nullptr;
+  hidden::HiddenObject* slider_fill_hidden = nullptr;
+  ecs::Entity* slider_knob_entity = nullptr;
+  transform::NoRotationTransform* slider_knob_transform = nullptr;
+  render_system::QuadRenderable* slider_knob_quad = nullptr;
+  hidden::HiddenObject* slider_knob_hidden = nullptr;
 
   glm::vec2 button_base_pos{0.0f, 0.0f};
   glm::vec2 button_base_size{0.0f, 0.0f};
+  glm::vec2 slider_track_pos{0.0f, 0.0f};
+  glm::vec2 slider_track_size{0.0f, 0.0f};
+  float slider_value = 1.0f;
   engine::UIColor base_color{0.15f, 0.15f, 0.15f, 0.95f};
   engine::UIColor hover_color{0.28f, 0.2f, 0.35f, 0.98f};
   engine::UIColor selected_color{0.15f, 0.15f, 0.15f, 0.95f};
   engine::UIColor dimmed_color{0.08f, 0.08f, 0.08f, 0.52f};
+  engine::UIColor slider_track_color{0.22f, 0.22f, 0.24f, 0.95f};
+  engine::UIColor slider_fill_color{0.48f, 0.7f, 0.96f, 0.98f};
+  engine::UIColor slider_knob_color{0.95f, 0.97f, 1.0f, 1.0f};
+  engine::UIColor slider_dimmed_color{0.34f, 0.34f, 0.36f, 0.88f};
   glm::vec4 base_text_color{1.0f, 1.0f, 1.0f, 1.0f};
   glm::vec4 selected_text_color{1.0f, 1.0f, 1.0f, 1.0f};
   glm::vec4 dimmed_text_color{0.72f, 0.72f, 0.72f, 0.92f};
@@ -152,6 +173,121 @@ inline bool pause_controls_blocked() {
   return levels::has_pending_failure() || levels::level_finished || round_transition::is_active();
 }
 
+inline float clamp_unit(float value) {
+  return std::clamp(value, 0.0f, 1.0f);
+}
+
+inline void update_action_slider_geometry(ActionLine& action) {
+  if (!action.slider_track_quad || !action.slider_fill_quad || !action.slider_knob_quad ||
+      !action.slider_track_transform || !action.slider_fill_transform || !action.slider_knob_transform ||
+      !action.button_transform || !action.button_quad) {
+    return;
+  }
+
+  const glm::vec2 button_pos = action.button_transform->pos;
+  const glm::vec2 button_size{action.button_quad->width, action.button_quad->height};
+  if (button_size.x <= 0.0f || button_size.y <= 0.0f) return;
+
+  const float track_w = std::clamp(button_size.x * 0.36f, 90.0f, 180.0f);
+  const float track_h = std::max(6.0f, button_size.y * 0.16f);
+  const float pad_x = std::min(16.0f, button_size.x * 0.1f);
+  const float track_x = button_pos.x + button_size.x - track_w - pad_x;
+  const float track_y = button_pos.y + (button_size.y - track_h) * 0.5f;
+  const float knob_size = std::max(10.0f, button_size.y * 0.36f);
+  const float t = clamp_unit(action.slider_value);
+
+  action.slider_track_pos = glm::vec2{track_x, track_y};
+  action.slider_track_size = glm::vec2{track_w, track_h};
+
+  action.slider_track_transform->pos = action.slider_track_pos;
+  action.slider_track_quad->width = track_w;
+  action.slider_track_quad->height = track_h;
+
+  action.slider_fill_transform->pos = action.slider_track_pos;
+  action.slider_fill_quad->width = track_w * t;
+  action.slider_fill_quad->height = track_h;
+
+  const float knob_center_x = track_x + track_w * t;
+  const float knob_center_y = track_y + track_h * 0.5f;
+  action.slider_knob_transform->pos =
+      glm::vec2{knob_center_x - knob_size * 0.5f, knob_center_y - knob_size * 0.5f};
+  action.slider_knob_quad->width = knob_size;
+  action.slider_knob_quad->height = knob_size;
+}
+
+inline void ensure_action_slider(ActionLine& action) {
+  if (action.slider_track_entity || !action.button_entity) return;
+
+  action.slider_track_entity = arena::create<ecs::Entity>();
+  action.slider_track_transform = arena::create<transform::NoRotationTransform>();
+  action.slider_track_entity->add(action.slider_track_transform);
+  action.slider_track_entity->add(arena::create<layers::ConstLayer>(config.text_layer));
+  action.slider_track_quad = arena::create<render_system::QuadRenderable>(0.0f, 0.0f, action.slider_track_color);
+  action.slider_track_entity->add(action.slider_track_quad);
+  action.slider_track_hidden = arena::create<hidden::HiddenObject>();
+  action.slider_track_entity->add(action.slider_track_hidden);
+  action.slider_track_hidden->hide();
+  action.slider_track_entity->add(arena::create<scene::SceneObject>("main"));
+
+  action.slider_fill_entity = arena::create<ecs::Entity>();
+  action.slider_fill_transform = arena::create<transform::NoRotationTransform>();
+  action.slider_fill_entity->add(action.slider_fill_transform);
+  action.slider_fill_entity->add(arena::create<layers::ConstLayer>(config.text_layer));
+  action.slider_fill_quad = arena::create<render_system::QuadRenderable>(0.0f, 0.0f, action.slider_fill_color);
+  action.slider_fill_entity->add(action.slider_fill_quad);
+  action.slider_fill_hidden = arena::create<hidden::HiddenObject>();
+  action.slider_fill_entity->add(action.slider_fill_hidden);
+  action.slider_fill_hidden->hide();
+  action.slider_fill_entity->add(arena::create<scene::SceneObject>("main"));
+
+  action.slider_knob_entity = arena::create<ecs::Entity>();
+  action.slider_knob_transform = arena::create<transform::NoRotationTransform>();
+  action.slider_knob_entity->add(action.slider_knob_transform);
+  action.slider_knob_entity->add(arena::create<layers::ConstLayer>(config.text_layer + 1));
+  action.slider_knob_quad = arena::create<render_system::QuadRenderable>(0.0f, 0.0f, action.slider_knob_color);
+  action.slider_knob_entity->add(action.slider_knob_quad);
+  action.slider_knob_hidden = arena::create<hidden::HiddenObject>();
+  action.slider_knob_entity->add(action.slider_knob_hidden);
+  action.slider_knob_hidden->hide();
+  action.slider_knob_entity->add(arena::create<scene::SceneObject>("main"));
+
+  update_action_slider_geometry(action);
+}
+
+inline void set_action_slider_value(ActionLine& action, float value) {
+  action.slider_value = clamp_unit(value);
+  update_action_slider_geometry(action);
+}
+
+inline void set_action_slider_visibility(ActionLine& action, bool visible) {
+  if (action.slider_track_hidden) action.slider_track_hidden->set_visible(visible);
+  if (action.slider_fill_hidden) action.slider_fill_hidden->set_visible(visible);
+  if (action.slider_knob_hidden) action.slider_knob_hidden->set_visible(visible);
+}
+
+inline void apply_action_slider_visual(ActionLine& action, bool selected, bool hovered, bool dimmed) {
+  if (!action.slider_track_quad || !action.slider_fill_quad || !action.slider_knob_quad) return;
+  if (dimmed) {
+    action.slider_track_quad->color = action.slider_dimmed_color;
+    action.slider_fill_quad->color = action.slider_dimmed_color;
+    action.slider_knob_quad->color = action.slider_dimmed_color;
+    return;
+  }
+  action.slider_track_quad->color = action.slider_track_color;
+  action.slider_fill_quad->color = action.slider_fill_color;
+  action.slider_knob_quad->color =
+      (selected || hovered) ? engine::UIColor{1.0f, 1.0f, 1.0f, 1.0f} : action.slider_knob_color;
+}
+
+inline bool point_hits_action_slider(const ActionLine& action, const glm::vec2& point) {
+  if (!action.slider_track_quad) return false;
+  const float extra_y = 10.0f;
+  const glm::vec2 min_bound{action.slider_track_pos.x, action.slider_track_pos.y - extra_y};
+  const glm::vec2 max_bound{action.slider_track_pos.x + action.slider_track_size.x,
+                            action.slider_track_pos.y + action.slider_track_size.y + extra_y};
+  return point_in_bounds(point, min_bound, max_bound);
+}
+
 inline void set_action_visibility(ActionLine& action, bool visible) {
   if (action.button_hidden) {
     action.button_hidden->set_visible(visible);
@@ -159,6 +295,7 @@ inline void set_action_visibility(ActionLine& action, bool visible) {
   if (action.text_hidden) {
     action.text_hidden->set_visible(visible);
   }
+  set_action_slider_visibility(action, visible && action.slider_track_entity);
 }
 
 inline void set_pause_menu_visible(bool visible) {
@@ -187,6 +324,7 @@ inline void apply_action_visual(ActionLine& action, float scale, const engine::U
   action.button_quad->width = size.x;
   action.button_quad->height = size.y;
   action.button_quad->color = color;
+  update_action_slider_geometry(action);
 }
 
 inline void set_action_visual_state(ActionLine& action, bool selected, bool hovered, bool dimmed) {
@@ -195,6 +333,7 @@ inline void set_action_visual_state(ActionLine& action, bool selected, bool hove
                                         : (dimmed ? action.dimmed_text_color
                                                   : action.base_text_color);
   }
+  apply_action_slider_visual(action, selected, hovered, dimmed);
   if (selected) {
     apply_action_visual(action, action.selected_scale, action.selected_color);
     return;
@@ -246,10 +385,12 @@ inline void update_action_label(ActionLine& action, const std::string& label) {
   const glm::vec2 text_size{layout.width, layout.height};
   const glm::vec2 center = action.button_base_pos + action.button_base_size * 0.5f;
   action.text_transform->pos = shrooms::screen::center_to_top_left(center, text_size);
+  update_action_slider_geometry(action);
 }
 
 inline void refresh_audio_action_label() {
-  update_action_label(action_lines[kAudioAction], shrooms::audio::audio_toggle_label());
+  update_action_label(action_lines[kAudioAction], shrooms::audio::volume_label());
+  set_action_slider_value(action_lines[kAudioAction], shrooms::audio::master_gain());
 }
 
 inline ActionLine make_action_line(const std::string& label, const glm::vec2& center_norm,
@@ -341,9 +482,31 @@ struct PauseMenuController : public dynamic::DynamicObject {
     handle_toggle();
   }
 
+  void change_volume(float delta) {
+    shrooms::audio::set_master_gain(shrooms::audio::master_gain() + delta);
+    cached_master_gain = shrooms::audio::master_gain();
+    refresh_audio_action_label();
+    apply_action_visuals(std::nullopt);
+  }
+
+  void set_volume_from_pointer(const glm::vec2& point) {
+    auto& audio_action = action_lines[kAudioAction];
+    if (audio_action.slider_track_size.x <= 0.0f) return;
+    const float t =
+        clamp_unit((point.x - audio_action.slider_track_pos.x) / audio_action.slider_track_size.x);
+    shrooms::audio::set_master_gain(t);
+    cached_master_gain = shrooms::audio::master_gain();
+    refresh_audio_action_label();
+    apply_action_visuals(std::nullopt);
+  }
+
   void update() override {
     if (cached_audio_muted != shrooms::audio::is_muted()) {
       cached_audio_muted = shrooms::audio::is_muted();
+      refresh_audio_action_label();
+    }
+    if (cached_master_gain != shrooms::audio::master_gain()) {
+      cached_master_gain = shrooms::audio::master_gain();
       refresh_audio_action_label();
     }
 
@@ -351,6 +514,7 @@ struct PauseMenuController : public dynamic::DynamicObject {
 
     const bool main_active = is_main_scene_active();
     if (!main_active) {
+      dragging_audio_slider = false;
       set_pause_toggle_visible(false);
       apply_pause_toggle_hover(false);
       set_pause_menu_visible(false);
@@ -371,6 +535,7 @@ struct PauseMenuController : public dynamic::DynamicObject {
     }
 
     if (!paused) {
+      dragging_audio_slider = false;
       set_pause_menu_visible(false);
       const bool show_toggle = !blocked;
       set_pause_toggle_visible(show_toggle);
@@ -398,7 +563,14 @@ struct PauseMenuController : public dynamic::DynamicObject {
     set_pause_toggle_visible(false);
     apply_pause_toggle_hover(false);
     if (!pause_menu_open) {
+      dragging_audio_slider = false;
       return;
+    }
+
+    for (const auto& evt : input::events()) {
+      if (evt.kind == engine::InputKind::PointerUp) {
+        dragging_audio_slider = false;
+      }
     }
 
     std::optional<size_t> hovered_index;
@@ -415,8 +587,26 @@ struct PauseMenuController : public dynamic::DynamicObject {
     }
     apply_action_visuals(hovered_index);
 
+    if (dragging_audio_slider) {
+      for (const auto& evt : input::events()) {
+        if (evt.kind != engine::InputKind::PointerMove &&
+            evt.kind != engine::InputKind::PointerDown) {
+          continue;
+        }
+        set_volume_from_pointer(glm::vec2{static_cast<float>(evt.x), static_cast<float>(evt.y)});
+        return;
+      }
+    }
+
     for (const auto& evt : input::events()) {
       if (evt.kind == engine::InputKind::PointerDown) {
+        const glm::vec2 point{static_cast<float>(evt.x), static_cast<float>(evt.y)};
+        if (point_hits_action_slider(action_lines[kAudioAction], point)) {
+          selected_action_index = kAudioAction;
+          dragging_audio_slider = true;
+          set_volume_from_pointer(point);
+          return;
+        }
         if (hovered_index) {
           trigger_action(*hovered_index);
           return;
@@ -439,8 +629,16 @@ struct PauseMenuController : public dynamic::DynamicObject {
         trigger_action(kRestartAction);
         return;
       }
-      if (key == 'A' || key == 'V') {
+      if (key == 'V') {
         trigger_action(kAudioAction);
+        return;
+      }
+      if (key == 'A' && selected_action_index == kAudioAction) {
+        change_volume(-kVolumeAdjustStep);
+        return;
+      }
+      if (key == 'D' && selected_action_index == kAudioAction) {
+        change_volume(kVolumeAdjustStep);
         return;
       }
       if (key == 'M') {
@@ -530,6 +728,8 @@ struct PauseMenuController : public dynamic::DynamicObject {
   std::optional<glm::vec2> last_pointer;
   size_t selected_action_index = kResumeAction;
   bool cached_audio_muted = shrooms::audio::is_muted();
+  float cached_master_gain = shrooms::audio::master_gain();
+  bool dragging_audio_slider = false;
 };
 
 inline PauseMenuController pause_menu_controller{};
@@ -577,8 +777,10 @@ inline void init() {
   action_lines[kRestartAction] = make_action_line("Restart", config.menu_position + config.restart_offset,
                                                   config.restart_scale);
   action_lines[kAudioAction] =
-      make_action_line(shrooms::audio::audio_toggle_label(),
+      make_action_line(shrooms::audio::volume_label(),
                        config.menu_position + config.audio_offset, config.audio_scale);
+  ensure_action_slider(action_lines[kAudioAction]);
+  set_action_slider_value(action_lines[kAudioAction], shrooms::audio::master_gain());
   action_lines[kMainMenuAction] =
       make_action_line("Main Menu", config.menu_position + config.main_menu_offset,
                        config.main_menu_scale);

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <iostream>
 #include <limits>
@@ -34,7 +35,7 @@ inline constexpr double kFallNegativeMinGapSeconds = 0.14;
 inline bool initialized = false;
 inline bool muted = false;
 inline bool page_active = true;
-inline float master_gain = kDefaultMasterGain;
+inline float master_gain_value = kDefaultMasterGain;
 
 inline engine::SoundId bgm_sound_id = engine::kInvalidSoundId;
 inline engine::SoundId bite_sound_id = engine::kInvalidSoundId;
@@ -77,7 +78,7 @@ inline std::array<double, kManagedSoundCount> last_trigger_times{
     std::numeric_limits<double>::lowest(),
 };
 
-inline float effective_master_gain() { return muted ? 0.0f : master_gain; }
+inline float effective_master_gain() { return muted ? 0.0f : master_gain_value; }
 
 inline void apply_master_gain() { engine::audio::set_master_gain(effective_master_gain()); }
 
@@ -87,8 +88,17 @@ inline size_t managed_sound_index(ManagedSoundKind kind) {
 
 inline double audio_time_seconds() { return ecs::context().time_seconds; }
 
+inline float master_gain() { return master_gain_value; }
+
+inline float master_gain_percent() { return std::round(master_gain_value * 100.0f); }
+
 inline void set_master_gain(float gain) {
-  master_gain = gain < 0.0f ? 0.0f : gain;
+  master_gain_value = std::clamp(gain, 0.0f, 1.0f);
+  apply_master_gain();
+}
+
+inline void sync_master_gain() {
+  master_gain_value = std::clamp(master_gain_value, 0.0f, 1.0f);
   apply_master_gain();
 }
 
@@ -102,6 +112,11 @@ inline void toggle_muted() { set_muted(!muted); }
 inline bool is_muted() { return muted; }
 
 inline std::string audio_toggle_label() { return muted ? "Audio: Muted" : "Audio: On"; }
+
+inline std::string volume_label() {
+  const int percent = static_cast<int>(master_gain_percent());
+  return "Volume: " + std::to_string(percent) + "%";
+}
 
 inline engine::SoundId register_and_load_sound(const char* sound_name,
                                                const char* relative_asset_path) {

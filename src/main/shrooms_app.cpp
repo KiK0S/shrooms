@@ -141,6 +141,7 @@ void ShroomsLogic::after_tick(const engine::AppContext& ctx,
                                    static_cast<float>(view_width_),
                                    static_cast<float>(view_height_));
 #endif
+  ::shrooms::audio::sync_master_gain();
 }
 
 }  // namespace engine::shrooms
