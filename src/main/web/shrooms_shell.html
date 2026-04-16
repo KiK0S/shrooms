@@ -343,19 +343,26 @@
       Module._shrooms_request_audio_unlock();
     }
 
-    function setPageAudioActive(active) {
+    function setPageActive(active) {
       controlState.pageAudioActive = active;
-      if (!bridgeReady() || typeof Module._shrooms_set_page_audio_active !== "function") {
+      if (!bridgeReady()) {
         return;
       }
-      Module._shrooms_set_page_audio_active(active ? 1 : 0);
+      if (typeof Module._shrooms_set_page_audio_active === "function") {
+        Module._shrooms_set_page_audio_active(active ? 1 : 0);
+      }
+      if (typeof Module._shrooms_set_page_active === "function") {
+        Module._shrooms_set_page_active(active ? 1 : 0);
+      }
     }
 
-    function syncPageAudioActive() {
-      setPageAudioActive(
-        !document.hidden &&
-        (typeof document.hasFocus !== "function" || document.hasFocus()),
-      );
+    function computePageActive() {
+      return document.visibilityState === "visible" &&
+        (typeof document.hasFocus !== "function" || document.hasFocus());
+    }
+
+    function syncPageActive() {
+      setPageActive(computePageActive());
     }
 
     function pushKeyState(keyCode, pressed) {
@@ -601,27 +608,36 @@
 
     window.addEventListener("blur", () => {
       releaseAllControlKeys();
-      setPageAudioActive(false);
+      setPageActive(false);
     });
 
     window.addEventListener("focus", () => {
-      syncPageAudioActive();
+      syncPageActive();
     });
 
     document.addEventListener("visibilitychange", () => {
-      if (document.hidden) {
+      if (document.visibilityState !== "visible") {
         releaseAllControlKeys();
       }
-      syncPageAudioActive();
+      syncPageActive();
     });
 
     window.addEventListener("pagehide", () => {
       releaseAllControlKeys();
-      setPageAudioActive(false);
+      setPageActive(false);
     });
 
     window.addEventListener("pageshow", () => {
-      syncPageAudioActive();
+      syncPageActive();
+    });
+
+    document.addEventListener("freeze", () => {
+      releaseAllControlKeys();
+      setPageActive(false);
+    });
+
+    document.addEventListener("resume", () => {
+      syncPageActive();
     });
 
     window.addEventListener("resize", () => {
@@ -673,7 +689,7 @@
       onRuntimeInitialized: () => {
         controlState.runtimeReady = true;
         controlState.gameplayActive = queryGameplayActive();
-        setPageAudioActive(controlState.pageAudioActive);
+        setPageActive(controlState.pageAudioActive);
         applyControlsMode();
         if (controlState.pollTimer !== null) {
           clearInterval(controlState.pollTimer);
@@ -684,7 +700,7 @@
 
     Module.setStatus("Downloading...");
     drawGameFontTitle();
-    syncPageAudioActive();
+    syncPageActive();
     applyControlsMode();
 
     window.onerror = (message) => {

@@ -33,6 +33,40 @@
 
 namespace engine::shrooms {
 
+namespace {
+
+bool page_active = true;
+bool gameplay_auto_paused_by_page = false;
+
+void apply_page_active_state() {
+  ::shrooms::audio::set_page_active(page_active);
+
+  auto* main_scene = ::shrooms::scenes::main;
+  if (!main_scene) {
+    return;
+  }
+
+  auto* active_scene = scene::get_active_scene();
+  if (!page_active) {
+    if (active_scene == main_scene && !main_scene->is_paused_state()) {
+      main_scene->set_pause(true);
+      gameplay_auto_paused_by_page = true;
+    }
+    return;
+  }
+
+  if (!gameplay_auto_paused_by_page) {
+    return;
+  }
+
+  gameplay_auto_paused_by_page = false;
+  if (active_scene == main_scene && main_scene->is_paused_state()) {
+    main_scene->set_pause(false);
+  }
+}
+
+}  // namespace
+
 ShroomsLogic::ShroomsLogic(int view_width, int view_height)
     : view_width_(view_width), view_height_(view_height) {}
 
@@ -40,6 +74,11 @@ bool is_gameplay_active() {
   auto* main_scene = ::shrooms::scenes::main;
   auto* active_scene = scene::get_active_scene();
   return main_scene && active_scene == main_scene && !scene::is_current_scene_paused();
+}
+
+void set_page_active(bool active) {
+  page_active = active;
+  apply_page_active_state();
 }
 
 void set_touchscreen_enabled(bool enabled) {
@@ -88,6 +127,8 @@ void ShroomsLogic::on_init() {
       ::shrooms::scenes::main->set_pause(true);
     }
   }
+
+  apply_page_active_state();
 }
 
 void ShroomsLogic::after_tick(const engine::AppContext& ctx,
