@@ -4,7 +4,6 @@
 #include "utils/callback_registry.hpp"
 
 #include "level_manager.hpp"
-#include "lives.hpp"
 #include "player.hpp"
 #include "game_audio.hpp"
 #include "engine/resource_ids.h"
@@ -24,13 +23,6 @@ inline void mushroom_fall_handler(ecs::Entity*, collision::ColliderObject* colli
   levels::on_mushroom_missed(type, entity);
   shrooms::audio::play_fall_negative();
   entity->mark_deleted();
-  if (levels::is_tutorial_mode()) {
-    return;
-  }
-  lives::remove_life();
-  if (lives::current_lives <= 0) {
-    levels::fail_level(levels::LossReason::OutOfLives);
-  }
 }
 
 inline collision::TriggerCallbackRegistry::Registrar mushroom_fall_registrar(

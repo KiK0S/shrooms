@@ -9,10 +9,11 @@
 #include "countdown.hpp"
 #include "game_over_sequence.hpp"
 #include "global_fx.hpp"
-#include "lives.hpp"
+#include "score_hud.hpp"
 #include "pause_menu.hpp"
 #include "round_transition.hpp"
 #include "scoreboard.hpp"
+#include "vfx.hpp"
 
 namespace engine::shrooms::config_params {
 
@@ -249,17 +250,23 @@ inline void register_params() {
       .label("Text Layer")
       .range(0.0f, 200.0f, 1.0f);
 
-  auto& lives_group = reg.group("shrooms/lives");
-  reg.add(lives_group, "horizontal_spacing", lives::config.horizontal_spacing)
-      .label("Heart Spacing")
-      .range(0.0f, 0.3f, 0.005f);
-  reg.add(lives_group, "hearts_center_offset_x", lives::config.hearts_center_offset.x)
-      .label("Hearts Offset X")
+  auto& score_hud_group = reg.group("shrooms/score_hud");
+  reg.add(score_hud_group, "score_offset_x", score_hud::config.score_offset.x)
+      .label("Score Offset X")
       .range(-0.5f, 0.5f, 0.005f);
-  reg.add(lives_group, "hearts_center_offset_y", lives::config.hearts_center_offset.y)
-      .label("Hearts Offset Y")
+  reg.add(score_hud_group, "score_offset_y", score_hud::config.score_offset.y)
+      .label("Score Offset Y")
       .range(-0.5f, 0.5f, 0.005f);
-  reg.add(lives_group, "layer", lives::config.layer)
+  reg.add(score_hud_group, "score_font_px", score_hud::config.score_font_px)
+      .label("Score Font")
+      .range(8.0f, 48.0f, 1.0f);
+  reg.add(score_hud_group, "face_offset_x", score_hud::config.face_offset.x)
+      .label("Face Offset X")
+      .range(-0.5f, 0.5f, 0.005f);
+  reg.add(score_hud_group, "face_offset_y", score_hud::config.face_offset.y)
+      .label("Face Offset Y")
+      .range(-0.5f, 0.5f, 0.005f);
+  reg.add(score_hud_group, "layer", score_hud::config.layer)
       .label("Layer")
       .range(0.0f, 200.0f, 1.0f);
 
@@ -271,6 +278,39 @@ inline void register_params() {
       .label("Text Size")
       .range(8.0f, 48.0f, 1.0f);
   reg.add(score_group, "layer", scoreboard::config.layer)
+      .label("Layer")
+      .range(0.0f, 200.0f, 1.0f);
+
+  auto& score_delta_group = reg.group("shrooms/score_delta_vfx");
+  reg.add(score_delta_group, "lifetime", vfx::score_delta_config.lifetime)
+      .label("Lifetime")
+      .range(0.1f, 3.0f, 0.01f);
+  reg.add(score_delta_group, "rise_speed_px", vfx::score_delta_config.rise_speed_px)
+      .label("Rise Speed")
+      .range(0.0f, 300.0f, 1.0f);
+  reg.add(score_delta_group, "drift_speed_px", vfx::score_delta_config.drift_speed_px)
+      .label("Drift Speed")
+      .range(0.0f, 200.0f, 1.0f);
+  reg.add(score_delta_group, "wobble_speed", vfx::score_delta_config.wobble_speed)
+      .label("Wobble Speed")
+      .range(0.0f, 20.0f, 0.1f);
+  reg.add(score_delta_group, "wobble_amplitude_px", vfx::score_delta_config.wobble_amplitude_px)
+      .label("Wobble Amp")
+      .range(0.0f, 40.0f, 0.5f);
+  reg.add(score_delta_group, "font_px", vfx::score_delta_config.font_px)
+      .label("Font")
+      .range(8.0f, 48.0f, 1.0f);
+  reg.add(score_delta_group, "offset_x", vfx::score_delta_config.offset_px.x)
+      .label("Offset X")
+      .range(-100.0f, 100.0f, 1.0f);
+  reg.add(score_delta_group, "offset_y", vfx::score_delta_config.offset_px.y)
+      .label("Offset Y")
+      .range(-100.0f, 100.0f, 1.0f);
+  reg.add(score_delta_group, "positive_color", vfx::score_delta_config.positive_color)
+      .label("Positive");
+  reg.add(score_delta_group, "negative_color", vfx::score_delta_config.negative_color)
+      .label("Negative");
+  reg.add(score_delta_group, "layer", vfx::score_delta_config.layer)
       .label("Layer")
       .range(0.0f, 200.0f, 1.0f);
 }

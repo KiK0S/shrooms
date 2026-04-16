@@ -112,7 +112,6 @@ inline float aspect_ratio(std::string_view texture_name) {
   if (texture_name == "face_mini_1" || texture_name == "face_mini_2") {
     return 44.0f / 24.0f;
   }
-  if (texture_name == "heart") return 22.0f / 27.0f;
 
   if (texture_name == "level_1_ezh") return 298.0f / 255.0f;
   if (texture_name == "level_2_eli") return 298.0f / 290.0f;

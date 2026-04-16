@@ -10,7 +10,7 @@
 
 #include "world/level_loader.hpp"
 #include "world/level_manager.hpp"
-#include "world/lives.hpp"
+#include "world/score_hud.hpp"
 #include "world/camera_shake.hpp"
 #include "world/ambient_layers.hpp"
 #include "world/global_fx.hpp"
@@ -100,7 +100,7 @@ void ShroomsLogic::on_init() {
   level_loader::load_default();
 
   player::init();
-  lives::init();
+  score_hud::init();
   camera_shake::init();
   ambient_layers::init();
   global_fx::init();

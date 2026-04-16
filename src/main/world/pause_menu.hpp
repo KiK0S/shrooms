@@ -23,7 +23,7 @@
 #include "countdown.hpp"
 #include "game_audio.hpp"
 #include "level_manager.hpp"
-#include "lives.hpp"
+#include "score_hud.hpp"
 #include "menu.hpp"
 #include "player.hpp"
 #include "round_transition.hpp"
@@ -483,7 +483,7 @@ struct PauseMenuController : public dynamic::DynamicObject {
 
   void handle_restart() {
     levels::restart_level();
-    lives::reset_lives();
+    score_hud::reset_for_run();
     player::reset_for_new_level();
     camera_shake::reset();
     vfx::reset_wobble_offsets();

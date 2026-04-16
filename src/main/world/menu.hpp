@@ -27,7 +27,7 @@
 #include "countdown.hpp"
 #include "leaderboard.hpp"
 #include "level_manager.hpp"
-#include "lives.hpp"
+#include "score_hud.hpp"
 #include "player.hpp"
 #include "share_bridge.hpp"
 #include "tutorial.hpp"
@@ -212,7 +212,7 @@ inline std::string build_share_text(int score) {
 
 inline std::string infinity_objective_label() {
   const int round = std::max(1, levels::infinite_round_index + 1);
-  const int score = std::max(0, levels::infinite_global_score);
+  const int score = std::max(0, levels::score());
   return "Daily Infinity Mode: Round " + std::to_string(round) + " (score " +
          std::to_string(score) + ")";
 }
@@ -718,7 +718,7 @@ inline void start_pending_level() {
     enter_main_menu_mode();
     return;
   }
-  lives::reset_lives();
+  score_hud::reset_for_run();
   if (pending_tutorial) {
     levels::start_tutorial_mode();
     tutorial::start();

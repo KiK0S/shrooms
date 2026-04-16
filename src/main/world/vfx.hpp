@@ -19,6 +19,7 @@
 #include "systems/rotating/rotating_object.hpp"
 #include "systems/scene/scene_system.hpp"
 #include "systems/scene/scene_object.hpp"
+#include "systems/text/text_object.hpp"
 #include "systems/transformation/transform_object.hpp"
 #include "engine/resource_ids.h"
 
@@ -235,6 +236,21 @@ struct SporeConfig {
   int layer = 4;
 };
 
+struct ScoreDeltaConfig {
+  float lifetime = 0.65f;
+  float rise_speed_px = 82.0f;
+  float drift_speed_px = 28.0f;
+  float wobble_speed = 7.0f;
+  float wobble_amplitude_px = 8.0f;
+  float font_px = 18.0f;
+  glm::vec2 offset_px{0.0f, -12.0f};
+  glm::vec4 positive_color{0.7f, 1.0f, 0.75f, 1.0f};
+  glm::vec4 negative_color{1.0f, 0.45f, 0.45f, 1.0f};
+  int layer = 12;
+};
+
+inline ScoreDeltaConfig score_delta_config{};
+
 inline SporeConfig spawn_warning_spore{
     glm::vec4{0.85f, 0.65f, 1.0f, 0.45f},
     0.35f,
@@ -315,6 +331,59 @@ struct SpriteShatterPiece : public dynamic::DynamicObject {
   glm::vec2 velocity{0.0f, 0.0f};
   float gravity = 0.0f;
   float lifetime = 0.3f;
+  float elapsed = 0.0f;
+};
+
+struct ScoreDeltaText : public dynamic::DynamicObject {
+  ScoreDeltaText(glm::vec2 center, glm::vec2 size, glm::vec4 color, float lifetime,
+                 float rise_speed_px, float drift_speed_px, float wobble_speed,
+                 float wobble_amplitude_px)
+      : dynamic::DynamicObject(),
+        center(center),
+        size(size),
+        base_color(color),
+        lifetime(lifetime),
+        rise_speed_px(rise_speed_px),
+        drift_speed_px(drift_speed_px),
+        wobble_speed(wobble_speed),
+        wobble_amplitude_px(wobble_amplitude_px),
+        drift_dir(static_cast<float>(rnd::get_double(-1.0, 1.0))),
+        wobble_phase(static_cast<float>(rnd::get_double(0.0, 6.28318530718))) {}
+  ~ScoreDeltaText() override { Component::component_count--; }
+
+  void update() override {
+    if (!entity || entity->is_pending_deletion()) return;
+    const float dt = static_cast<float>(ecs::context().delta_seconds);
+    elapsed += dt;
+    const float t = lifetime > 0.0f ? clamp01(elapsed / lifetime) : 1.0f;
+    center.y -= rise_speed_px * dt;
+    center.x += drift_dir * drift_speed_px * dt;
+    const float wobble =
+        std::sin(wobble_phase + elapsed * wobble_speed * 6.28318530718f) * wobble_amplitude_px;
+
+    if (auto* transform = entity->get<transform::NoRotationTransform>()) {
+      transform->pos = glm::vec2{center.x + wobble, center.y} - size * 0.5f;
+    }
+    if (auto* tint = entity->get<color::OneColor>()) {
+      tint->color = base_color;
+      tint->color.w = lerp(base_color.w, 0.0f, ease_in(t));
+    }
+
+    if (elapsed >= lifetime) {
+      entity->mark_deleted();
+    }
+  }
+
+  glm::vec2 center{0.0f, 0.0f};
+  glm::vec2 size{0.0f, 0.0f};
+  glm::vec4 base_color{1.0f, 1.0f, 1.0f, 1.0f};
+  float lifetime = 0.0f;
+  float rise_speed_px = 0.0f;
+  float drift_speed_px = 0.0f;
+  float wobble_speed = 0.0f;
+  float wobble_amplitude_px = 0.0f;
+  float drift_dir = 0.0f;
+  float wobble_phase = 0.0f;
   float elapsed = 0.0f;
 };
 
@@ -693,6 +762,28 @@ inline void spawn_destroy_effect(ecs::Entity* entity) {
   const float speed = std::max(25.0f, extent * 0.82f);
   spawn_spore_cloud(center, base_radius, 6, glm::vec4{0.82f, 0.76f, 0.95f, 0.6f}, spread, speed,
                     0.34f, sort_burst.layer + 2);
+}
+
+inline void spawn_score_delta(const glm::vec2& center, int delta) {
+  if (delta == 0) return;
+  const std::string text = (delta > 0 ? "+" : "") + std::to_string(delta);
+  const auto layout = engine::text::layout_text(text, 0.0f, 0.0f, score_delta_config.font_px);
+  const glm::vec2 size{layout.width, layout.height};
+  const glm::vec2 start = center + score_delta_config.offset_px;
+  const glm::vec4 color = delta > 0 ? score_delta_config.positive_color : score_delta_config.negative_color;
+
+  auto* entity = arena::create<ecs::Entity>();
+  auto* transform = arena::create<transform::NoRotationTransform>();
+  transform->pos = start - size * 0.5f;
+  entity->add(transform);
+  entity->add(arena::create<layers::ConstLayer>(score_delta_config.layer));
+  entity->add(arena::create<text::TextObject>(text, score_delta_config.font_px));
+  entity->add(arena::create<color::OneColor>(color));
+  entity->add(arena::create<ScoreDeltaText>(
+      start, size, color, score_delta_config.lifetime, score_delta_config.rise_speed_px,
+      score_delta_config.drift_speed_px, score_delta_config.wobble_speed,
+      score_delta_config.wobble_amplitude_px));
+  entity->add(arena::create<scene::SceneObject>("main"));
 }
 
 }  // namespace vfx

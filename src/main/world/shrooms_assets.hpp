@@ -55,7 +55,6 @@ inline void register_shrooms_svg_assets() {
   register_svg_with_min_reference_width("witch", kMenuWitchReferenceWidthPx);
   register_svg("face_mini_1");
   register_svg("face_mini_2");
-  register_svg("heart");
   register_svg("famiriar");
   register_svg("familiar_attack");
   register_svg("digits_1");

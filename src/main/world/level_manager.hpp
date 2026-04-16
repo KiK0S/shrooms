@@ -25,6 +25,7 @@
 #include "utils/save_system.hpp"
 
 #include "scoreboard.hpp"
+#include "score_hud.hpp"
 #include "shrooms_assets.hpp"
 #include "game_audio.hpp"
 #include "shrooms_screen.hpp"
@@ -85,7 +86,6 @@ enum class LossReason {
   TooMany,
   NotEnough,
   WrongAction,
-  OutOfLives,
 };
 
 struct LossInfo {
@@ -115,7 +115,8 @@ inline bool infinite_mode = false;
 inline bool tutorial_mode = false;
 inline int infinite_round_index = 0;
 inline int infinite_rounds_won = 0;
-inline int infinite_global_score = 0;
+inline int current_run_score = 0;
+inline std::unordered_set<std::string> milestone_bonus_awarded{};
 inline bool infinite_preview_ready = false;
 inline std::string infinite_preview_date{};
 inline LevelDefinition infinite_level{};
@@ -183,6 +184,8 @@ inline std::string difficulty_label() {
 }
 
 inline bool is_tutorial_mode() { return tutorial_mode; }
+
+inline int score() { return current_run_score; }
 
 inline size_t tutorial_menu_index() {
   return parsed_levels.size() + kTutorialLevelIndexOffset;
@@ -331,8 +334,6 @@ inline std::string loss_reason_label(const LossInfo& info) {
       }
       return "Wrong action";
     }
-    case LossReason::OutOfLives:
-      return "Out of lives";
     case LossReason::None:
     default:
       return "Game over";
@@ -674,6 +675,41 @@ inline void update_scoreboard_for(const std::string& type) {
   scoreboard::update_score(type, progress_for_type(*level, type), target_it->second);
 }
 
+inline constexpr int kScoreCatch = 10;
+inline constexpr int kScoreSort = 7;
+inline constexpr int kScoreMiss = -200;
+inline constexpr int kScoreMilestone = 100;
+inline constexpr int kScoreRoundAdvance = 100;
+
+inline glm::vec2 score_anchor_for_entity(ecs::Entity* entity) {
+  if (entity) {
+    const glm::vec2 size = vfx::entity_size(entity);
+    if (size.x > 0.0f && size.y > 0.0f) {
+      return vfx::entity_center(entity, size);
+    }
+  }
+  return shrooms::screen::norm_to_pixels(glm::vec2{0.0f, 0.0f});
+}
+
+inline int apply_score_delta(int delta, const glm::vec2& anchor, bool show_popup = true) {
+  const int previous = current_run_score;
+  current_run_score = std::max(0, current_run_score + delta);
+  const int applied = current_run_score - previous;
+  score_hud::set_score(current_run_score);
+  if (show_popup && applied != 0) {
+    vfx::spawn_score_delta(anchor, applied);
+  }
+  return applied;
+}
+
+inline void maybe_award_recipe_milestone(const std::string& type, int progress, int target,
+                                         const glm::vec2& anchor, bool allow_score_effects) {
+  if (!allow_score_effects) return;
+  if (progress != target) return;
+  if (!milestone_bonus_awarded.insert(type).second) return;
+  apply_score_delta(kScoreMilestone, anchor, true);
+}
+
 inline void check_completion();
 inline void trigger_failure(LossReason reason, const std::string& type = "");
 inline void finalize_level(bool success);
@@ -731,6 +767,8 @@ inline void on_mushroom_caught(
   auto* level = current_level();
   vfx::spawn_catch_effect(entity, player_center);
   if (!level) return;
+  const glm::vec2 score_anchor = score_anchor_for_entity(entity);
+  const bool score_enabled = !tutorial_mode;
 
   auto active_it = active_entities.find(type);
   if (active_it != active_entities.end()) {
@@ -743,11 +781,13 @@ inline void on_mushroom_caught(
     check_completion();
     return;
   }
-  if (infinite_mode) {
-    infinite_global_score += 10;
+  if (score_enabled) {
+    apply_score_delta(kScoreCatch, score_anchor, true);
   }
   collected_counts[type] += 1;
   update_scoreboard_for(type);
+  maybe_award_recipe_milestone(type, progress_for_type(*level, type), recipe_it->second, score_anchor,
+                               score_enabled);
   if (progress_for_type(*level, type) > recipe_it->second) {
     trigger_failure(LossReason::TooMany, type);
     return;
@@ -765,6 +805,9 @@ inline void on_mushroom_missed(const std::string& type, ecs::Entity* entity) {
   auto active_it = active_entities.find(type);
   if (active_it != active_entities.end()) {
     active_it->second.erase(entity);
+  }
+  if (!tutorial_mode) {
+    apply_score_delta(kScoreMiss, score_anchor_for_entity(entity), true);
   }
   vfx::spawn_miss_effect(entity);
   camera_shake::add_trauma(0.06f);
@@ -787,12 +830,18 @@ inline void on_mushroom_sorted(ecs::Entity* entity) {
   if (active_it != active_entities.end()) {
     active_it->second.erase(entity);
   }
+  const glm::vec2 score_anchor = score_anchor_for_entity(entity);
+  const bool score_enabled = !tutorial_mode;
   auto recipe_it = level->recipe.find(type);
-  if (infinite_mode) {
-    infinite_global_score += 7;
+  if (score_enabled) {
+    apply_score_delta(kScoreSort, score_anchor, true);
   }
   sorted_counts[type] += 1;
   update_scoreboard_for(type);
+  if (recipe_it != level->recipe.end()) {
+    maybe_award_recipe_milestone(type, progress_for_type(*level, type), recipe_it->second,
+                                 score_anchor, score_enabled);
+  }
   if (recipe_it != level->recipe.end() && progress_for_type(*level, type) > recipe_it->second) {
     trigger_failure(LossReason::TooMany, type);
   }
@@ -832,6 +881,14 @@ inline void start_level_with_definition(const LevelDefinition& level, size_t dis
   last_played_level_index = display_index;
   last_game_status = status_label;
   last_game_success = false;
+  const bool reset_run_score = !infinite_mode || infinite_round_index == 0;
+  if (reset_run_score) {
+    current_run_score = 0;
+    milestone_bonus_awarded.clear();
+    score_hud::set_score(0);
+  } else {
+    score_hud::set_score(current_run_score);
+  }
   collected_counts.clear();
   sorted_counts.clear();
   for (const auto& [type, target] : level.recipe_order) {
@@ -865,20 +922,21 @@ inline void start_infinite_mode() {
   }
   infinite_mode = true;
   infinite_preview_ready = false;
-  infinite_global_score = 0;
+  current_run_score = 0;
+  milestone_bonus_awarded.clear();
   const std::string status = "Infinite run: round " + std::to_string(infinite_round_index + 1) +
-                             " (score " + std::to_string(infinite_global_score) + ")";
+                             " (score " + std::to_string(current_run_score) + ")";
   start_level_with_definition(infinite_level, infinite_menu_index(),
                               static_cast<size_t>(infinite_round_index), status);
 }
 
 inline void advance_infinite_round() {
-  infinite_global_score += 100;
+  apply_score_delta(kScoreRoundAdvance, score_hud::score_anchor_px(), true);
   infinite_rounds_won += 1;
   infinite_round_index += 1;
   build_infinite_level(infinite_round_index);
   const std::string status = "Infinite run: round " + std::to_string(infinite_round_index + 1) +
-                             " (score " + std::to_string(infinite_global_score) + ")";
+                             " (score " + std::to_string(current_run_score) + ")";
   start_level_with_definition(infinite_level, infinite_menu_index(),
                               static_cast<size_t>(infinite_round_index), status);
 }
@@ -1051,7 +1109,7 @@ inline void finalize_level(bool success) {
   last_result.success = success;
   last_result.collected = total_collected;
   last_result.sorted = total_sorted;
-  last_result.global_score = infinite_mode ? infinite_global_score : 0;
+  last_result.global_score = current_run_score;
   last_result.level_index = current_level_index;
   last_result.level_id = level->id;
   last_result.infinite_mode = infinite_mode;
@@ -1066,7 +1124,7 @@ inline void finalize_level(bool success) {
   if (infinite_mode) {
     last_result.level_index = infinite_menu_index();
     last_result.level_id = "Daily Infinity Mode";
-    last_game_status = "Infinite run ended (score " + std::to_string(infinite_global_score) + ")";
+    last_game_status = "Infinite run ended (score " + std::to_string(current_run_score) + ")";
     last_game_success = success;
   } else if (tutorial_mode) {
     last_result.level_index = tutorial_menu_index();
@@ -1180,7 +1238,8 @@ inline void initialize() {
   tutorial_mode = false;
   infinite_round_index = 0;
   infinite_rounds_won = 0;
-  infinite_global_score = 0;
+  current_run_score = 0;
+  milestone_bonus_awarded.clear();
   infinite_preview_ready = false;
   infinite_preview_date.clear();
   infinite_level = LevelDefinition{};

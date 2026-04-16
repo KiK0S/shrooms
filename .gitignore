@@ -4,3 +4,4 @@ build-web-ci
 shaders
 submodules_ci*
 assets/shrooms/config.changed.toml
+.codex
