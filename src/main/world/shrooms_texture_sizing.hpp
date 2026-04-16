@@ -126,7 +126,7 @@ inline float aspect_ratio(std::string_view texture_name) {
   if (texture_name == "bottom_2") return 298.0f / 23.0f;
 
   if (texture_name == "bullet") return 1.0f;
-  if (texture_name == "pause_menu") return 1.0f;
+  if (texture_name == "pause_menu" || texture_name == "menu_pause") return 1.0f;
   if (texture_name == "fire") return 1.0f;
   if (texture_name == "explosion") return 1.0f;
   if (texture_name == "slash") return 1.0f;
