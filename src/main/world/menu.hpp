@@ -352,14 +352,16 @@ inline void update_line_slider_geometry(TextLine& line) {
   if (button_size.x <= 0.0f || button_size.y <= 0.0f) return;
 
   const float pad_x = std::clamp(button_size.x * 0.08f, 14.0f, 24.0f);
-  const float text_reserve = 110.0f;
-  const float max_track_w = std::max(72.0f, button_size.x - (pad_x * 2.0f) - text_reserve);
-  const float desired_track_w = std::clamp(button_size.x * 0.42f, 110.0f, 210.0f);
-  const float track_w = std::min(desired_track_w, max_track_w);
-  const float track_h = std::max(10.0f, button_size.y * 0.22f);
-  const float track_x = button_pos.x + button_size.x - track_w - pad_x;
-  const float track_y = button_pos.y + (button_size.y - track_h) * 0.5f;
-  const float knob_size = std::max(16.0f, button_size.y * 0.48f);
+  const float top_pad = std::max(6.0f, button_size.y * 0.10f);
+  const float bottom_pad = std::max(6.0f, button_size.y * 0.10f);
+  const float inner_h = std::max(1.0f, button_size.y - top_pad - bottom_pad);
+  const float text_band_h = inner_h * 0.60f;
+  const float slider_band_h = std::max(1.0f, inner_h - text_band_h);
+  const float track_w = std::max(72.0f, button_size.x - pad_x * 2.0f);
+  const float track_h = std::clamp(slider_band_h * 0.62f, 12.0f, 20.0f);
+  const float track_x = button_pos.x + pad_x;
+  const float track_y = button_pos.y + top_pad + text_band_h + (slider_band_h - track_h) * 0.5f;
+  const float knob_size = std::max(18.0f, slider_band_h * 1.05f);
   const float t = clamp_unit(line.slider_value);
 
   line.slider_track_pos = glm::vec2{track_x, track_y};
@@ -436,8 +438,8 @@ inline void apply_line_slider_visual(TextLine& line, bool selected, bool hovered
   if (!line.slider_track_quad || !line.slider_fill_quad || !line.slider_knob_quad) return;
   if (dimmed) {
     line.slider_track_quad->color = line.slider_dimmed_color;
-    line.slider_fill_quad->color = line.slider_dimmed_color;
-    line.slider_knob_quad->color = line.slider_dimmed_color;
+    line.slider_fill_quad->color = line.slider_fill_color;
+    line.slider_knob_quad->color = engine::UIColor{0.9f, 0.9f, 0.9f, 1.0f};
     return;
   }
   line.slider_track_quad->color = line.slider_track_color;
@@ -470,9 +472,13 @@ inline void update_text(TextLine& line, const std::string& value) {
   if (line.button_transform && line.button_quad) {
     const float pad_x = 14.0f;
     const float pad_y = 8.0f;
-    const float slider_reserve_w = line.slider_track_entity ? 220.0f : 0.0f;
-    line.button_size =
-        glm::vec2{line.size.x + pad_x * 2.0f + slider_reserve_w, line.size.y + pad_y * 2.0f};
+    const bool slider_mode = line.slider_track_entity != nullptr;
+    const float slider_min_w = slider_mode ? 220.0f : 0.0f;
+    const float slider_extra_h = slider_mode ? 26.0f : 0.0f;
+    line.button_size = glm::vec2{
+        std::max(line.size.x + pad_x * 2.0f, slider_min_w),
+        line.size.y + pad_y * 2.0f + slider_extra_h,
+    };
     line.button_base_size = line.button_size;
     line.button_base_pos = line.transform ? (line.transform->pos + glm::vec2{0.0f, content_top} -
                                              glm::vec2{pad_x, pad_y})
@@ -481,6 +487,17 @@ inline void update_text(TextLine& line, const std::string& value) {
     line.button_quad->width = line.button_base_size.x;
     line.button_quad->height = line.button_base_size.y;
     line.button_quad->color = line.base_button_color;
+
+    if (slider_mode && line.transform && !has_icon) {
+      const float top_pad = std::max(6.0f, line.button_base_size.y * 0.10f);
+      const float bottom_pad = std::max(6.0f, line.button_base_size.y * 0.10f);
+      const float inner_h = std::max(1.0f, line.button_base_size.y - top_pad - bottom_pad);
+      const float text_band_h = inner_h * 0.60f;
+      line.transform->pos = glm::vec2{
+          line.button_base_pos.x + (line.button_base_size.x - text_size.x) * 0.5f,
+          line.button_base_pos.y + top_pad + (text_band_h - text_size.y) * 0.5f,
+      };
+    }
   }
   update_line_slider_geometry(line);
 }
@@ -1693,10 +1710,10 @@ inline void init() {
     line.hover_button_color = engine::UIColor{0.28f, 0.2f, 0.35f, 0.98f};
     line.selected_button_color = line.base_button_color;
     line.dimmed_button_color = engine::UIColor{0.08f, 0.08f, 0.08f, 0.5f};
-    line.slider_track_color = engine::UIColor{0.82f, 0.84f, 0.88f, 0.98f};
-    line.slider_fill_color = engine::UIColor{0.11f, 0.66f, 0.94f, 1.0f};
+    line.slider_track_color = engine::UIColor{0.92f, 0.94f, 0.98f, 1.0f};
+    line.slider_fill_color = engine::UIColor{0.18f, 0.78f, 1.0f, 1.0f};
     line.slider_knob_color = engine::UIColor{1.0f, 1.0f, 1.0f, 1.0f};
-    line.slider_dimmed_color = engine::UIColor{0.56f, 0.56f, 0.58f, 0.92f};
+    line.slider_dimmed_color = engine::UIColor{0.72f, 0.74f, 0.8f, 1.0f};
     line.selected_text_color = glm::vec4{1.0f, 1.0f, 1.0f, 1.0f};
     line.dimmed_text_color = glm::vec4{0.72f, 0.72f, 0.72f, 0.92f};
     line.selected_scale = 1.0f;

@@ -243,7 +243,7 @@ inline void ensure_action_slider(ActionLine& action) {
   action.slider_track_entity = arena::create<ecs::Entity>();
   action.slider_track_transform = arena::create<transform::NoRotationTransform>();
   action.slider_track_entity->add(action.slider_track_transform);
-  action.slider_track_entity->add(arena::create<layers::ConstLayer>(config.text_layer + 80));
+  action.slider_track_entity->add(arena::create<layers::ConstLayer>(config.text_layer + 2));
   action.slider_track_quad = arena::create<render_system::QuadRenderable>(0.0f, 0.0f, action.slider_track_color);
   action.slider_track_entity->add(action.slider_track_quad);
   action.slider_track_hidden = arena::create<hidden::HiddenObject>();
@@ -254,7 +254,7 @@ inline void ensure_action_slider(ActionLine& action) {
   action.slider_fill_entity = arena::create<ecs::Entity>();
   action.slider_fill_transform = arena::create<transform::NoRotationTransform>();
   action.slider_fill_entity->add(action.slider_fill_transform);
-  action.slider_fill_entity->add(arena::create<layers::ConstLayer>(config.text_layer + 81));
+  action.slider_fill_entity->add(arena::create<layers::ConstLayer>(config.text_layer + 3));
   action.slider_fill_quad = arena::create<render_system::QuadRenderable>(0.0f, 0.0f, action.slider_fill_color);
   action.slider_fill_entity->add(action.slider_fill_quad);
   action.slider_fill_hidden = arena::create<hidden::HiddenObject>();
@@ -265,7 +265,7 @@ inline void ensure_action_slider(ActionLine& action) {
   action.slider_knob_entity = arena::create<ecs::Entity>();
   action.slider_knob_transform = arena::create<transform::NoRotationTransform>();
   action.slider_knob_entity->add(action.slider_knob_transform);
-  action.slider_knob_entity->add(arena::create<layers::ConstLayer>(config.text_layer + 82));
+  action.slider_knob_entity->add(arena::create<layers::ConstLayer>(config.text_layer + 4));
   action.slider_knob_quad = arena::create<render_system::QuadRenderable>(0.0f, 0.0f, action.slider_knob_color);
   action.slider_knob_entity->add(action.slider_knob_quad);
   action.slider_knob_hidden = arena::create<hidden::HiddenObject>();
@@ -408,14 +408,13 @@ inline void update_action_label(ActionLine& action, const std::string& label) {
   const glm::vec2 text_size{layout.width, layout.height};
   const float text_y_centered = action.button_base_pos.y + (action.button_base_size.y - text_size.y) * 0.5f;
   if (action.slider_track_entity && action.slider_track_size.x > 0.0f) {
-    const float left_pad = std::clamp(action.button_base_size.x * 0.08f, 14.0f, 24.0f);
     const float top_pad = std::max(6.0f, action.button_base_size.y * 0.10f);
     const float bottom_pad = std::max(6.0f, action.button_base_size.y * 0.10f);
     const float inner_h = std::max(1.0f, action.button_base_size.y - top_pad - bottom_pad);
     const float text_band_h = inner_h * 0.60f;
     const float text_y = action.button_base_pos.y + top_pad + (text_band_h - text_size.y) * 0.5f;
     action.text_transform->pos = glm::vec2{
-        action.button_base_pos.x + left_pad,
+        action.button_base_pos.x + (action.button_base_size.x - text_size.x) * 0.5f,
         text_y,
     };
   } else {
