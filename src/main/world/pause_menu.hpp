@@ -194,6 +194,14 @@ inline float clamp_unit(float value) {
   return std::clamp(value, 0.0f, 1.0f);
 }
 
+inline void set_quad_size(render_system::QuadRenderable* quad, float width, float height) {
+  if (!quad) return;
+  quad->width = width;
+  quad->height = height;
+  quad->geometry = engine::geometry::make_quad(width, height);
+  quad->uploaded = false;
+}
+
 inline void update_action_slider_geometry(ActionLine& action) {
   if (!action.slider_track_quad || !action.slider_fill_quad || !action.slider_knob_quad ||
       !action.slider_track_transform || !action.slider_fill_transform || !action.slider_knob_transform ||
@@ -222,19 +230,16 @@ inline void update_action_slider_geometry(ActionLine& action) {
   action.slider_track_size = glm::vec2{track_w, track_h};
 
   action.slider_track_transform->pos = action.slider_track_pos;
-  action.slider_track_quad->width = track_w;
-  action.slider_track_quad->height = track_h;
+  set_quad_size(action.slider_track_quad, track_w, track_h);
 
   action.slider_fill_transform->pos = action.slider_track_pos;
-  action.slider_fill_quad->width = track_w * t;
-  action.slider_fill_quad->height = track_h;
+  set_quad_size(action.slider_fill_quad, track_w * t, track_h);
 
   const float knob_center_x = track_x + track_w * t;
   const float knob_center_y = track_y + track_h * 0.5f;
   action.slider_knob_transform->pos =
       glm::vec2{knob_center_x - knob_size * 0.5f, knob_center_y - knob_size * 0.5f};
-  action.slider_knob_quad->width = knob_size;
-  action.slider_knob_quad->height = knob_size;
+  set_quad_size(action.slider_knob_quad, knob_size, knob_size);
 }
 
 inline void ensure_action_slider(ActionLine& action) {
@@ -344,8 +349,7 @@ inline void apply_action_visual(ActionLine& action, float scale, const engine::U
   const glm::vec2 size = action.button_base_size * scale;
   const glm::vec2 center = action.button_base_pos + action.button_base_size * 0.5f;
   action.button_transform->pos = center - size * 0.5f;
-  action.button_quad->width = size.x;
-  action.button_quad->height = size.y;
+  set_quad_size(action.button_quad, size.x, size.y);
   action.button_quad->color = color;
   update_action_slider_geometry(action);
 }
@@ -390,8 +394,7 @@ inline void apply_pause_toggle_hover(bool hovered) {
     const glm::vec2 size = pause_toggle_base_size * scale;
     const glm::vec2 center = pause_toggle_base_pos + pause_toggle_base_size * 0.5f;
     pause_toggle_transform->pos = center - size * 0.5f;
-    pause_toggle_quad->width = size.x;
-    pause_toggle_quad->height = size.y;
+    set_quad_size(pause_toggle_quad, size.x, size.y);
     pause_toggle_quad->color = hovered ? pause_toggle_hover_color : pause_toggle_base_color;
   }
   if (pause_toggle_icon_sprite) {

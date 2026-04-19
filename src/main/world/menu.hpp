@@ -341,6 +341,14 @@ inline float clamp_unit(float value) {
   return std::clamp(value, 0.0f, 1.0f);
 }
 
+inline void set_quad_size(render_system::QuadRenderable* quad, float width, float height) {
+  if (!quad) return;
+  quad->width = width;
+  quad->height = height;
+  quad->geometry = engine::geometry::make_quad(width, height);
+  quad->uploaded = false;
+}
+
 inline void update_line_slider_geometry(TextLine& line) {
   if (!line.slider_track_quad || !line.slider_fill_quad || !line.slider_knob_quad ||
       !line.slider_track_transform || !line.slider_fill_transform || !line.slider_knob_transform ||
@@ -369,19 +377,16 @@ inline void update_line_slider_geometry(TextLine& line) {
   line.slider_track_size = glm::vec2{track_w, track_h};
 
   line.slider_track_transform->pos = line.slider_track_pos;
-  line.slider_track_quad->width = track_w;
-  line.slider_track_quad->height = track_h;
+  set_quad_size(line.slider_track_quad, track_w, track_h);
 
   line.slider_fill_transform->pos = line.slider_track_pos;
-  line.slider_fill_quad->width = track_w * t;
-  line.slider_fill_quad->height = track_h;
+  set_quad_size(line.slider_fill_quad, track_w * t, track_h);
 
   const float knob_center_x = track_x + track_w * t;
   const float knob_center_y = track_y + track_h * 0.5f;
   line.slider_knob_transform->pos =
       glm::vec2{knob_center_x - knob_size * 0.5f, knob_center_y - knob_size * 0.5f};
-  line.slider_knob_quad->width = knob_size;
-  line.slider_knob_quad->height = knob_size;
+  set_quad_size(line.slider_knob_quad, knob_size, knob_size);
 }
 
 inline void ensure_line_slider(TextLine& line) {
@@ -485,8 +490,7 @@ inline void update_text(TextLine& line, const std::string& value) {
     const glm::vec2 anchor = line.anchor_pos;
     line.button_base_pos = anchor + glm::vec2{0.0f, content_top} - glm::vec2{pad_x, pad_y};
     line.button_transform->pos = line.button_base_pos;
-    line.button_quad->width = line.button_base_size.x;
-    line.button_quad->height = line.button_base_size.y;
+    set_quad_size(line.button_quad, line.button_base_size.x, line.button_base_size.y);
     line.button_quad->color = line.base_button_color;
 
     if (slider_mode && line.transform && !has_icon) {
@@ -521,8 +525,7 @@ inline void apply_button_visual(TextLine& line, float scale, const engine::UICol
   const glm::vec2 size = line.button_base_size * scale;
   const glm::vec2 center = line.button_base_pos + line.button_base_size * 0.5f;
   line.button_transform->pos = center - size * 0.5f;
-  line.button_quad->width = size.x;
-  line.button_quad->height = size.y;
+  set_quad_size(line.button_quad, size.x, size.y);
   line.button_quad->color = color;
   update_line_slider_geometry(line);
 }
