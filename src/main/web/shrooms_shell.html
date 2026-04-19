@@ -25,7 +25,10 @@
 
     body {
       font-family: "Vera", sans-serif;
-      background: #000;
+      background-color: #000;
+      background-image: url("assets/shrooms/tilemap.png");
+      background-repeat: repeat;
+      background-position: top left;
       color: #dfd6ab;
       overflow-x: hidden;
       touch-action: manipulation;
@@ -41,40 +44,6 @@
       clip: rect(0, 0, 0, 0);
       border: 0;
     }
-
-    #background-decor {
-      position: fixed;
-      inset: 0;
-      z-index: 0;
-      pointer-events: none;
-      overflow: hidden;
-    }
-
-    .bg-sprite {
-      position: absolute;
-      width: clamp(52px, 9vw, 136px);
-      opacity: 0.3;
-      transform-origin: center;
-      filter: drop-shadow(0 0 10px rgba(223, 214, 171, 0.3));
-      user-select: none;
-    }
-
-    .bg-sprite.bat {
-      width: clamp(60px, 10vw, 148px);
-      opacity: 0.35;
-      filter: drop-shadow(0 0 10px rgba(253, 110, 200, 0.3));
-    }
-
-    .mush-1 { top: 4%; left: 4%; transform: rotate(-8deg); }
-    .mush-2 { top: 10%; right: 8%; transform: rotate(9deg); }
-    .mush-3 { top: 37%; left: 6%; transform: rotate(-11deg); }
-    .mush-4 { top: 34%; right: 7%; transform: rotate(13deg); }
-    .mush-5 { bottom: 14%; left: 10%; transform: rotate(-7deg); }
-    .mush-6 { bottom: 8%; right: 9%; transform: rotate(10deg); }
-    .bat-1 { top: 22%; left: 20%; transform: rotate(-6deg) scaleX(-1); }
-    .bat-2 { top: 16%; right: 22%; transform: rotate(8deg); }
-    .bat-3 { bottom: 24%; left: 24%; transform: rotate(-9deg); }
-    .bat-4 { bottom: 20%; right: 24%; transform: rotate(7deg) scaleX(-1); }
 
     main {
       position: relative;
@@ -197,28 +166,10 @@
         font-size: clamp(1rem, 4.8vw, 1.3rem);
       }
 
-      .mush-5,
-      .mush-6,
-      .bat-3,
-      .bat-4 {
-        display: none;
-      }
     }
   </style>
 </head>
 <body>
-  <div id="background-decor" aria-hidden="true">
-    <img class="bg-sprite mush-1" src="assets/shrooms/mukhomor.svg" alt="">
-    <img class="bg-sprite mush-2" src="assets/shrooms/borovik.svg" alt="">
-    <img class="bg-sprite mush-3" src="assets/shrooms/lisi4ka.svg" alt="">
-    <img class="bg-sprite mush-4" src="assets/shrooms/mukhomor.svg" alt="">
-    <img class="bg-sprite mush-5" src="assets/shrooms/borovik.svg" alt="">
-    <img class="bg-sprite mush-6" src="assets/shrooms/lisi4ka.svg" alt="">
-    <img class="bg-sprite bat bat-1" src="assets/shrooms/famiriar.svg" alt="">
-    <img class="bg-sprite bat bat-2" src="assets/shrooms/familiar_attack.svg" alt="">
-    <img class="bg-sprite bat bat-3" src="assets/shrooms/famiriar.svg" alt="">
-    <img class="bg-sprite bat bat-4" src="assets/shrooms/familiar_attack.svg" alt="">
-  </div>
   <main>
     <section class="content">
       <h1>
