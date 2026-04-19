@@ -62,7 +62,7 @@ struct Config {
   glm::vec2 resume_offset = glm::vec2(0.0f, -0.03f);
   glm::vec2 restart_scale = glm::vec2(0.25f, 0.08f);
   glm::vec2 restart_offset = glm::vec2(0.0f, -0.17f);
-  glm::vec2 audio_scale = glm::vec2(0.25f, 0.08f);
+  glm::vec2 audio_scale = glm::vec2(0.25f, 0.12f);
   glm::vec2 audio_offset = glm::vec2(0.0f, -0.31f);
   glm::vec2 main_menu_scale = glm::vec2(0.25f, 0.08f);
   glm::vec2 main_menu_offset = glm::vec2(0.0f, -0.45f);
@@ -206,14 +206,16 @@ inline void update_action_slider_geometry(ActionLine& action) {
   if (button_size.x <= 0.0f || button_size.y <= 0.0f) return;
 
   const float pad_x = std::clamp(button_size.x * 0.08f, 14.0f, 24.0f);
-  const float text_reserve = 110.0f;
-  const float max_track_w = std::max(72.0f, button_size.x - (pad_x * 2.0f) - text_reserve);
-  const float desired_track_w = std::clamp(button_size.x * 0.42f, 110.0f, 210.0f);
-  const float track_w = std::min(desired_track_w, max_track_w);
-  const float track_h = std::max(10.0f, button_size.y * 0.22f);
-  const float track_x = button_pos.x + button_size.x - track_w - pad_x;
-  const float track_y = button_pos.y + (button_size.y - track_h) * 0.5f;
-  const float knob_size = std::max(16.0f, button_size.y * 0.48f);
+  const float top_pad = std::max(6.0f, button_size.y * 0.10f);
+  const float bottom_pad = std::max(6.0f, button_size.y * 0.10f);
+  const float inner_h = std::max(1.0f, button_size.y - top_pad - bottom_pad);
+  const float text_band_h = inner_h * 0.60f;
+  const float slider_band_h = std::max(1.0f, inner_h - text_band_h);
+  const float track_w = std::max(72.0f, button_size.x - pad_x * 2.0f);
+  const float track_h = std::clamp(slider_band_h * 0.40f, 8.0f, 14.0f);
+  const float track_x = button_pos.x + pad_x;
+  const float track_y = button_pos.y + top_pad + text_band_h + (slider_band_h - track_h) * 0.5f;
+  const float knob_size = std::max(14.0f, slider_band_h * 0.90f);
   const float t = clamp_unit(action.slider_value);
 
   action.slider_track_pos = glm::vec2{track_x, track_y};
@@ -241,7 +243,7 @@ inline void ensure_action_slider(ActionLine& action) {
   action.slider_track_entity = arena::create<ecs::Entity>();
   action.slider_track_transform = arena::create<transform::NoRotationTransform>();
   action.slider_track_entity->add(action.slider_track_transform);
-  action.slider_track_entity->add(arena::create<layers::ConstLayer>(config.text_layer + 2));
+  action.slider_track_entity->add(arena::create<layers::ConstLayer>(config.text_layer + 20));
   action.slider_track_quad = arena::create<render_system::QuadRenderable>(0.0f, 0.0f, action.slider_track_color);
   action.slider_track_entity->add(action.slider_track_quad);
   action.slider_track_hidden = arena::create<hidden::HiddenObject>();
@@ -252,7 +254,7 @@ inline void ensure_action_slider(ActionLine& action) {
   action.slider_fill_entity = arena::create<ecs::Entity>();
   action.slider_fill_transform = arena::create<transform::NoRotationTransform>();
   action.slider_fill_entity->add(action.slider_fill_transform);
-  action.slider_fill_entity->add(arena::create<layers::ConstLayer>(config.text_layer + 3));
+  action.slider_fill_entity->add(arena::create<layers::ConstLayer>(config.text_layer + 21));
   action.slider_fill_quad = arena::create<render_system::QuadRenderable>(0.0f, 0.0f, action.slider_fill_color);
   action.slider_fill_entity->add(action.slider_fill_quad);
   action.slider_fill_hidden = arena::create<hidden::HiddenObject>();
@@ -263,7 +265,7 @@ inline void ensure_action_slider(ActionLine& action) {
   action.slider_knob_entity = arena::create<ecs::Entity>();
   action.slider_knob_transform = arena::create<transform::NoRotationTransform>();
   action.slider_knob_entity->add(action.slider_knob_transform);
-  action.slider_knob_entity->add(arena::create<layers::ConstLayer>(config.text_layer + 4));
+  action.slider_knob_entity->add(arena::create<layers::ConstLayer>(config.text_layer + 22));
   action.slider_knob_quad = arena::create<render_system::QuadRenderable>(0.0f, 0.0f, action.slider_knob_color);
   action.slider_knob_entity->add(action.slider_knob_quad);
   action.slider_knob_hidden = arena::create<hidden::HiddenObject>();
@@ -404,20 +406,22 @@ inline void update_action_label(ActionLine& action, const std::string& label) {
   action.text_object->text = label;
   const auto layout = engine::text::layout_text(label, 0.0f, 0.0f, action.font_px);
   const glm::vec2 text_size{layout.width, layout.height};
-  const float text_y = action.button_base_pos.y + (action.button_base_size.y - text_size.y) * 0.5f;
+  const float text_y_centered = action.button_base_pos.y + (action.button_base_size.y - text_size.y) * 0.5f;
   if (action.slider_track_entity && action.slider_track_size.x > 0.0f) {
-    const float right_padding = 12.0f;
-    const float label_left = action.button_base_pos.x;
-    const float label_right = action.slider_track_pos.x - right_padding;
-    const float label_width = std::max(text_size.x, label_right - label_left);
+    const float left_pad = std::clamp(action.button_base_size.x * 0.08f, 14.0f, 24.0f);
+    const float top_pad = std::max(6.0f, action.button_base_size.y * 0.10f);
+    const float bottom_pad = std::max(6.0f, action.button_base_size.y * 0.10f);
+    const float inner_h = std::max(1.0f, action.button_base_size.y - top_pad - bottom_pad);
+    const float text_band_h = inner_h * 0.60f;
+    const float text_y = action.button_base_pos.y + top_pad + (text_band_h - text_size.y) * 0.5f;
     action.text_transform->pos = glm::vec2{
-        label_left + (label_width - text_size.x) * 0.5f,
+        action.button_base_pos.x + left_pad,
         text_y,
     };
   } else {
     action.text_transform->pos = glm::vec2{
         action.button_base_pos.x + (action.button_base_size.x - text_size.x) * 0.5f,
-        text_y,
+        text_y_centered,
     };
   }
   update_action_slider_geometry(action);
