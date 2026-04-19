@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <optional>
 #include <string>
 #include <utility>
@@ -29,6 +30,7 @@
 #include "player.hpp"
 #include "round_transition.hpp"
 #include "shrooms_screen.hpp"
+#include "shrooms_texture_sizing.hpp"
 #include "vfx.hpp"
 
 namespace pause_menu {
@@ -136,6 +138,9 @@ inline glm::vec2 pause_toggle_base_size{0.0f, 0.0f};
 inline ecs::Entity* pause_toggle_icon = nullptr;
 inline render_system::SpriteRenderable* pause_toggle_icon_sprite = nullptr;
 inline hidden::HiddenObject* pause_toggle_icon_hidden = nullptr;
+
+inline ecs::Entity* pause_menu_icon = nullptr;
+inline hidden::HiddenObject* pause_menu_icon_hidden = nullptr;
 
 inline hidden::HiddenObject* overlay_hidden = nullptr;
 inline hidden::HiddenObject* menu_hidden = nullptr;
@@ -302,6 +307,7 @@ inline void set_pause_menu_visible(bool visible) {
   pause_menu_open = visible;
   // Keep the pause card hidden: pause actions now follow the plain list style.
   if (menu_hidden) menu_hidden->hide();
+  if (pause_menu_icon_hidden) pause_menu_icon_hidden->set_visible(visible);
   for (auto& action : action_lines) {
     set_action_visibility(action, visible);
   }
@@ -785,6 +791,32 @@ inline void init() {
       make_action_line("Main Menu", config.menu_position + config.main_menu_offset,
                        config.main_menu_scale);
   refresh_audio_action_label();
+
+  pause_menu_icon = arena::create<ecs::Entity>();
+  auto* pause_menu_icon_transform = arena::create<transform::NoRotationTransform>();
+  const float icon_width = view_size.x * 0.25f;
+  const glm::vec2 icon_size = shrooms::texture_sizing::from_width_px("menu_pause", icon_width);
+  const glm::vec2 resume_center =
+      action_lines[kResumeAction].button_base_pos + action_lines[kResumeAction].button_base_size * 0.5f;
+  const glm::vec2 restart_center =
+      action_lines[kRestartAction].button_base_pos + action_lines[kRestartAction].button_base_size * 0.5f;
+  const float row_step = std::max(std::abs(restart_center.y - resume_center.y),
+                                  action_lines[kResumeAction].button_base_size.y);
+  const float icon_padding = row_step * 3.0f;
+  const float icon_bottom = action_lines[kResumeAction].button_base_pos.y - icon_padding;
+  pause_menu_icon_transform->pos = glm::vec2{
+      resume_center.x - icon_size.x * 0.5f,
+      icon_bottom - icon_size.y,
+  };
+  pause_menu_icon->add(pause_menu_icon_transform);
+  pause_menu_icon->add(arena::create<layers::ConstLayer>(config.text_layer + 1));
+  const engine::TextureId pause_menu_icon_tex = engine::resources::register_texture("menu_pause");
+  pause_menu_icon->add(arena::create<render_system::SpriteRenderable>(
+      pause_menu_icon_tex, icon_size, engine::UIColor{1.0f, 1.0f, 1.0f, 1.0f}));
+  pause_menu_icon_hidden = arena::create<hidden::HiddenObject>();
+  pause_menu_icon->add(pause_menu_icon_hidden);
+  pause_menu_icon_hidden->hide();
+  pause_menu_icon->add(arena::create<scene::SceneObject>("main"));
 
   pause_toggle_button = arena::create<ecs::Entity>();
   pause_toggle_transform = arena::create<transform::NoRotationTransform>();
