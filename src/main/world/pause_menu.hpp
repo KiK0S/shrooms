@@ -813,7 +813,7 @@ inline void init() {
       action_lines[kRestartAction].button_base_pos + action_lines[kRestartAction].button_base_size * 0.5f;
   const float row_step = std::max(std::abs(restart_center.y - resume_center.y),
                                   action_lines[kResumeAction].button_base_size.y);
-  const float icon_padding = row_step * 3.0f;
+  const float icon_padding = row_step * 1.0f;
   const float icon_bottom = action_lines[kResumeAction].button_base_pos.y - icon_padding;
   pause_menu_icon_transform->pos = glm::vec2{
       resume_center.x - icon_size.x * 0.5f,
