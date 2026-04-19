@@ -110,10 +110,10 @@ struct ActionLine {
   engine::UIColor hover_color{0.28f, 0.2f, 0.35f, 0.98f};
   engine::UIColor selected_color{0.15f, 0.15f, 0.15f, 0.95f};
   engine::UIColor dimmed_color{0.08f, 0.08f, 0.08f, 0.52f};
-  engine::UIColor slider_track_color{0.82f, 0.84f, 0.88f, 0.98f};
-  engine::UIColor slider_fill_color{0.11f, 0.66f, 0.94f, 1.0f};
+  engine::UIColor slider_track_color{0.92f, 0.94f, 0.98f, 1.0f};
+  engine::UIColor slider_fill_color{0.18f, 0.78f, 1.0f, 1.0f};
   engine::UIColor slider_knob_color{1.0f, 1.0f, 1.0f, 1.0f};
-  engine::UIColor slider_dimmed_color{0.56f, 0.56f, 0.58f, 0.92f};
+  engine::UIColor slider_dimmed_color{0.72f, 0.74f, 0.8f, 1.0f};
   glm::vec4 base_text_color{1.0f, 1.0f, 1.0f, 1.0f};
   glm::vec4 selected_text_color{1.0f, 1.0f, 1.0f, 1.0f};
   glm::vec4 dimmed_text_color{0.72f, 0.72f, 0.72f, 0.92f};
@@ -212,10 +212,10 @@ inline void update_action_slider_geometry(ActionLine& action) {
   const float text_band_h = inner_h * 0.60f;
   const float slider_band_h = std::max(1.0f, inner_h - text_band_h);
   const float track_w = std::max(72.0f, button_size.x - pad_x * 2.0f);
-  const float track_h = std::clamp(slider_band_h * 0.40f, 8.0f, 14.0f);
+  const float track_h = std::clamp(slider_band_h * 0.62f, 12.0f, 20.0f);
   const float track_x = button_pos.x + pad_x;
   const float track_y = button_pos.y + top_pad + text_band_h + (slider_band_h - track_h) * 0.5f;
-  const float knob_size = std::max(14.0f, slider_band_h * 0.90f);
+  const float knob_size = std::max(18.0f, slider_band_h * 1.05f);
   const float t = clamp_unit(action.slider_value);
 
   action.slider_track_pos = glm::vec2{track_x, track_y};
@@ -243,7 +243,7 @@ inline void ensure_action_slider(ActionLine& action) {
   action.slider_track_entity = arena::create<ecs::Entity>();
   action.slider_track_transform = arena::create<transform::NoRotationTransform>();
   action.slider_track_entity->add(action.slider_track_transform);
-  action.slider_track_entity->add(arena::create<layers::ConstLayer>(config.text_layer + 20));
+  action.slider_track_entity->add(arena::create<layers::ConstLayer>(config.text_layer + 80));
   action.slider_track_quad = arena::create<render_system::QuadRenderable>(0.0f, 0.0f, action.slider_track_color);
   action.slider_track_entity->add(action.slider_track_quad);
   action.slider_track_hidden = arena::create<hidden::HiddenObject>();
@@ -254,7 +254,7 @@ inline void ensure_action_slider(ActionLine& action) {
   action.slider_fill_entity = arena::create<ecs::Entity>();
   action.slider_fill_transform = arena::create<transform::NoRotationTransform>();
   action.slider_fill_entity->add(action.slider_fill_transform);
-  action.slider_fill_entity->add(arena::create<layers::ConstLayer>(config.text_layer + 21));
+  action.slider_fill_entity->add(arena::create<layers::ConstLayer>(config.text_layer + 81));
   action.slider_fill_quad = arena::create<render_system::QuadRenderable>(0.0f, 0.0f, action.slider_fill_color);
   action.slider_fill_entity->add(action.slider_fill_quad);
   action.slider_fill_hidden = arena::create<hidden::HiddenObject>();
@@ -265,7 +265,7 @@ inline void ensure_action_slider(ActionLine& action) {
   action.slider_knob_entity = arena::create<ecs::Entity>();
   action.slider_knob_transform = arena::create<transform::NoRotationTransform>();
   action.slider_knob_entity->add(action.slider_knob_transform);
-  action.slider_knob_entity->add(arena::create<layers::ConstLayer>(config.text_layer + 22));
+  action.slider_knob_entity->add(arena::create<layers::ConstLayer>(config.text_layer + 82));
   action.slider_knob_quad = arena::create<render_system::QuadRenderable>(0.0f, 0.0f, action.slider_knob_color);
   action.slider_knob_entity->add(action.slider_knob_quad);
   action.slider_knob_hidden = arena::create<hidden::HiddenObject>();
@@ -471,6 +471,27 @@ inline ActionLine make_action_line(const std::string& label, const glm::vec2& ce
   action.text_entity->add(arena::create<scene::SceneObject>("main"));
 
   return action;
+}
+
+inline void relayout_actions_for_variable_heights() {
+  constexpr std::array<size_t, kActionCount> order{
+      kResumeAction, kRestartAction, kAudioAction, kMainMenuAction};
+  const float gap_px = 12.0f;
+
+  float next_top = action_lines[order[0]].button_base_pos.y;
+  for (size_t i = 0; i < order.size(); ++i) {
+    auto& action = action_lines[order[i]];
+    if (i > 0 && action.button_base_pos.y < next_top) {
+      action.button_base_pos.y = next_top;
+      if (action.button_transform) {
+        action.button_transform->pos = action.button_base_pos;
+      }
+    }
+    if (action.text_object) {
+      update_action_label(action, action.text_object->text);
+    }
+    next_top = action.button_base_pos.y + action.button_base_size.y + gap_px;
+  }
 }
 
 struct PauseMenuController : public dynamic::DynamicObject {
@@ -836,6 +857,7 @@ inline void init() {
   action_lines[kMainMenuAction] =
       make_action_line("Main Menu", config.menu_position + config.main_menu_offset,
                        config.main_menu_scale);
+  relayout_actions_for_variable_heights();
   refresh_audio_action_label();
 
   pause_menu_icon = arena::create<ecs::Entity>();
