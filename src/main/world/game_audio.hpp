@@ -113,9 +113,10 @@ inline bool is_muted() { return muted; }
 
 inline std::string audio_toggle_label() { return muted ? "Audio: Muted" : "Audio: On"; }
 
+inline float volume_slider_value() { return muted ? 0.0f : master_gain_value; }
+
 inline std::string volume_label() {
-  const int percent = static_cast<int>(master_gain_percent());
-  return "Volume: " + std::to_string(percent) + "%";
+  return muted ? "Volume: Muted (0)" : "Volume";
 }
 
 inline engine::SoundId register_and_load_sound(const char* sound_name,

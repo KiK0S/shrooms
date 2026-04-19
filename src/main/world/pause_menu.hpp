@@ -390,7 +390,7 @@ inline void update_action_label(ActionLine& action, const std::string& label) {
 
 inline void refresh_audio_action_label() {
   update_action_label(action_lines[kAudioAction], shrooms::audio::volume_label());
-  set_action_slider_value(action_lines[kAudioAction], shrooms::audio::master_gain());
+  set_action_slider_value(action_lines[kAudioAction], shrooms::audio::volume_slider_value());
 }
 
 inline ActionLine make_action_line(const std::string& label, const glm::vec2& center_norm,
@@ -780,7 +780,7 @@ inline void init() {
       make_action_line(shrooms::audio::volume_label(),
                        config.menu_position + config.audio_offset, config.audio_scale);
   ensure_action_slider(action_lines[kAudioAction]);
-  set_action_slider_value(action_lines[kAudioAction], shrooms::audio::master_gain());
+  set_action_slider_value(action_lines[kAudioAction], shrooms::audio::volume_slider_value());
   action_lines[kMainMenuAction] =
       make_action_line("Main Menu", config.menu_position + config.main_menu_offset,
                        config.main_menu_scale);

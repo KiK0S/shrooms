@@ -662,7 +662,7 @@ inline void refresh_difficulty_line() {
 
 inline void refresh_audio_line() {
   update_text(audio_line, shrooms::audio::volume_label());
-  set_line_slider_value(audio_line, shrooms::audio::master_gain());
+  set_line_slider_value(audio_line, shrooms::audio::volume_slider_value());
 }
 
 inline void refresh_tutorial_line() {
@@ -1696,7 +1696,7 @@ inline void init() {
   style_menu_action(audio_line);
   style_menu_action(tutorial_line);
   ensure_line_slider(audio_line);
-  set_line_slider_value(audio_line, shrooms::audio::master_gain());
+  set_line_slider_value(audio_line, shrooms::audio::volume_slider_value());
 
   const glm::vec2 base = glm::vec2{kMenuTextX, 0.08f};
   const float spacing = 0.12f;
