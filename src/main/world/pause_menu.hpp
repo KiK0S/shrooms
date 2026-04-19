@@ -243,7 +243,7 @@ inline void ensure_action_slider(ActionLine& action) {
   action.slider_track_entity = arena::create<ecs::Entity>();
   action.slider_track_transform = arena::create<transform::NoRotationTransform>();
   action.slider_track_entity->add(action.slider_track_transform);
-  action.slider_track_entity->add(arena::create<layers::ConstLayer>(config.text_layer + 2));
+  action.slider_track_entity->add(arena::create<layers::ConstLayer>(config.button_layer));
   action.slider_track_quad = arena::create<render_system::QuadRenderable>(0.0f, 0.0f, action.slider_track_color);
   action.slider_track_entity->add(action.slider_track_quad);
   action.slider_track_hidden = arena::create<hidden::HiddenObject>();
@@ -254,7 +254,7 @@ inline void ensure_action_slider(ActionLine& action) {
   action.slider_fill_entity = arena::create<ecs::Entity>();
   action.slider_fill_transform = arena::create<transform::NoRotationTransform>();
   action.slider_fill_entity->add(action.slider_fill_transform);
-  action.slider_fill_entity->add(arena::create<layers::ConstLayer>(config.text_layer + 3));
+  action.slider_fill_entity->add(arena::create<layers::ConstLayer>(config.button_layer));
   action.slider_fill_quad = arena::create<render_system::QuadRenderable>(0.0f, 0.0f, action.slider_fill_color);
   action.slider_fill_entity->add(action.slider_fill_quad);
   action.slider_fill_hidden = arena::create<hidden::HiddenObject>();
@@ -265,7 +265,7 @@ inline void ensure_action_slider(ActionLine& action) {
   action.slider_knob_entity = arena::create<ecs::Entity>();
   action.slider_knob_transform = arena::create<transform::NoRotationTransform>();
   action.slider_knob_entity->add(action.slider_knob_transform);
-  action.slider_knob_entity->add(arena::create<layers::ConstLayer>(config.text_layer + 4));
+  action.slider_knob_entity->add(arena::create<layers::ConstLayer>(config.button_layer));
   action.slider_knob_quad = arena::create<render_system::QuadRenderable>(0.0f, 0.0f, action.slider_knob_color);
   action.slider_knob_entity->add(action.slider_knob_quad);
   action.slider_knob_hidden = arena::create<hidden::HiddenObject>();

@@ -92,6 +92,7 @@ struct TextLine {
   transform::NoRotationTransform* slider_knob_transform = nullptr;
   render_system::QuadRenderable* slider_knob_quad = nullptr;
   hidden::HiddenObject* slider_knob_hidden = nullptr;
+  glm::vec2 anchor_pos{0.0f, 0.0f};
   glm::vec2 size{0.0f, 0.0f};
   glm::vec2 button_size{0.0f, 0.0f};
   glm::vec2 button_base_pos{0.0f, 0.0f};
@@ -387,10 +388,11 @@ inline void ensure_line_slider(TextLine& line) {
   if (line.slider_track_entity || !line.button_entity) return;
 
   const int layer = line_layer(line);
+  const int button_layer = layer - 1;
   line.slider_track_entity = arena::create<ecs::Entity>();
   line.slider_track_transform = arena::create<transform::NoRotationTransform>();
   line.slider_track_entity->add(line.slider_track_transform);
-  line.slider_track_entity->add(arena::create<layers::ConstLayer>(layer + 2));
+  line.slider_track_entity->add(arena::create<layers::ConstLayer>(button_layer));
   line.slider_track_quad = arena::create<render_system::QuadRenderable>(0.0f, 0.0f, line.slider_track_color);
   line.slider_track_entity->add(line.slider_track_quad);
   line.slider_track_hidden = arena::create<hidden::HiddenObject>();
@@ -401,7 +403,7 @@ inline void ensure_line_slider(TextLine& line) {
   line.slider_fill_entity = arena::create<ecs::Entity>();
   line.slider_fill_transform = arena::create<transform::NoRotationTransform>();
   line.slider_fill_entity->add(line.slider_fill_transform);
-  line.slider_fill_entity->add(arena::create<layers::ConstLayer>(layer + 3));
+  line.slider_fill_entity->add(arena::create<layers::ConstLayer>(button_layer));
   line.slider_fill_quad = arena::create<render_system::QuadRenderable>(0.0f, 0.0f, line.slider_fill_color);
   line.slider_fill_entity->add(line.slider_fill_quad);
   line.slider_fill_hidden = arena::create<hidden::HiddenObject>();
@@ -412,7 +414,7 @@ inline void ensure_line_slider(TextLine& line) {
   line.slider_knob_entity = arena::create<ecs::Entity>();
   line.slider_knob_transform = arena::create<transform::NoRotationTransform>();
   line.slider_knob_entity->add(line.slider_knob_transform);
-  line.slider_knob_entity->add(arena::create<layers::ConstLayer>(layer + 4));
+  line.slider_knob_entity->add(arena::create<layers::ConstLayer>(button_layer));
   line.slider_knob_quad = arena::create<render_system::QuadRenderable>(0.0f, 0.0f, line.slider_knob_color);
   line.slider_knob_entity->add(line.slider_knob_quad);
   line.slider_knob_hidden = arena::create<hidden::HiddenObject>();
@@ -480,9 +482,8 @@ inline void update_text(TextLine& line, const std::string& value) {
         line.size.y + pad_y * 2.0f + slider_extra_h,
     };
     line.button_base_size = line.button_size;
-    line.button_base_pos = line.transform ? (line.transform->pos + glm::vec2{0.0f, content_top} -
-                                             glm::vec2{pad_x, pad_y})
-                                          : glm::vec2{0.0f, content_top};
+    const glm::vec2 anchor = line.anchor_pos;
+    line.button_base_pos = anchor + glm::vec2{0.0f, content_top} - glm::vec2{pad_x, pad_y};
     line.button_transform->pos = line.button_base_pos;
     line.button_quad->width = line.button_base_size.x;
     line.button_quad->height = line.button_base_size.y;
@@ -1657,6 +1658,7 @@ inline TextLine make_text_line(glm::vec2 position_norm, float font_px, int layer
 
   line.entity = entity;
   line.transform = transform;
+  line.anchor_pos = transform->pos;
   line.text_object = text_obj;
   line.font_px = font_px;
   line.text_color = arena::create<LineTextColor>(line.base_text_color);
