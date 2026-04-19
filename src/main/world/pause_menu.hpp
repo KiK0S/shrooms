@@ -240,10 +240,11 @@ inline void update_action_slider_geometry(ActionLine& action) {
 inline void ensure_action_slider(ActionLine& action) {
   if (action.slider_track_entity || !action.button_entity) return;
 
+  const int slider_layer = config.button_layer + 1;
   action.slider_track_entity = arena::create<ecs::Entity>();
   action.slider_track_transform = arena::create<transform::NoRotationTransform>();
   action.slider_track_entity->add(action.slider_track_transform);
-  action.slider_track_entity->add(arena::create<layers::ConstLayer>(config.button_layer));
+  action.slider_track_entity->add(arena::create<layers::ConstLayer>(slider_layer));
   action.slider_track_quad = arena::create<render_system::QuadRenderable>(0.0f, 0.0f, action.slider_track_color);
   action.slider_track_entity->add(action.slider_track_quad);
   action.slider_track_hidden = arena::create<hidden::HiddenObject>();
@@ -254,7 +255,7 @@ inline void ensure_action_slider(ActionLine& action) {
   action.slider_fill_entity = arena::create<ecs::Entity>();
   action.slider_fill_transform = arena::create<transform::NoRotationTransform>();
   action.slider_fill_entity->add(action.slider_fill_transform);
-  action.slider_fill_entity->add(arena::create<layers::ConstLayer>(config.button_layer));
+  action.slider_fill_entity->add(arena::create<layers::ConstLayer>(slider_layer));
   action.slider_fill_quad = arena::create<render_system::QuadRenderable>(0.0f, 0.0f, action.slider_fill_color);
   action.slider_fill_entity->add(action.slider_fill_quad);
   action.slider_fill_hidden = arena::create<hidden::HiddenObject>();
@@ -265,7 +266,7 @@ inline void ensure_action_slider(ActionLine& action) {
   action.slider_knob_entity = arena::create<ecs::Entity>();
   action.slider_knob_transform = arena::create<transform::NoRotationTransform>();
   action.slider_knob_entity->add(action.slider_knob_transform);
-  action.slider_knob_entity->add(arena::create<layers::ConstLayer>(config.button_layer));
+  action.slider_knob_entity->add(arena::create<layers::ConstLayer>(slider_layer));
   action.slider_knob_quad = arena::create<render_system::QuadRenderable>(0.0f, 0.0f, action.slider_knob_color);
   action.slider_knob_entity->add(action.slider_knob_quad);
   action.slider_knob_hidden = arena::create<hidden::HiddenObject>();
@@ -322,7 +323,6 @@ inline void set_action_visibility(ActionLine& action, bool visible) {
 
 inline void set_pause_menu_visible(bool visible) {
   pause_menu_open = visible;
-  // Keep the pause card hidden: pause actions now follow the plain list style.
   if (menu_hidden) menu_hidden->hide();
   if (pause_menu_icon_hidden) pause_menu_icon_hidden->set_visible(visible);
   for (auto& action : action_lines) {
@@ -459,7 +459,7 @@ inline ActionLine make_action_line(const std::string& label, const glm::vec2& ce
   const glm::vec2 text_size{layout.width, layout.height};
   action.text_transform->pos = shrooms::screen::center_to_top_left(center, text_size);
   action.text_entity->add(action.text_transform);
-  action.text_entity->add(arena::create<layers::ConstLayer>(config.text_layer));
+  action.text_entity->add(arena::create<layers::ConstLayer>(config.text_layer + 1));
   action.text_object = arena::create<text::TextObject>(label, font_px);
   action.text_entity->add(action.text_object);
   action.text_color = arena::create<ActionTextColor>(action.base_text_color);
@@ -668,7 +668,7 @@ struct PauseMenuController : public dynamic::DynamicObject {
         }
         if (hovered_index && *hovered_index == kAudioAction) {
           selected_action_index = kAudioAction;
-          apply_action_visuals(hovered_index);
+          trigger_action(kAudioAction);
           return;
         }
         if (hovered_index) {
