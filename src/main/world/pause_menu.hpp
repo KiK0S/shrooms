@@ -277,8 +277,8 @@ inline void apply_action_slider_visual(ActionLine& action, bool selected, bool h
   if (!action.slider_track_quad || !action.slider_fill_quad || !action.slider_knob_quad) return;
   if (dimmed) {
     action.slider_track_quad->color = action.slider_dimmed_color;
-    action.slider_fill_quad->color = action.slider_dimmed_color;
-    action.slider_knob_quad->color = action.slider_dimmed_color;
+    action.slider_fill_quad->color = action.slider_fill_color;
+    action.slider_knob_quad->color = engine::UIColor{0.9f, 0.9f, 0.9f, 1.0f};
     return;
   }
   action.slider_track_quad->color = action.slider_track_color;
@@ -392,15 +392,21 @@ inline void update_action_label(ActionLine& action, const std::string& label) {
   action.text_object->text = label;
   const auto layout = engine::text::layout_text(label, 0.0f, 0.0f, action.font_px);
   const glm::vec2 text_size{layout.width, layout.height};
-  if (action.slider_track_entity) {
-    const float left_pad = 18.0f;
+  const float text_y = action.button_base_pos.y + (action.button_base_size.y - text_size.y) * 0.5f;
+  if (action.slider_track_entity && action.slider_track_size.x > 0.0f) {
+    const float right_padding = 12.0f;
+    const float label_left = action.button_base_pos.x;
+    const float label_right = action.slider_track_pos.x - right_padding;
+    const float label_width = std::max(text_size.x, label_right - label_left);
     action.text_transform->pos = glm::vec2{
-        action.button_base_pos.x + left_pad,
-        action.button_base_pos.y + (action.button_base_size.y - text_size.y) * 0.5f,
+        label_left + (label_width - text_size.x) * 0.5f,
+        text_y,
     };
   } else {
-    const glm::vec2 center = action.button_base_pos + action.button_base_size * 0.5f;
-    action.text_transform->pos = shrooms::screen::center_to_top_left(center, text_size);
+    action.text_transform->pos = glm::vec2{
+        action.button_base_pos.x + (action.button_base_size.x - text_size.x) * 0.5f,
+        text_y,
+    };
   }
   update_action_slider_geometry(action);
 }
