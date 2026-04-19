@@ -37,8 +37,12 @@ namespace pause_menu {
 
 constexpr int kKeyArrowUpDom = 38;
 constexpr int kKeyArrowDownDom = 40;
+constexpr int kKeyArrowLeftDom = 37;
+constexpr int kKeyArrowRightDom = 39;
 constexpr int kKeyArrowUpSdl = 1073741906;
 constexpr int kKeyArrowDownSdl = 1073741905;
+constexpr int kKeyArrowLeftSdl = 1073741904;
+constexpr int kKeyArrowRightSdl = 1073741903;
 constexpr float kVolumeAdjustStep = 0.05f;
 
 struct ActionTextColor : public color::ColoredObject {
@@ -156,6 +160,14 @@ inline bool is_arrow_up_key(int key) {
 
 inline bool is_arrow_down_key(int key) {
   return key == kKeyArrowDownDom || key == kKeyArrowDownSdl;
+}
+
+inline bool is_arrow_left_key(int key) {
+  return key == kKeyArrowLeftDom || key == kKeyArrowLeftSdl;
+}
+
+inline bool is_arrow_right_key(int key) {
+  return key == kKeyArrowRightDom || key == kKeyArrowRightSdl;
 }
 
 inline bool is_confirm_key(int key) {
@@ -630,6 +642,11 @@ struct PauseMenuController : public dynamic::DynamicObject {
           set_volume_from_pointer(point);
           return;
         }
+        if (hovered_index && *hovered_index == kAudioAction) {
+          selected_action_index = kAudioAction;
+          apply_action_visuals(hovered_index);
+          return;
+        }
         if (hovered_index) {
           trigger_action(*hovered_index);
           return;
@@ -661,6 +678,14 @@ struct PauseMenuController : public dynamic::DynamicObject {
         return;
       }
       if (key == 'D' && selected_action_index == kAudioAction) {
+        change_volume(kVolumeAdjustStep);
+        return;
+      }
+      if (is_arrow_left_key(key) && selected_action_index == kAudioAction) {
+        change_volume(-kVolumeAdjustStep);
+        return;
+      }
+      if (is_arrow_right_key(key) && selected_action_index == kAudioAction) {
         change_volume(kVolumeAdjustStep);
         return;
       }
