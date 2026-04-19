@@ -710,6 +710,7 @@ inline void refresh_level_lines() {
 
 inline void relayout_main_rows_for_variable_heights() {
   constexpr float gap_px = 12.0f;
+  constexpr float lift_px = 28.0f;
   std::array<TextLine*, kMaxLevelLines + 3> ordered{};
   size_t count = 0;
   ordered[count++] = &difficulty_line;
@@ -720,7 +721,7 @@ inline void relayout_main_rows_for_variable_heights() {
   }
 
   if (count == 0 || !ordered[0] || !ordered[0]->button_transform) return;
-  float next_top = ordered[0]->button_base_pos.y;
+  float next_top = ordered[0]->button_base_pos.y - lift_px;
   for (size_t i = 0; i < count; ++i) {
     auto* line = ordered[i];
     if (!line || !line->button_transform || !line->text_object || !line->transform) continue;
