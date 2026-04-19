@@ -708,6 +708,32 @@ inline void refresh_level_lines() {
   }
 }
 
+inline void relayout_main_rows_for_variable_heights() {
+  constexpr float gap_px = 12.0f;
+  std::array<TextLine*, kMaxLevelLines + 3> ordered{};
+  size_t count = 0;
+  ordered[count++] = &difficulty_line;
+  ordered[count++] = &audio_line;
+  ordered[count++] = &tutorial_line;
+  for (size_t i = 0; i < active_level_lines && i < kMaxLevelLines; ++i) {
+    ordered[count++] = &level_lines[i];
+  }
+
+  if (count == 0 || !ordered[0] || !ordered[0]->button_transform) return;
+  float next_top = ordered[0]->button_base_pos.y;
+  for (size_t i = 0; i < count; ++i) {
+    auto* line = ordered[i];
+    if (!line || !line->button_transform || !line->text_object || !line->transform) continue;
+    if (i > 0 && line->button_base_pos.y < next_top) {
+      const float delta_y = next_top - line->button_base_pos.y;
+      line->anchor_pos.y += delta_y;
+      line->transform->pos.y += delta_y;
+      update_text(*line, line->text_object->text);
+    }
+    next_top = line->button_base_pos.y + line->button_base_size.y + gap_px;
+  }
+}
+
 inline bool point_hits_line(const TextLine& line, const glm::vec2& point) {
   if (!line.transform && !line.button_transform) return false;
   const glm::vec2 pos = line.button_transform ? line.button_base_pos : line.transform->pos;
@@ -848,7 +874,8 @@ inline void set_menu_mode(MenuMode mode) {
   set_line_visibility(tutorial_line, show_main, show_main);
   set_line_visibility(credits_line, show_main, false);
   for (size_t i = 0; i < kMaxLevelLines; ++i) {
-    set_line_visibility(level_lines[i], show_main, show_main);
+    const bool show_level_row = show_main && i < active_level_lines;
+    set_line_visibility(level_lines[i], show_level_row, show_level_row);
   }
   set_line_visibility(objective_title, show_objective, false);
   set_line_visibility(objective_level, show_objective, false);
@@ -1010,6 +1037,7 @@ inline void enter_main_menu_mode() {
   refresh_audio_line();
   refresh_tutorial_line();
   refresh_status_line();
+  relayout_main_rows_for_variable_heights();
   has_pending_level = false;
   pending_infinite = false;
   pending_tutorial = false;
