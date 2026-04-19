@@ -115,9 +115,7 @@ inline std::string audio_toggle_label() { return muted ? "Audio: Muted" : "Audio
 
 inline float volume_slider_value() { return muted ? 0.0f : master_gain_value; }
 
-inline std::string volume_label() {
-  return muted ? "Volume: Muted (0)" : "Volume";
-}
+inline std::string volume_label() { return "Volume"; }
 
 inline engine::SoundId register_and_load_sound(const char* sound_name,
                                                const char* relative_asset_path) {
