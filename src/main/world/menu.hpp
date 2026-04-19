@@ -710,7 +710,6 @@ inline void refresh_level_lines() {
 
 inline void relayout_main_rows_for_variable_heights() {
   constexpr float gap_px = 12.0f;
-  constexpr float lift_px = 28.0f;
   std::array<TextLine*, kMaxLevelLines + 3> ordered{};
   size_t count = 0;
   ordered[count++] = &difficulty_line;
@@ -721,7 +720,7 @@ inline void relayout_main_rows_for_variable_heights() {
   }
 
   if (count == 0 || !ordered[0] || !ordered[0]->button_transform) return;
-  float next_top = ordered[0]->button_base_pos.y - lift_px;
+  float next_top = ordered[0]->button_base_pos.y;
   for (size_t i = 0; i < count; ++i) {
     auto* line = ordered[i];
     if (!line || !line->button_transform || !line->text_object || !line->transform) continue;
@@ -1731,12 +1730,12 @@ inline void init() {
   menu_background_transform = bg_transform;
   menu_background->add(arena::create<scene::SceneObject>("menu"));
 
-  status_line = make_text_line(glm::vec2{kMenuTextX, 0.72f}, 22.0f, 6);
-  instruction_line = make_text_line(glm::vec2{kMenuTextX, 0.58f}, 20.0f, 6);
-  difficulty_line = make_text_line(glm::vec2{kMenuTextX, 0.43f}, 19.0f, 6);
-  audio_line = make_text_line(glm::vec2{kMenuTextX, 0.35f}, 19.0f, 6);
+  status_line = make_text_line(glm::vec2{kMenuTextX, 0.85f}, 22.0f, 6);
+  instruction_line = make_text_line(glm::vec2{kMenuTextX, 0.71f}, 20.0f, 6);
+  difficulty_line = make_text_line(glm::vec2{kMenuTextX, 0.56f}, 19.0f, 6);
+  audio_line = make_text_line(glm::vec2{kMenuTextX, 0.48f}, 19.0f, 6);
   tutorial_line = make_text_line(glm::vec2{kMenuTextX, 0.28f}, 20.0f, 6);
-  credits_line = make_text_line(glm::vec2{kMenuTextX, -0.9f}, 18.0f, 6);
+  credits_line = make_text_line(glm::vec2{kMenuTextX, -0.92f}, 18.0f, 6);
   update_text(credits_line, "Game by KiK0S, art by deadmarla.");
 
   auto style_menu_action = [](TextLine& line) {
@@ -1758,8 +1757,8 @@ inline void init() {
   ensure_line_slider(audio_line);
   set_line_slider_value(audio_line, shrooms::audio::volume_slider_value());
 
-  const glm::vec2 base = glm::vec2{kMenuTextX, 0.08f};
-  const float spacing = 0.12f;
+  const glm::vec2 base = glm::vec2{kMenuTextX, 0.25f};
+  const float spacing = 0.11f;
   for (size_t i = 0; i < kMaxLevelLines; ++i) {
     const glm::vec2 pos = base - glm::vec2(0.0f, spacing * static_cast<float>(i));
     level_lines[i] = make_text_line(pos, 20.0f, 6);
