@@ -4,6 +4,7 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <iostream>
 #include <limits>
 #include <string>
@@ -21,16 +22,17 @@
 namespace shrooms::audio {
 
 inline constexpr float kBgmGain = 0.35f;
-inline constexpr float kBiteGain = 0.85f;
+inline constexpr float kCatchGain = 0.85f;
 inline constexpr float kWindGain = 0.45f;
 inline constexpr float kExplosionGain = 0.75f;
 inline constexpr float kFallNegativeGain = 0.70f;
 inline constexpr float kDefaultMasterGain = 1.0f;
 inline constexpr float kWindCrossfadeSeconds = 0.16f;
-inline constexpr double kBiteMinGapSeconds = 0.04;
+inline constexpr double kCatchMinGapSeconds = 0.04;
 inline constexpr double kWindMinGapSeconds = 0.10;
 inline constexpr double kExplosionMinGapSeconds = 0.08;
 inline constexpr double kFallNegativeMinGapSeconds = 0.14;
+inline constexpr size_t kCatchSoundCount = 2;
 
 inline bool initialized = false;
 inline bool muted = false;
@@ -38,17 +40,21 @@ inline bool page_active = true;
 inline float master_gain_value = kDefaultMasterGain;
 
 inline engine::SoundId bgm_sound_id = engine::kInvalidSoundId;
-inline engine::SoundId bite_sound_id = engine::kInvalidSoundId;
+inline std::array<engine::SoundId, kCatchSoundCount> catch_sound_ids{
+    engine::kInvalidSoundId,
+    engine::kInvalidSoundId,
+};
 inline engine::SoundId wind_sound_id = engine::kInvalidSoundId;
 inline engine::SoundId explosion_sound_id = engine::kInvalidSoundId;
 inline engine::SoundId fall_negative_sound_id = engine::kInvalidSoundId;
+inline std::uint32_t catch_sound_rng = 0x8c2f3a1du;
 
 inline ecs::Entity* bgm_entity = nullptr;
 inline audio_system::AudioObject* bgm_audio = nullptr;
 inline ecs::Entity* voice_controller_entity = nullptr;
 
 enum class ManagedSoundKind : size_t {
-  Bite = 0,
+  Catch = 0,
   Wind,
   Explosion,
   FallNegative,
@@ -60,7 +66,7 @@ inline constexpr size_t kManagedSoundCount = static_cast<size_t>(ManagedSoundKin
 struct ManagedVoice {
   engine::audio::VoiceId voice_id = engine::audio::kInvalidVoiceId;
   engine::SoundId sound_id = engine::kInvalidSoundId;
-  ManagedSoundKind kind = ManagedSoundKind::Bite;
+  ManagedSoundKind kind = ManagedSoundKind::Catch;
   float current_gain = 0.0f;
   float target_gain = 0.0f;
   float fade_from_gain = 0.0f;
@@ -204,6 +210,33 @@ inline bool trigger_allowed(ManagedSoundKind kind, double min_gap_seconds) {
   return true;
 }
 
+inline size_t next_catch_sound_index(size_t count) {
+  if (count == 0) return 0;
+  catch_sound_rng = catch_sound_rng * 1664525u + 1013904223u;
+  return static_cast<size_t>((catch_sound_rng >> 16u) % static_cast<std::uint32_t>(count));
+}
+
+template <size_t N>
+inline void spawn_limited_random_one_shot(ManagedSoundKind kind,
+                                          const std::array<engine::SoundId, N>& sound_ids,
+                                          float gain, double min_gap_seconds,
+                                          size_t max_active_voices) {
+  if (!page_active) return;
+
+  std::array<engine::SoundId, N> valid_sound_ids{};
+  size_t valid_count = 0;
+  for (engine::SoundId sound_id : sound_ids) {
+    if (sound_id != engine::kInvalidSoundId) {
+      valid_sound_ids[valid_count++] = sound_id;
+    }
+  }
+  if (valid_count == 0) return;
+  if (!trigger_allowed(kind, min_gap_seconds)) return;
+  if (count_active_voices(kind) >= max_active_voices) return;
+
+  create_managed_voice(kind, valid_sound_ids[next_catch_sound_index(valid_count)], gain, gain);
+}
+
 inline void spawn_limited_one_shot(ManagedSoundKind kind, engine::SoundId sound_id, float gain,
                                    double min_gap_seconds, size_t max_active_voices) {
   if (!page_active || sound_id == engine::kInvalidSoundId) return;
@@ -269,8 +302,9 @@ struct OneShotVoiceControllerSystem : public dynamic::DynamicObject {
 
 inline void set_page_active(bool active) { page_active = active; }
 
-inline void play_mushroom_bite() {
-  spawn_limited_one_shot(ManagedSoundKind::Bite, bite_sound_id, kBiteGain, kBiteMinGapSeconds, 3);
+inline void play_mushroom_catch() {
+  spawn_limited_random_one_shot(ManagedSoundKind::Catch, catch_sound_ids, kCatchGain,
+                                kCatchMinGapSeconds, 3);
 }
 
 inline void play_familiar_shot_wind() {
@@ -296,9 +330,11 @@ inline void init() {
   initialized = true;
 
   bgm_sound_id =
-      register_and_load_sound("shrooms_bgm_lofi_loop", "shrooms/audio/bgm/lofi_menu_loop.wav");
-  bite_sound_id =
-      register_and_load_sound("shrooms_sfx_mushroom_bite", "shrooms/audio/sfx/mushroom_bite.wav");
+      register_and_load_sound("shrooms_bgm_forest_night", "shrooms/audio/bgm/69_forest_night.wav");
+  catch_sound_ids[0] = register_and_load_sound("shrooms_sfx_catch_bloop_1",
+                                               "shrooms/audio/sfx/floraphonic-bloop-1-184019.wav");
+  catch_sound_ids[1] = register_and_load_sound("shrooms_sfx_catch_bloop_2",
+                                               "shrooms/audio/sfx/floraphonic-bloop-2-186531.wav");
   wind_sound_id = register_and_load_sound("shrooms_sfx_familiar_shot_wind",
                                           "shrooms/audio/sfx/familiar_shot_wind.wav");
   explosion_sound_id = register_and_load_sound(

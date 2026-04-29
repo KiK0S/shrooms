@@ -763,7 +763,7 @@ inline void on_mushroom_caught(
   if (tutorial_catch_hook) {
     tutorial_catch_hook(type, entity, from_familiar);
   }
-  shrooms::audio::play_mushroom_bite();
+  shrooms::audio::play_mushroom_catch();
   auto* level = current_level();
   vfx::spawn_catch_effect(entity, player_center);
   if (!level) return;
