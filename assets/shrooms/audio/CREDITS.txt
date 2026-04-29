@@ -1,5 +1,5 @@
-Shrooms Audio Asset Credits (CC0)
-Import date: 2026-03-06
+Shrooms Audio Asset Credits
+Import dates: 2026-03-06, 2026-04-29
 
 1) bgm/lofi_menu_loop.wav
 - Original title: Menu Chill Music
@@ -54,3 +54,33 @@ Import date: 2026-03-06
 - Source page URL: https://opengameart.org/content/various-sound-effects
 - Download URL: https://opengameart.org/sites/default/files/fall.wav
 - Imported as: sfx/fall_negative_alt.wav
+
+7) bgm/69_forest_night.mp3, bgm/69_forest_night.wav
+- Original title: Forest: Night
+- Original file: 69_forest_night.mp3
+- Author: Tabletop Audio
+- License: Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International
+- Source page URL: https://tabletopaudio.com/index.html
+- License page URL: https://tabletopaudio.com/about.html
+- Imported as: bgm/69_forest_night.mp3
+- Derived as: bgm/69_forest_night.wav (cropped to 8:45, mono 22050 Hz PCM)
+
+8) sfx/floraphonic-bloop-1-184019.mp3, sfx/floraphonic-bloop-1-184019.wav
+- Original title: Bloop 1
+- Original file: floraphonic-bloop-1-184019.mp3
+- Author: floraphonic
+- License: Pixabay Content License
+- Source page URL: https://pixabay.com/sound-effects/film-special-effects-bloop-1-184019/
+- License page URL: https://pixabay.com/service/license-summary/
+- Imported as: sfx/floraphonic-bloop-1-184019.mp3
+- Derived as: sfx/floraphonic-bloop-1-184019.wav (mono 44100 Hz PCM)
+
+9) sfx/floraphonic-bloop-2-186531.mp3, sfx/floraphonic-bloop-2-186531.wav
+- Original title: Bloop 2
+- Original file: floraphonic-bloop-2-186531.mp3
+- Author: floraphonic
+- License: Pixabay Content License
+- Source page URL: https://pixabay.com/sound-effects/film-special-effects-bloop-2-186531/
+- License page URL: https://pixabay.com/service/license-summary/
+- Imported as: sfx/floraphonic-bloop-2-186531.mp3
+- Derived as: sfx/floraphonic-bloop-2-186531.wav (mono 44100 Hz PCM)
