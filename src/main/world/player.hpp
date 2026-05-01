@@ -284,6 +284,7 @@ struct FamiliarLogic : public dynamic::DynamicObject {
         reached_orbit = true;
       }
       if (reached_orbit && return_timer <= 0.0f) {
+        shrooms::audio::play_familiar_return();
         state = FamiliarState::Orbit;
       }
     }
@@ -452,7 +453,6 @@ struct FamiliarLogic : public dynamic::DynamicObject {
       sprite->reset_pose();
     }
     state = FamiliarState::Returning;
-    shrooms::audio::play_familiar_return();
     return_timer = delay >= 0.0f ? delay : return_delay;
     if (player_transform) {
       const glm::vec2 player_center =
