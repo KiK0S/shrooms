@@ -16,13 +16,15 @@ inline void mushroom_fall_handler(ecs::Entity*, collision::ColliderObject* colli
   if (!collider) return;
   auto* entity = collider->get_entity();
   if (!entity || entity->is_pending_deletion()) return;
-  if (vfx::is_catch_animating(entity)) return;
+  if (vfx::is_mushroom_vfx_locked(entity)) return;
   if (entity->get<player::CarriedMarker>()) return;
   auto* sprite = entity->get<render_system::SpriteRenderable>();
   const std::string type = sprite ? engine::resources::texture_name(sprite->texture_id) : "";
   levels::on_mushroom_missed(type, entity);
   shrooms::audio::play_mushroom_fall();
-  entity->mark_deleted();
+  if (!entity->is_pending_deletion() && !vfx::is_mushroom_vfx_locked(entity)) {
+    entity->mark_deleted();
+  }
 }
 
 inline collision::TriggerCallbackRegistry::Registrar mushroom_fall_registrar(

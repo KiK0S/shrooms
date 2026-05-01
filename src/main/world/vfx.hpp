@@ -21,6 +21,7 @@
 #include "systems/scene/scene_object.hpp"
 #include "systems/text/text_object.hpp"
 #include "systems/transformation/transform_object.hpp"
+#include "engine/geometry_builder.h"
 #include "engine/resource_ids.h"
 
 namespace vfx {
@@ -88,18 +89,6 @@ inline BurstConfig catch_burst{
     0.75f,
     -1,
     glm::vec4{0.75f, 0.62f, 1.0f, 1.0f},
-};
-
-inline BurstConfig miss_burst{
-    "explosion",
-    0.38f,
-    0.7f,
-    1.55f,
-    0.92f,
-    0.0f,
-    1.05f,
-    4,
-    glm::vec4{1.0f, 0.28f, 0.32f, 1.0f},
 };
 
 inline BurstConfig sort_burst{
@@ -227,6 +216,50 @@ struct CatchConsumeVanish : public dynamic::DynamicObject {
   float elapsed = 0.0f;
 };
 
+struct MissBoilVanish : public dynamic::DynamicObject {
+  MissBoilVanish(glm::vec2 start_center, glm::vec2 size, float delete_delay,
+                 float sink_distance_px)
+      : dynamic::DynamicObject(),
+        start_center(start_center),
+        size(size),
+        delete_delay(delete_delay),
+        sink_distance_px(sink_distance_px) {}
+  ~MissBoilVanish() override { Component::component_count--; }
+
+  void update() override {
+    if (!entity || entity->is_pending_deletion()) return;
+
+    auto* transform = entity->get<transform::NoRotationTransform>();
+    if (!transform) {
+      entity->mark_deleted();
+      return;
+    }
+
+    if (auto* moving = entity->get<dynamic::MovingObject>()) {
+      moving->translate = glm::vec2{0.0f, 0.0f};
+    }
+    if (auto* rotating = entity->get<dynamic::RotatingObject>()) {
+      rotating->angle = 0.0f;
+    }
+
+    const float dt = static_cast<float>(ecs::context().delta_seconds);
+    elapsed += dt;
+    const float t = delete_delay > 0.0f ? clamp01(elapsed / delete_delay) : 1.0f;
+    const glm::vec2 center = start_center + glm::vec2{0.0f, sink_distance_px * ease_in(t)};
+    transform->pos = center - size * 0.5f;
+
+    if (elapsed >= delete_delay) {
+      entity->mark_deleted();
+    }
+  }
+
+  glm::vec2 start_center{0.0f, 0.0f};
+  glm::vec2 size{0.0f, 0.0f};
+  float delete_delay = 0.24f;
+  float sink_distance_px = 0.0f;
+  float elapsed = 0.0f;
+};
+
 struct SporeConfig {
   glm::vec4 color{1.0f, 1.0f, 1.0f, 0.6f};
   float lifetime = 0.45f;
@@ -292,6 +325,88 @@ struct VfxSpore : public dynamic::DynamicObject {
 
   glm::vec2 center{0.0f, 0.0f};
   SporeConfig config;
+  float elapsed = 0.0f;
+};
+
+struct BoilBubbleConfig {
+  glm::vec2 start_center{0.0f, 0.0f};
+  glm::vec2 end_center{0.0f, 0.0f};
+  glm::vec4 color{0.72f, 0.28f, 1.0f, 1.0f};
+  float start_radius = 3.0f;
+  float end_radius = 24.0f;
+  float lifetime = 0.7f;
+  float delay = 0.0f;
+  float start_alpha = 0.0f;
+  float peak_alpha = 0.85f;
+  float end_alpha = 0.0f;
+  float grow_fraction = 0.35f;
+  float fade_start = 0.58f;
+  float wobble_px = 0.0f;
+  float phase = 0.0f;
+  int layer = 5;
+  int segments = 32;
+};
+
+struct BoilBubble : public dynamic::DynamicObject {
+  explicit BoilBubble(BoilBubbleConfig config)
+      : dynamic::DynamicObject(),
+        config(std::move(config)) {}
+  ~BoilBubble() override { Component::component_count--; }
+
+  void update() override {
+    if (!entity || entity->is_pending_deletion()) return;
+
+    const float dt = static_cast<float>(ecs::context().delta_seconds);
+    elapsed += dt;
+    const float active_elapsed = elapsed - config.delay;
+    if (active_elapsed < 0.0f) {
+      apply_state(config.start_center, std::max(0.1f, config.start_radius), 0.0f);
+      return;
+    }
+
+    const float lifetime = std::max(0.001f, config.lifetime);
+    const float t = clamp01(active_elapsed / lifetime);
+    const float grow_t = clamp01(t / std::max(0.001f, config.grow_fraction));
+    const float fade_t = clamp01((t - config.fade_start) / std::max(0.001f, 1.0f - config.fade_start));
+    const float move_t = ease_out(t);
+    const float radius = lerp(config.start_radius, config.end_radius, ease_out(grow_t));
+    float alpha = lerp(config.start_alpha, config.peak_alpha, ease_out(grow_t));
+    if (t >= config.fade_start) {
+      alpha = lerp(config.peak_alpha, config.end_alpha, ease_in(fade_t));
+    }
+
+    glm::vec2 center{
+        lerp(config.start_center.x, config.end_center.x, move_t),
+        lerp(config.start_center.y, config.end_center.y, move_t),
+    };
+    center.x += std::sin(config.phase + active_elapsed * 12.0f) * config.wobble_px *
+                (1.0f - clamp01(t));
+
+    apply_state(center, radius, alpha);
+
+    if (active_elapsed >= config.lifetime) {
+      entity->mark_deleted();
+    }
+  }
+
+  void apply_state(const glm::vec2& center, float radius, float alpha) {
+    radius = std::max(0.1f, radius);
+    if (auto* transform = entity->get<transform::NoRotationTransform>()) {
+      transform->pos = center - glm::vec2{radius, radius};
+    }
+    if (auto* circle = entity->get<render_system::CircleRenderable>()) {
+      if (std::fabs(circle->radius - radius) > 0.1f) {
+        circle->radius = radius;
+        circle->geometry = engine::geometry::make_circle(radius, config.segments);
+        circle->uploaded = false;
+      }
+      glm::vec4 color = config.color;
+      color.w = alpha;
+      circle->color = engine::UIColor{color.x, color.y, color.z, color.w};
+    }
+  }
+
+  BoilBubbleConfig config;
   float elapsed = 0.0f;
 };
 
@@ -462,6 +577,21 @@ inline void spawn_spore(const glm::vec2& center, const SporeConfig& config) {
   entity->add(arena::create<scene::SceneObject>("main"));
 }
 
+inline void spawn_boil_bubble(const BoilBubbleConfig& config) {
+  auto* entity = arena::create<ecs::Entity>();
+  const float radius = std::max(0.1f, config.start_radius);
+  auto* transform = arena::create<transform::NoRotationTransform>();
+  transform->pos = config.start_center - glm::vec2{radius, radius};
+  entity->add(transform);
+  entity->add(arena::create<layers::ConstLayer>(config.layer));
+  glm::vec4 color = config.color;
+  color.w = config.start_alpha;
+  entity->add(arena::create<render_system::CircleRenderable>(
+      radius, engine::UIColor{color.x, color.y, color.z, color.w}));
+  entity->add(arena::create<BoilBubble>(config));
+  entity->add(arena::create<scene::SceneObject>("main"));
+}
+
 inline void spawn_spore_cloud(const glm::vec2& center, float base_radius, int count,
                               const glm::vec4& color, float spread_px, float speed_px,
                               float lifetime, int layer) {
@@ -519,12 +649,16 @@ inline bool is_catch_animating(const ecs::Entity* entity) {
   return entity && entity->get<CatchConsumeVanish>();
 }
 
+inline bool is_mushroom_vfx_locked(const ecs::Entity* entity) {
+  return entity && (entity->get<CatchConsumeVanish>() || entity->get<MissBoilVanish>());
+}
+
 inline void start_catch_consume_vanish(
     ecs::Entity* entity,
     glm::vec2 target_center = glm::vec2{std::numeric_limits<float>::quiet_NaN(),
                                         std::numeric_limits<float>::quiet_NaN()}) {
   if (!entity || entity->is_pending_deletion()) return;
-  if (is_catch_animating(entity)) return;
+  if (is_mushroom_vfx_locked(entity)) return;
 
   auto* sprite = entity->get<render_system::SpriteRenderable>();
   auto* transform = entity->get<transform::NoRotationTransform>();
@@ -574,7 +708,7 @@ inline void spawn_catch_effect(
     glm::vec2 target_center = glm::vec2{std::numeric_limits<float>::quiet_NaN(),
                                         std::numeric_limits<float>::quiet_NaN()}) {
   if (!entity) return;
-  if (is_catch_animating(entity)) return;
+  if (is_mushroom_vfx_locked(entity)) return;
   const glm::vec2 size = entity_size(entity);
   if (size.x <= 0.0f || size.y <= 0.0f) return;
   const glm::vec2 center = entity_center(entity, size);
@@ -588,49 +722,79 @@ inline void spawn_catch_effect(
                     0.32f, catch_burst.layer);
 }
 
-inline void spawn_miss_effect(ecs::Entity* entity) {
-  if (!entity) return;
+inline bool spawn_miss_effect(ecs::Entity* entity) {
+  if (!entity || entity->is_pending_deletion()) return false;
+  if (is_mushroom_vfx_locked(entity)) return false;
   const glm::vec2 size = entity_size(entity);
-  if (size.x <= 0.0f || size.y <= 0.0f) return;
+  if (size.x <= 0.0f || size.y <= 0.0f) return false;
   const glm::vec2 center = entity_center(entity, size);
   const float extent = std::max(size.x, size.y);
-  const glm::vec2 miss_center = center + glm::vec2{0.0f, extent * 0.08f};
-  spawn_burst_at(miss_center, size * 1.1f, miss_burst);
+  const float diagonal = std::sqrt(size.x * size.x + size.y * size.y);
+  const float delete_delay = 0.24f;
+  const float sink_distance = std::max(6.0f, extent * 0.22f);
+  entity->add(arena::create<MissBoilVanish>(center, size, delete_delay, sink_distance));
 
-  BurstConfig shadow_burst = miss_burst;
-  shadow_burst.texture = "explosion";
-  shadow_burst.base_scale = 0.85f;
-  shadow_burst.start_scale = 0.5f;
-  shadow_burst.end_scale = 1.3f;
-  shadow_burst.tint = glm::vec4{0.45f, 0.05f, 0.1f, 1.0f};
-  shadow_burst.layer = miss_burst.layer - 1;
-  spawn_burst_at(miss_center + glm::vec2{0.0f, extent * 0.05f}, size, shadow_burst);
+  const glm::vec2 lava_center = center + glm::vec2{0.0f, size.y * 0.46f};
+  const glm::vec2 gulp_center = center + glm::vec2{0.0f, size.y * 0.08f};
+  const float cover_radius = std::max(extent * 0.78f, diagonal * 0.58f);
 
-  const float base_radius = std::max(2.0f, extent * 0.05f);
-  const float spread = extent * 0.32f;
-  const float speed = std::max(38.0f, extent * 1.0f);
-  spawn_spore_cloud(miss_center + glm::vec2{0.0f, extent * 0.05f}, base_radius, 7,
-                    glm::vec4{0.9f, 0.2f, 0.28f, 0.65f}, spread, speed, 0.55f,
-                    miss_burst.layer + 1);
+  BoilBubbleConfig gulp{};
+  gulp.start_center = lava_center + glm::vec2{0.0f, extent * 0.12f};
+  gulp.end_center = gulp_center;
+  gulp.color = glm::vec4{0.62f, 0.22f, 1.0f, 1.0f};
+  gulp.start_radius = std::max(4.0f, extent * 0.16f);
+  gulp.end_radius = cover_radius;
+  gulp.lifetime = 0.72f;
+  gulp.delay = 0.0f;
+  gulp.start_alpha = 0.18f;
+  gulp.peak_alpha = 0.9f;
+  gulp.end_alpha = 0.0f;
+  gulp.grow_fraction = 0.34f;
+  gulp.fade_start = 0.58f;
+  gulp.wobble_px = extent * 0.02f;
+  gulp.phase = static_cast<float>(rnd::get_double(0.0, 6.28318530718));
+  gulp.layer = 5;
+  gulp.segments = 40;
+  spawn_boil_bubble(gulp);
 
-  for (int i = 0; i < 4; ++i) {
-    SporeConfig trail{};
-    trail.color = glm::vec4{0.7f, 0.1f, 0.2f, 0.55f};
-    trail.lifetime = static_cast<float>(rnd::get_double(0.28, 0.42));
-    trail.start_radius = static_cast<float>(rnd::get_double(base_radius * 0.65f, base_radius));
-    trail.end_radius =
-        static_cast<float>(rnd::get_double(base_radius * 1.35f, base_radius * 2.1f));
-    trail.velocity = glm::vec2{
-        static_cast<float>(rnd::get_double(-20.0, 20.0)),
-        static_cast<float>(rnd::get_double(45.0, 120.0)),
+  const int small_count = 9;
+  const float spread_x = std::max(8.0f, size.x * 0.7f);
+  for (int i = 0; i < small_count; ++i) {
+    const float delay = static_cast<float>(rnd::get_double(0.0, 0.16));
+    const float side = static_cast<float>(rnd::get_double(-1.0, 1.0));
+    const float start_radius = static_cast<float>(
+        rnd::get_double(std::max(2.0f, extent * 0.045f), std::max(3.5f, extent * 0.12f)));
+    BoilBubbleConfig bubble{};
+    bubble.start_center =
+        lava_center + glm::vec2{side * spread_x * static_cast<float>(rnd::get_double(0.05, 0.55)),
+                                static_cast<float>(rnd::get_double(0.0, extent * 0.2f))};
+    bubble.end_center =
+        bubble.start_center + glm::vec2{side * static_cast<float>(rnd::get_double(2.0, 12.0)),
+                                        -static_cast<float>(rnd::get_double(extent * 0.45f,
+                                                                            extent * 0.95f))};
+    bubble.color = glm::vec4{
+        static_cast<float>(rnd::get_double(0.58, 0.78)),
+        static_cast<float>(rnd::get_double(0.22, 0.36)),
+        1.0f,
+        1.0f,
     };
-    trail.layer = miss_burst.layer + 1;
-    const glm::vec2 offset{
-        static_cast<float>(rnd::get_double(-spread * 0.35f, spread * 0.35f)),
-        static_cast<float>(rnd::get_double(-spread * 0.15f, spread * 0.25f)),
-    };
-    spawn_spore(miss_center + offset, trail);
+    bubble.start_radius = start_radius;
+    bubble.end_radius = start_radius * static_cast<float>(rnd::get_double(1.7, 2.8));
+    bubble.lifetime = static_cast<float>(rnd::get_double(0.45, 0.82));
+    bubble.delay = delay;
+    bubble.start_alpha = 0.08f;
+    bubble.peak_alpha = static_cast<float>(rnd::get_double(0.48, 0.72));
+    bubble.end_alpha = 0.0f;
+    bubble.grow_fraction = static_cast<float>(rnd::get_double(0.26, 0.42));
+    bubble.fade_start = static_cast<float>(rnd::get_double(0.42, 0.58));
+    bubble.wobble_px = static_cast<float>(rnd::get_double(extent * 0.03f, extent * 0.14f));
+    bubble.phase = static_cast<float>(rnd::get_double(0.0, 6.28318530718));
+    bubble.layer = 6;
+    bubble.segments = 28;
+    spawn_boil_bubble(bubble);
   }
+
+  return true;
 }
 
 inline void spawn_sort_effect(ecs::Entity* entity) {

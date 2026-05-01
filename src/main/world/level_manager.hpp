@@ -759,7 +759,7 @@ inline void on_mushroom_caught(
                                         std::numeric_limits<float>::quiet_NaN()},
     bool from_familiar = false) {
   if (!entity || entity->is_pending_deletion()) return;
-  if (vfx::is_catch_animating(entity)) return;
+  if (vfx::is_mushroom_vfx_locked(entity)) return;
   if (tutorial_catch_hook) {
     tutorial_catch_hook(type, entity, from_familiar);
   }
@@ -797,7 +797,7 @@ inline void on_mushroom_caught(
 
 inline void on_mushroom_missed(const std::string& type, ecs::Entity* entity) {
   if (!entity || entity->is_pending_deletion()) return;
-  if (vfx::is_catch_animating(entity)) return;
+  if (vfx::is_mushroom_vfx_locked(entity)) return;
   if (tutorial_miss_hook) {
     tutorial_miss_hook(type, entity);
   }
@@ -816,6 +816,7 @@ inline void on_mushroom_missed(const std::string& type, ecs::Entity* entity) {
 
 inline void on_mushroom_sorted(ecs::Entity* entity) {
   if (!entity) return;
+  if (vfx::is_mushroom_vfx_locked(entity)) return;
   auto* level = current_level();
   if (!level) {
     entity->mark_deleted();

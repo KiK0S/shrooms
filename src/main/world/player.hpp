@@ -336,7 +336,7 @@ struct FamiliarLogic : public dynamic::DynamicObject {
 
   void handle_strike_hit(ecs::Entity* mushroom) {
     if (!mushroom || mushroom->is_pending_deletion()) return;
-    if (vfx::is_catch_animating(mushroom)) return;
+    if (vfx::is_mushroom_vfx_locked(mushroom)) return;
     if (!can_strike_hit()) return;
     levels::on_mushroom_sorted(mushroom);
     begin_return(strike_return_delay);
@@ -356,7 +356,7 @@ struct FamiliarLogic : public dynamic::DynamicObject {
 
   void handle_capture(ecs::Entity* mushroom) {
     if (!mushroom || mushroom->is_pending_deletion()) return;
-    if (vfx::is_catch_animating(mushroom)) return;
+    if (vfx::is_mushroom_vfx_locked(mushroom)) return;
     if (!can_capture()) return;
     if (mushroom->get<CarriedMarker>()) return;
 
@@ -613,7 +613,7 @@ inline collision::TriggerObject* make_familiar_trigger(FamiliarLogic* logic) {
         if (!logic->can_capture()) return;
         auto* entity = collider->get_entity();
         if (!entity || entity->is_pending_deletion()) return;
-        if (vfx::is_catch_animating(entity)) return;
+        if (vfx::is_mushroom_vfx_locked(entity)) return;
         logic->handle_capture(entity);
       });
 }
@@ -625,7 +625,7 @@ inline collision::TriggerObject* make_familiar_sort_trigger(FamiliarLogic* logic
         if (!logic || !collider) return;
         auto* entity = collider->get_entity();
         if (!entity || entity->is_pending_deletion()) return;
-        if (vfx::is_catch_animating(entity)) return;
+        if (vfx::is_mushroom_vfx_locked(entity)) return;
         logic->handle_strike_hit(entity);
       });
 }
@@ -864,7 +864,7 @@ inline collision::TriggerObject* make_player_trigger() {
         if (!collider) return;
         auto* entity = collider->get_entity();
         if (!entity || entity->is_pending_deletion()) return;
-        if (vfx::is_catch_animating(entity)) return;
+        if (vfx::is_mushroom_vfx_locked(entity)) return;
         if (entity->get<CarriedMarker>()) return;
         auto* sprite = entity->get<render_system::SpriteRenderable>();
         const std::string type = sprite ? engine::resources::texture_name(sprite->texture_id) : "";
