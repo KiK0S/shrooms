@@ -746,26 +746,34 @@ inline bool spawn_miss_effect(ecs::Entity* entity) {
 
   const glm::vec2 lava_center = center + glm::vec2{0.0f, size.y * 0.46f};
   const glm::vec2 gulp_center = center + glm::vec2{0.0f, size.y * 0.08f};
-  const float cover_radius = std::max(extent * 0.78f, diagonal * 0.58f);
+  const float cluster_radius = std::max(extent * 0.39f, diagonal * 0.29f);
 
-  BoilBubbleConfig gulp{};
-  gulp.start_center = lava_center + glm::vec2{0.0f, extent * 0.12f};
-  gulp.end_center = gulp_center;
-  gulp.color = floor_lava_color;
-  gulp.start_radius = std::max(4.0f, extent * 0.16f);
-  gulp.end_radius = cover_radius;
-  gulp.lifetime = 0.72f;
-  gulp.delay = 0.0f;
-  gulp.start_alpha = 1.0f;
-  gulp.peak_alpha = 1.0f;
-  gulp.end_alpha = 0.0f;
-  gulp.grow_fraction = 0.34f;
-  gulp.fade_start = 0.58f;
-  gulp.wobble_px = extent * 0.02f;
-  gulp.phase = static_cast<float>(rnd::get_double(0.0, 6.28318530718));
-  gulp.layer = kMissBoilBubbleLayer;
-  gulp.segments = 40;
-  spawn_boil_bubble(gulp);
+  const int gulp_count = rnd::get_int(2, 3);
+  for (int i = 0; i < gulp_count; ++i) {
+    const float side = gulp_count == 2 ? (i == 0 ? -1.0f : 1.0f)
+                                       : static_cast<float>(i - 1);
+    BoilBubbleConfig gulp{};
+    gulp.start_center =
+        lava_center + glm::vec2{side * extent * 0.18f, extent * (0.08f + 0.03f * i)};
+    gulp.end_center = gulp_center + glm::vec2{side * extent * 0.2f,
+                                              static_cast<float>(rnd::get_double(-extent * 0.08f,
+                                                                                  extent * 0.08f))};
+    gulp.color = floor_lava_color;
+    gulp.start_radius = std::max(3.0f, extent * 0.11f);
+    gulp.end_radius = cluster_radius * static_cast<float>(rnd::get_double(0.92, 1.08));
+    gulp.lifetime = static_cast<float>(rnd::get_double(0.66, 0.78));
+    gulp.delay = static_cast<float>(i) * 0.035f;
+    gulp.start_alpha = 1.0f;
+    gulp.peak_alpha = 1.0f;
+    gulp.end_alpha = 0.0f;
+    gulp.grow_fraction = 0.34f;
+    gulp.fade_start = 0.58f;
+    gulp.wobble_px = extent * 0.018f;
+    gulp.phase = static_cast<float>(rnd::get_double(0.0, 6.28318530718));
+    gulp.layer = kMissBoilBubbleLayer;
+    gulp.segments = 36;
+    spawn_boil_bubble(gulp);
+  }
 
   const int small_count = 9;
   const float spread_x = std::max(8.0f, size.x * 0.7f);
