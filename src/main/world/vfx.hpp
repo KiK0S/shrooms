@@ -115,6 +115,11 @@ inline BurstConfig projectile_burst{
     glm::vec4{0.7f, 0.8f, 1.0f, 1.0f},
 };
 
+inline const glm::vec4 floor_lava_color{103.0f / 255.0f, 36.0f / 255.0f,
+                                        110.0f / 255.0f, 1.0f};
+inline constexpr int kMissBoilMushroomLayer = -2;
+inline constexpr int kMissBoilBubbleLayer = -1;
+
 struct VfxBurst : public dynamic::DynamicObject {
   VfxBurst(glm::vec2 center, glm::vec2 base_size, BurstConfig config)
       : dynamic::DynamicObject(),
@@ -732,6 +737,11 @@ inline bool spawn_miss_effect(ecs::Entity* entity) {
   const float diagonal = std::sqrt(size.x * size.x + size.y * size.y);
   const float delete_delay = 0.24f;
   const float sink_distance = std::max(6.0f, extent * 0.22f);
+  if (auto* layer = entity->get<layers::ConstLayer>()) {
+    layer->layer = std::min(layer->layer, kMissBoilMushroomLayer);
+  } else {
+    entity->add(arena::create<layers::ConstLayer>(kMissBoilMushroomLayer));
+  }
   entity->add(arena::create<MissBoilVanish>(center, size, delete_delay, sink_distance));
 
   const glm::vec2 lava_center = center + glm::vec2{0.0f, size.y * 0.46f};
@@ -741,19 +751,19 @@ inline bool spawn_miss_effect(ecs::Entity* entity) {
   BoilBubbleConfig gulp{};
   gulp.start_center = lava_center + glm::vec2{0.0f, extent * 0.12f};
   gulp.end_center = gulp_center;
-  gulp.color = glm::vec4{0.62f, 0.22f, 1.0f, 1.0f};
+  gulp.color = floor_lava_color;
   gulp.start_radius = std::max(4.0f, extent * 0.16f);
   gulp.end_radius = cover_radius;
   gulp.lifetime = 0.72f;
   gulp.delay = 0.0f;
-  gulp.start_alpha = 0.18f;
-  gulp.peak_alpha = 0.9f;
+  gulp.start_alpha = 1.0f;
+  gulp.peak_alpha = 1.0f;
   gulp.end_alpha = 0.0f;
   gulp.grow_fraction = 0.34f;
   gulp.fade_start = 0.58f;
   gulp.wobble_px = extent * 0.02f;
   gulp.phase = static_cast<float>(rnd::get_double(0.0, 6.28318530718));
-  gulp.layer = 5;
+  gulp.layer = kMissBoilBubbleLayer;
   gulp.segments = 40;
   spawn_boil_bubble(gulp);
 
@@ -772,24 +782,19 @@ inline bool spawn_miss_effect(ecs::Entity* entity) {
         bubble.start_center + glm::vec2{side * static_cast<float>(rnd::get_double(2.0, 12.0)),
                                         -static_cast<float>(rnd::get_double(extent * 0.45f,
                                                                             extent * 0.95f))};
-    bubble.color = glm::vec4{
-        static_cast<float>(rnd::get_double(0.58, 0.78)),
-        static_cast<float>(rnd::get_double(0.22, 0.36)),
-        1.0f,
-        1.0f,
-    };
+    bubble.color = floor_lava_color;
     bubble.start_radius = start_radius;
     bubble.end_radius = start_radius * static_cast<float>(rnd::get_double(1.7, 2.8));
     bubble.lifetime = static_cast<float>(rnd::get_double(0.45, 0.82));
     bubble.delay = delay;
-    bubble.start_alpha = 0.08f;
-    bubble.peak_alpha = static_cast<float>(rnd::get_double(0.48, 0.72));
+    bubble.start_alpha = 1.0f;
+    bubble.peak_alpha = 1.0f;
     bubble.end_alpha = 0.0f;
     bubble.grow_fraction = static_cast<float>(rnd::get_double(0.26, 0.42));
     bubble.fade_start = static_cast<float>(rnd::get_double(0.42, 0.58));
     bubble.wobble_px = static_cast<float>(rnd::get_double(extent * 0.03f, extent * 0.14f));
     bubble.phase = static_cast<float>(rnd::get_double(0.0, 6.28318530718));
-    bubble.layer = 6;
+    bubble.layer = kMissBoilBubbleLayer;
     bubble.segments = 28;
     spawn_boil_bubble(bubble);
   }
