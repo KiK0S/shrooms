@@ -148,6 +148,29 @@
       -webkit-user-select: none;
     }
 
+    .controls-legend {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px 10px;
+      color: #dfd6ab;
+      font-size: clamp(0.68rem, 2.8vw, 0.82rem);
+      line-height: 1.2;
+      padding: 2px 4px 0;
+    }
+
+    .controls-legend div {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .controls-legend span:last-child {
+      color: #fff;
+      white-space: nowrap;
+    }
+
     body.mobile-controls-active #status {
       visibility: hidden;
     }
@@ -190,8 +213,14 @@
       <section id="mobile-controls" aria-label="Mobile controls" aria-hidden="true">
         <button id="move-left-button" class="action-button" type="button" aria-label="Move left">&#x2B05;&#xFE0F;</button>
         <button id="move-right-button" class="action-button" type="button" aria-label="Move right">&#x27A1;&#xFE0F;</button>
-        <button id="fire-button" class="action-button" type="button" aria-label="Explosion">&#x1F4A5;</button>
-        <button id="deploy-button" class="action-button" type="button" aria-label="Bat">&#x1F987;</button>
+        <button id="fire-button" class="action-button" type="button" aria-label="Shoot">&#x1F4A5;</button>
+        <button id="deploy-button" class="action-button" type="button" aria-label="Trap">&#x1FAA4;</button>
+        <div class="controls-legend" aria-label="Control bindings">
+          <div><span>&#x2B05;&#xFE0F; Move</span><span id="move-left-key">A</span></div>
+          <div><span>&#x27A1;&#xFE0F; Move</span><span id="move-right-key">D</span></div>
+          <div><span>&#x1F4A5; Shoot</span><span id="shoot-key">W</span></div>
+          <div><span>&#x1FAA4; Trap</span><span id="trap-key">E</span></div>
+        </div>
       </section>
     </section>
   </main>
@@ -208,11 +237,19 @@
     const moveRightButton = document.getElementById("move-right-button");
     const fireButton = document.getElementById("fire-button");
     const deployButton = document.getElementById("deploy-button");
+    const moveLeftKeyLabel = document.getElementById("move-left-key");
+    const moveRightKeyLabel = document.getElementById("move-right-key");
+    const shootKeyLabel = document.getElementById("shoot-key");
+    const trapKeyLabel = document.getElementById("trap-key");
 
     const KEY_A = 65;
     const KEY_D = 68;
     const KEY_W = 87;
     const KEY_E = 69;
+    const ACTION_MOVE_LEFT = 0;
+    const ACTION_MOVE_RIGHT = 1;
+    const ACTION_SHOOT = 2;
+    const ACTION_TRAP = 3;
     const BG_TILEMAP_URL = "assets/shrooms/tilemap.png";
     const BG_TILE_SIZE_VMIN = 20;
     const BG_ALPHA = 0.5;
@@ -455,6 +492,50 @@
       Module._shrooms_set_touchscreen_enabled(enabled ? 1 : 0);
     }
 
+    function setMobileLayout(enabled) {
+      if (!bridgeReady() || typeof Module._shrooms_set_mobile_layout !== "function") {
+        return;
+      }
+      Module._shrooms_set_mobile_layout(enabled ? 1 : 0);
+    }
+
+    function actionFallbackKeyCode(action) {
+      if (action === ACTION_MOVE_LEFT) return KEY_A;
+      if (action === ACTION_MOVE_RIGHT) return KEY_D;
+      if (action === ACTION_SHOOT) return KEY_W;
+      if (action === ACTION_TRAP) return KEY_E;
+      return 0;
+    }
+
+    function actionKeyCode(action) {
+      if (bridgeReady() && typeof Module._shrooms_action_key_code === "function") {
+        const keyCode = Module._shrooms_action_key_code(action);
+        if (keyCode) return keyCode;
+      }
+      return actionFallbackKeyCode(action);
+    }
+
+    function keyLabel(keyCode) {
+      if (keyCode >= 65 && keyCode <= 90) {
+        return String.fromCharCode(keyCode);
+      }
+      if (keyCode >= 48 && keyCode <= 57) {
+        return String.fromCharCode(keyCode);
+      }
+      if (keyCode === 37) return "Left";
+      if (keyCode === 38) return "Up";
+      if (keyCode === 39) return "Right";
+      if (keyCode === 40) return "Down";
+      return "?";
+    }
+
+    function updateControlLegend() {
+      moveLeftKeyLabel.textContent = keyLabel(actionKeyCode(ACTION_MOVE_LEFT));
+      moveRightKeyLabel.textContent = keyLabel(actionKeyCode(ACTION_MOVE_RIGHT));
+      shootKeyLabel.textContent = keyLabel(actionKeyCode(ACTION_SHOOT));
+      trapKeyLabel.textContent = keyLabel(actionKeyCode(ACTION_TRAP));
+    }
+
     function queryGameplayActive() {
       if (!bridgeReady() || typeof Module._shrooms_is_gameplay_active !== "function") {
         return false;
@@ -467,19 +548,19 @@
       const moveRight = controlState.moveRightPointers.size > 0;
 
       if (moveLeft && !moveRight) {
-        pushKeyState(KEY_A, true);
-        pushKeyState(KEY_D, false);
+        pushKeyState(actionKeyCode(ACTION_MOVE_LEFT), true);
+        pushKeyState(actionKeyCode(ACTION_MOVE_RIGHT), false);
         return;
       }
 
       if (moveRight && !moveLeft) {
-        pushKeyState(KEY_D, true);
-        pushKeyState(KEY_A, false);
+        pushKeyState(actionKeyCode(ACTION_MOVE_RIGHT), true);
+        pushKeyState(actionKeyCode(ACTION_MOVE_LEFT), false);
         return;
       }
 
-      pushKeyState(KEY_A, false);
-      pushKeyState(KEY_D, false);
+      pushKeyState(actionKeyCode(ACTION_MOVE_LEFT), false);
+      pushKeyState(actionKeyCode(ACTION_MOVE_RIGHT), false);
     }
 
     function releaseMovePointers() {
@@ -491,22 +572,22 @@
       syncMoveKeys();
     }
 
-    function releaseButtonPointers(setRef, keyCode) {
+    function releaseButtonPointers(setRef, action) {
       if (setRef.size === 0) {
         return;
       }
       setRef.clear();
-      pushKeyState(keyCode, false);
+      pushKeyState(actionKeyCode(action), false);
     }
 
     function releaseAllControlKeys() {
-      releaseMovePointers();
-      releaseButtonPointers(controlState.firePointers, KEY_W);
-      releaseButtonPointers(controlState.deployPointers, KEY_E);
-      pushKeyState(KEY_A, false);
-      pushKeyState(KEY_D, false);
-      pushKeyState(KEY_W, false);
-      pushKeyState(KEY_E, false);
+      controlState.moveLeftPointers.clear();
+      controlState.moveRightPointers.clear();
+      controlState.firePointers.clear();
+      controlState.deployPointers.clear();
+      for (const keyCode of Array.from(controlState.heldKeys)) {
+        pushKeyState(keyCode, false);
+      }
     }
 
     function syncCanvasSize() {
@@ -540,6 +621,8 @@
     function applyControlsMode() {
       const nextActive = shouldUseMobileControls();
       const canvasTouchscreenEnabled = !shouldUseMobileTouchLayout();
+      setMobileLayout(shouldUseMobileTouchLayout());
+      updateControlLegend();
       if (nextActive === controlState.controlsActive) {
         setCanvasTouchscreenEnabled(canvasTouchscreenEnabled);
         syncCanvasSize();
@@ -566,6 +649,8 @@
       if (active !== controlState.gameplayActive) {
         controlState.gameplayActive = active;
         applyControlsMode();
+      } else if (controlState.controlsActive) {
+        updateControlLegend();
       }
     }
 
@@ -577,7 +662,7 @@
       query.addListener(listener);
     }
 
-    function onActionPointerDown(evt, setRef, keyCode) {
+    function onActionPointerDown(evt, setRef, action) {
       if (!controlState.controlsActive) {
         return;
       }
@@ -586,15 +671,15 @@
       if (typeof evt.target.setPointerCapture === "function") {
         evt.target.setPointerCapture(evt.pointerId);
       }
-      pushKeyState(keyCode, true);
+      pushKeyState(actionKeyCode(action), true);
     }
 
-    function onActionPointerUp(evt, setRef, keyCode) {
+    function onActionPointerUp(evt, setRef, action) {
       if (!setRef.delete(evt.pointerId)) {
         return;
       }
       if (setRef.size === 0) {
-        pushKeyState(keyCode, false);
+        pushKeyState(actionKeyCode(action), false);
       }
     }
 
@@ -644,29 +729,29 @@
     });
 
     fireButton.addEventListener("pointerdown", (evt) => {
-      onActionPointerDown(evt, controlState.firePointers, KEY_W);
+      onActionPointerDown(evt, controlState.firePointers, ACTION_SHOOT);
     });
     fireButton.addEventListener("pointerup", (evt) => {
-      onActionPointerUp(evt, controlState.firePointers, KEY_W);
+      onActionPointerUp(evt, controlState.firePointers, ACTION_SHOOT);
     });
     fireButton.addEventListener("pointercancel", (evt) => {
-      onActionPointerUp(evt, controlState.firePointers, KEY_W);
+      onActionPointerUp(evt, controlState.firePointers, ACTION_SHOOT);
     });
     fireButton.addEventListener("lostpointercapture", (evt) => {
-      onActionPointerUp(evt, controlState.firePointers, KEY_W);
+      onActionPointerUp(evt, controlState.firePointers, ACTION_SHOOT);
     });
 
     deployButton.addEventListener("pointerdown", (evt) => {
-      onActionPointerDown(evt, controlState.deployPointers, KEY_E);
+      onActionPointerDown(evt, controlState.deployPointers, ACTION_TRAP);
     });
     deployButton.addEventListener("pointerup", (evt) => {
-      onActionPointerUp(evt, controlState.deployPointers, KEY_E);
+      onActionPointerUp(evt, controlState.deployPointers, ACTION_TRAP);
     });
     deployButton.addEventListener("pointercancel", (evt) => {
-      onActionPointerUp(evt, controlState.deployPointers, KEY_E);
+      onActionPointerUp(evt, controlState.deployPointers, ACTION_TRAP);
     });
     deployButton.addEventListener("lostpointercapture", (evt) => {
-      onActionPointerUp(evt, controlState.deployPointers, KEY_E);
+      onActionPointerUp(evt, controlState.deployPointers, ACTION_TRAP);
     });
 
     window.addEventListener("blur", () => {

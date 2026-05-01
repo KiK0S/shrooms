@@ -28,6 +28,7 @@
 #include "systems/scene/scene_system.hpp"
 
 #include "level_manager.hpp"
+#include "controls.hpp"
 #include "game_audio.hpp"
 #include "vfx.hpp"
 #include "camera_shake.hpp"
@@ -788,22 +789,22 @@ struct PlayerController : public dynamic::DynamicObject {
     if (!player_transform) return;
 
     const bool deploy_pressed =
-        input::get_button_state('E') || touchscreen::deploy_pressed;
+        controls::is_down(controls::Action::Trap) || touchscreen::deploy_pressed;
     if (deploy_pressed && !deploy_pressed_last) {
       deploy_familiar();
     }
     deploy_pressed_last = deploy_pressed;
 
     const bool fire_pressed =
-        input::is_down(input::Key::W) || touchscreen::fire_pressed;
+        controls::is_down(controls::Action::Shoot) || touchscreen::fire_pressed;
     if (fire_pressed && !fire_pressed_last) {
       launch_strike_familiar();
     }
     fire_pressed_last = fire_pressed;
 
     float dx = 0.0f;
-    if (input::is_down(input::Key::A)) dx -= step_px;
-    if (input::is_down(input::Key::D)) dx += step_px;
+    if (controls::is_down(controls::Action::MoveLeft)) dx -= step_px;
+    if (controls::is_down(controls::Action::MoveRight)) dx += step_px;
     dx += touchscreen::joystick_value.x * step_px;
 
     if (dx == 0.0f) {

@@ -10,6 +10,7 @@
 
 #include "world/level_loader.hpp"
 #include "world/level_manager.hpp"
+#include "world/controls.hpp"
 #include "world/score_hud.hpp"
 #include "world/camera_shake.hpp"
 #include "world/ambient_layers.hpp"
@@ -76,6 +77,14 @@ bool is_gameplay_active() {
   return main_scene && active_scene == main_scene && !scene::is_current_scene_paused();
 }
 
+int action_key_code(int action_index) {
+  if (action_index < 0 ||
+      action_index >= static_cast<int>(::controls::kActionCount)) {
+    return 0;
+  }
+  return ::controls::bound_key(static_cast<::controls::Action>(action_index));
+}
+
 void set_page_active(bool active) {
   page_active = active;
   apply_page_active_state();
@@ -85,7 +94,12 @@ void set_touchscreen_enabled(bool enabled) {
   touchscreen::set_enabled(enabled);
 }
 
+void set_mobile_layout(bool enabled) {
+  ::controls::set_mobile_layout(enabled);
+}
+
 void ShroomsLogic::on_init() {
+  ::controls::load();
   config_params::register_params();
   config_params::setup_io();
 

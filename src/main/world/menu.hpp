@@ -9,6 +9,7 @@
 #include <optional>
 #include <sstream>
 #include <string>
+#include <utility>
 
 #include "glm/glm/vec2.hpp"
 
@@ -28,6 +29,7 @@
 #include "leaderboard.hpp"
 #include "level_manager.hpp"
 #include "score_hud.hpp"
+#include "controls.hpp"
 #include "player.hpp"
 #include "share_bridge.hpp"
 #include "tutorial.hpp"
@@ -52,8 +54,12 @@ constexpr float kMenuLineIconWidthPx = 34.0f;
 constexpr float kMenuLineIconGapPx = 8.0f;
 constexpr int kKeyArrowUpDom = 38;
 constexpr int kKeyArrowDownDom = 40;
+constexpr int kKeyArrowLeftDom = 37;
+constexpr int kKeyArrowRightDom = 39;
 constexpr int kKeyArrowUpSdl = 1073741906;
 constexpr int kKeyArrowDownSdl = 1073741905;
+constexpr int kKeyArrowLeftSdl = 1073741904;
+constexpr int kKeyArrowRightSdl = 1073741903;
 constexpr float kVolumeAdjustStep = 0.05f;
 
 struct LineTextColor : public color::ColoredObject {
@@ -120,6 +126,7 @@ struct TextLine {
 inline TextLine status_line{};
 inline TextLine instruction_line{};
 inline TextLine difficulty_line{};
+inline TextLine settings_line{};
 inline TextLine audio_line{};
 inline TextLine tutorial_line{};
 inline TextLine credits_line{};
@@ -132,6 +139,7 @@ inline transform::NoRotationTransform* menu_background_transform = nullptr;
 
 enum class MenuMode {
   Main,
+  Settings,
   Objective,
   GameOver,
 };
@@ -143,6 +151,14 @@ inline TextLine objective_level{};
 inline TextLine objective_hint{};
 inline std::array<TextLine, kMaxLevelLines> objective_recipe_lines{};
 inline size_t active_objective_lines = 0;
+
+inline TextLine settings_title{};
+inline TextLine settings_hint{};
+inline std::array<TextLine, controls::kActionCount> settings_control_lines{};
+inline TextLine settings_reset{};
+inline TextLine settings_back{};
+inline std::optional<controls::Action> pending_control_remap{};
+inline std::string settings_hint_message{};
 
 inline TextLine gameover_title{};
 inline TextLine gameover_level{};
@@ -175,6 +191,7 @@ inline void enter_infinite_objective_mode();
 inline void enter_tutorial_objective_mode();
 inline void enter_game_over_mode();
 inline void enter_main_menu_mode();
+inline void enter_settings_mode();
 
 inline std::string infinite_background_texture() {
   if (!levels::parsed_levels.empty()) {
@@ -538,6 +555,14 @@ inline bool is_arrow_down_key(int key) {
   return key == kKeyArrowDownDom || key == kKeyArrowDownSdl;
 }
 
+inline bool is_arrow_left_key(int key) {
+  return key == kKeyArrowLeftDom || key == kKeyArrowLeftSdl;
+}
+
+inline bool is_arrow_right_key(int key) {
+  return key == kKeyArrowRightDom || key == kKeyArrowRightSdl;
+}
+
 inline bool is_confirm_key(int key) {
   return key == ' ' || key == '\r' || key == '\n' || key == 13;
 }
@@ -686,6 +711,10 @@ inline void refresh_difficulty_line() {
   update_text(difficulty_line, "Difficulty: " + levels::difficulty_label());
 }
 
+inline void refresh_settings_line() {
+  update_text(settings_line, "Settings");
+}
+
 inline void refresh_audio_line() {
   update_text(audio_line, shrooms::audio::volume_label());
   set_line_slider_value(audio_line, shrooms::audio::volume_slider_value());
@@ -693,6 +722,29 @@ inline void refresh_audio_line() {
 
 inline void refresh_tutorial_line() {
   update_text(tutorial_line, "Tutorial");
+}
+
+inline std::string settings_control_line_text(controls::Action action) {
+  if (pending_control_remap && *pending_control_remap == action) {
+    return std::string(controls::action_label(action)) + ": Press key";
+  }
+  return std::string(controls::action_label(action)) + ": " + controls::bound_key_label(action);
+}
+
+inline void refresh_settings_lines() {
+  update_text(settings_title, "Settings");
+  const std::string default_hint =
+      controls::is_mobile_layout()
+          ? "Controls are read-only on mobile"
+          : "Click a control, then press a letter, number, or arrow";
+  update_text(settings_hint, settings_hint_message.empty() ? default_hint : settings_hint_message);
+  refresh_audio_line();
+  for (size_t i = 0; i < settings_control_lines.size(); ++i) {
+    const auto action = static_cast<controls::Action>(i);
+    update_text(settings_control_lines[i], settings_control_line_text(action));
+  }
+  update_text(settings_reset, "Reset Controls");
+  update_text(settings_back, "Back");
 }
 
 inline void refresh_level_lines() {
@@ -713,11 +765,37 @@ inline void relayout_main_rows_for_variable_heights() {
   std::array<TextLine*, kMaxLevelLines + 3> ordered{};
   size_t count = 0;
   ordered[count++] = &difficulty_line;
-  ordered[count++] = &audio_line;
+  ordered[count++] = &settings_line;
   ordered[count++] = &tutorial_line;
   for (size_t i = 0; i < active_level_lines && i < kMaxLevelLines; ++i) {
     ordered[count++] = &level_lines[i];
   }
+
+  if (count == 0 || !ordered[0] || !ordered[0]->button_transform) return;
+  float next_top = ordered[0]->button_base_pos.y;
+  for (size_t i = 0; i < count; ++i) {
+    auto* line = ordered[i];
+    if (!line || !line->button_transform || !line->text_object || !line->transform) continue;
+    if (i > 0 && line->button_base_pos.y < next_top) {
+      const float delta_y = next_top - line->button_base_pos.y;
+      line->anchor_pos.y += delta_y;
+      line->transform->pos.y += delta_y;
+      update_text(*line, line->text_object->text);
+    }
+    next_top = line->button_base_pos.y + line->button_base_size.y + gap_px;
+  }
+}
+
+inline void relayout_settings_rows_for_variable_heights() {
+  constexpr float gap_px = 12.0f;
+  std::array<TextLine*, controls::kActionCount + 3> ordered{};
+  size_t count = 0;
+  ordered[count++] = &audio_line;
+  for (auto& line : settings_control_lines) {
+    ordered[count++] = &line;
+  }
+  ordered[count++] = &settings_reset;
+  ordered[count++] = &settings_back;
 
   if (count == 0 || !ordered[0] || !ordered[0]->button_transform) return;
   float next_top = ordered[0]->button_base_pos.y;
@@ -864,13 +942,15 @@ inline void refresh_gameover_lines() {
 inline void set_menu_mode(MenuMode mode) {
   menu_mode = mode;
   const bool show_main = (mode == MenuMode::Main);
+  const bool show_settings = (mode == MenuMode::Settings);
   const bool show_objective = (mode == MenuMode::Objective);
   const bool show_game_over = (mode == MenuMode::GameOver);
 
   set_line_visibility(status_line, false, false);
   set_line_visibility(instruction_line, false, false);
   set_line_visibility(difficulty_line, show_main, show_main);
-  set_line_visibility(audio_line, show_main, show_main);
+  set_line_visibility(settings_line, show_main, show_main);
+  set_line_visibility(audio_line, show_settings, show_settings);
   set_line_visibility(tutorial_line, show_main, show_main);
   set_line_visibility(credits_line, show_main, false);
   for (size_t i = 0; i < kMaxLevelLines; ++i) {
@@ -884,6 +964,13 @@ inline void set_menu_mode(MenuMode mode) {
     set_line_visibility(objective_recipe_lines[i], show_objective && i < active_objective_lines,
                         false);
   }
+  set_line_visibility(settings_title, show_settings, false);
+  set_line_visibility(settings_hint, show_settings, false);
+  for (auto& line : settings_control_lines) {
+    set_line_visibility(line, show_settings, show_settings);
+  }
+  set_line_visibility(settings_reset, show_settings, show_settings);
+  set_line_visibility(settings_back, show_settings, show_settings);
 
   set_line_visibility(gameover_title, false, false);
   set_line_visibility(gameover_level, false, false);
@@ -1034,6 +1121,7 @@ inline void enter_main_menu_mode() {
   refresh_level_lines();
   refresh_instruction_line();
   refresh_difficulty_line();
+  refresh_settings_line();
   refresh_audio_line();
   refresh_tutorial_line();
   refresh_status_line();
@@ -1045,13 +1133,27 @@ inline void enter_main_menu_mode() {
   set_menu_mode(MenuMode::Main);
 }
 
+inline void enter_settings_mode() {
+  pending_control_remap.reset();
+  settings_hint_message.clear();
+  refresh_settings_lines();
+  relayout_settings_rows_for_variable_heights();
+  suppress_input_for_frames(1);
+  set_menu_mode(MenuMode::Settings);
+}
+
 struct MenuController : public dynamic::DynamicObject {
   MenuController() : dynamic::DynamicObject() {}
 
   static constexpr size_t kDifficultyMainSlot = 0;
-  static constexpr size_t kAudioMainSlot = 1;
+  static constexpr size_t kSettingsMainSlot = 1;
   static constexpr size_t kTutorialMainSlot = 2;
   static constexpr size_t kLevelMainSlotOffset = 3;
+  static constexpr size_t kSettingsVolumeSlot = 0;
+  static constexpr size_t kSettingsControlSlotOffset = 1;
+  static constexpr size_t kSettingsResetSlot = kSettingsControlSlotOffset + controls::kActionCount;
+  static constexpr size_t kSettingsBackSlot = kSettingsResetSlot + 1;
+  static constexpr size_t kSettingsSlotCount = kSettingsBackSlot + 1;
 
   void update_pointer() {
     for (const auto& evt : input::events()) {
@@ -1074,7 +1176,7 @@ struct MenuController : public dynamic::DynamicObject {
   }
 
   bool is_main_slot_selectable(size_t slot, size_t current_levels) const {
-    if (slot == kDifficultyMainSlot || slot == kAudioMainSlot || slot == kTutorialMainSlot) {
+    if (slot == kDifficultyMainSlot || slot == kSettingsMainSlot || slot == kTutorialMainSlot) {
       return true;
     }
     const auto level_index = main_slot_level_index(slot, current_levels);
@@ -1086,8 +1188,8 @@ struct MenuController : public dynamic::DynamicObject {
     if (point_hits_line(difficulty_line, point)) {
       return kDifficultyMainSlot;
     }
-    if (point_hits_line(audio_line, point)) {
-      return kAudioMainSlot;
+    if (point_hits_line(settings_line, point)) {
+      return kSettingsMainSlot;
     }
     if (point_hits_line(tutorial_line, point)) {
       return kTutorialMainSlot;
@@ -1097,6 +1199,24 @@ struct MenuController : public dynamic::DynamicObject {
       return std::nullopt;
     }
     return *level_index + kLevelMainSlotOffset;
+  }
+
+  TextLine* settings_line_for_slot(size_t slot) const {
+    if (slot == kSettingsVolumeSlot) return &audio_line;
+    if (slot >= kSettingsControlSlotOffset && slot < kSettingsResetSlot) {
+      return &settings_control_lines[slot - kSettingsControlSlotOffset];
+    }
+    if (slot == kSettingsResetSlot) return &settings_reset;
+    if (slot == kSettingsBackSlot) return &settings_back;
+    return nullptr;
+  }
+
+  std::optional<size_t> settings_slot_at_point(const glm::vec2& point) const {
+    for (size_t slot = 0; slot < kSettingsSlotCount; ++slot) {
+      const TextLine* line = settings_line_for_slot(slot);
+      if (line && point_hits_line(*line, point)) return slot;
+    }
+    return std::nullopt;
   }
 
   void ensure_main_selection(size_t current_levels) {
@@ -1131,6 +1251,109 @@ struct MenuController : public dynamic::DynamicObject {
       if (!is_main_slot_selectable(static_cast<size_t>(candidate), current_levels)) continue;
       selected_main_slot = static_cast<size_t>(candidate);
       return;
+    }
+  }
+
+  void ensure_settings_selection() {
+    if (selected_settings_slot < kSettingsSlotCount) return;
+    selected_settings_slot = 0;
+  }
+
+  void move_settings_selection(int direction) {
+    if (direction == 0) return;
+    ensure_settings_selection();
+    int next = static_cast<int>(selected_settings_slot) + (direction > 0 ? 1 : -1);
+    while (next < 0) {
+      next += static_cast<int>(kSettingsSlotCount);
+    }
+    next %= static_cast<int>(kSettingsSlotCount);
+    selected_settings_slot = static_cast<size_t>(next);
+  }
+
+  void apply_settings_visuals(std::optional<size_t> hovered_slot) {
+    ensure_settings_selection();
+    for (size_t slot = 0; slot < kSettingsSlotCount; ++slot) {
+      TextLine* line = settings_line_for_slot(slot);
+      if (!line) continue;
+      const bool selected = slot == selected_settings_slot;
+      const bool hovered = hovered_slot && *hovered_slot == slot;
+      set_line_visual_state(*line, selected, hovered, !selected);
+    }
+    for (size_t i = 0; i < kMaxLevelLines; ++i) {
+      set_line_visual_state(level_lines[i], false, false, false);
+    }
+    set_line_visual_state(tutorial_line, false, false, false);
+    set_line_visual_state(difficulty_line, false, false, false);
+    set_line_visual_state(settings_line, false, false, false);
+  }
+
+  void set_settings_hint(std::string message) {
+    settings_hint_message = std::move(message);
+    refresh_settings_lines();
+    relayout_settings_rows_for_variable_heights();
+  }
+
+  void begin_control_remap(controls::Action action) {
+    if (controls::is_mobile_layout()) {
+      pending_control_remap.reset();
+      set_settings_hint("Controls are read-only on mobile");
+      return;
+    }
+    pending_control_remap = action;
+    settings_hint_message =
+        "Press a new key for " + std::string(controls::action_label(action));
+    refresh_settings_lines();
+    relayout_settings_rows_for_variable_heights();
+  }
+
+  void complete_control_remap(int key_code) {
+    if (!pending_control_remap) return;
+    const int key = controls::canonical_key_code(key_code);
+    if (!controls::is_supported_key(key)) {
+      set_settings_hint("Use letters, numbers, or arrows");
+      return;
+    }
+    if (auto used_by = controls::action_for_key(key);
+        used_by && *used_by != *pending_control_remap) {
+      set_settings_hint(controls::key_label(key) + " is already used");
+      return;
+    }
+    const controls::Action action = *pending_control_remap;
+    if (controls::set_binding(action, key)) {
+      pending_control_remap.reset();
+      set_settings_hint(std::string(controls::action_label(action)) + " set to " +
+                        controls::key_label(key));
+    }
+  }
+
+  void cancel_control_remap() {
+    if (!pending_control_remap) return;
+    pending_control_remap.reset();
+    set_settings_hint("Remap cancelled");
+  }
+
+  void handle_selected_settings_action(size_t current_levels) {
+    ensure_settings_selection();
+    if (selected_settings_slot == kSettingsVolumeSlot) {
+      toggle_mute(current_levels);
+      refresh_settings_lines();
+      relayout_settings_rows_for_variable_heights();
+      return;
+    }
+    if (selected_settings_slot >= kSettingsControlSlotOffset &&
+        selected_settings_slot < kSettingsResetSlot) {
+      begin_control_remap(
+          static_cast<controls::Action>(selected_settings_slot - kSettingsControlSlotOffset));
+      return;
+    }
+    if (selected_settings_slot == kSettingsResetSlot) {
+      pending_control_remap.reset();
+      controls::reset_to_defaults();
+      set_settings_hint("Controls reset");
+      return;
+    }
+    if (selected_settings_slot == kSettingsBackSlot) {
+      enter_main_menu_mode();
     }
   }
 
@@ -1188,8 +1411,8 @@ struct MenuController : public dynamic::DynamicObject {
       toggle_difficulty();
       return;
     }
-    if (slot == kAudioMainSlot) {
-      toggle_mute(current_levels);
+    if (slot == kSettingsMainSlot) {
+      enter_settings_mode();
       return;
     }
     if (slot == kTutorialMainSlot) {
@@ -1225,10 +1448,11 @@ struct MenuController : public dynamic::DynamicObject {
     const bool difficulty_hovered = hovered_slot && *hovered_slot == kDifficultyMainSlot;
     set_line_visual_state(difficulty_line, difficulty_selected, difficulty_hovered,
                           !difficulty_selected && has_selection);
-    const bool audio_selected = selected_main_slot && *selected_main_slot == kAudioMainSlot;
-    const bool audio_hovered = hovered_slot && *hovered_slot == kAudioMainSlot;
-    set_line_visual_state(audio_line, audio_selected, audio_hovered,
-                          !audio_selected && has_selection);
+    const bool settings_selected =
+        selected_main_slot && *selected_main_slot == kSettingsMainSlot;
+    const bool settings_hovered = hovered_slot && *hovered_slot == kSettingsMainSlot;
+    set_line_visual_state(settings_line, settings_selected, settings_hovered,
+                          !settings_selected && has_selection);
     set_line_visual_state(gameover_restart, false, false, false);
     set_line_visual_state(gameover_main_menu, false, false, false);
     set_line_visual_state(gameover_share, false, false, false);
@@ -1269,7 +1493,13 @@ struct MenuController : public dynamic::DynamicObject {
     }
     set_line_visual_state(tutorial_line, false, false, false);
     set_line_visual_state(difficulty_line, false, false, false);
+    set_line_visual_state(settings_line, false, false, false);
     set_line_visual_state(audio_line, false, false, false);
+    for (auto& line : settings_control_lines) {
+      set_line_visual_state(line, false, false, false);
+    }
+    set_line_visual_state(settings_reset, false, false, false);
+    set_line_visual_state(settings_back, false, false, false);
   }
 
   void clear_hover(size_t current_levels) {
@@ -1278,13 +1508,21 @@ struct MenuController : public dynamic::DynamicObject {
     }
     if (menu_mode == MenuMode::Main) {
       apply_main_visuals(std::nullopt, current_levels);
+    } else if (menu_mode == MenuMode::Settings) {
+      apply_settings_visuals(std::nullopt);
     } else {
       for (size_t i = 0; i < kMaxLevelLines; ++i) {
         set_line_visual_state(level_lines[i], false, false, false);
       }
       set_line_visual_state(tutorial_line, false, false, false);
       set_line_visual_state(difficulty_line, false, false, false);
+      set_line_visual_state(settings_line, false, false, false);
       set_line_visual_state(audio_line, false, false, false);
+      for (auto& line : settings_control_lines) {
+        set_line_visual_state(line, false, false, false);
+      }
+      set_line_visual_state(settings_reset, false, false, false);
+      set_line_visual_state(settings_back, false, false, false);
     }
     if (menu_mode == MenuMode::GameOver && !awaiting_name_entry) {
       apply_gameover_visuals(false, false, false);
@@ -1320,7 +1558,13 @@ struct MenuController : public dynamic::DynamicObject {
         set_line_visual_state(gameover_restart, false, false, false);
         set_line_visual_state(gameover_main_menu, false, false, false);
         set_line_visual_state(gameover_share, false, false, false);
+        set_line_visual_state(settings_line, false, false, false);
         set_line_visual_state(audio_line, false, false, false);
+        for (auto& line : settings_control_lines) {
+          set_line_visual_state(line, false, false, false);
+        }
+        set_line_visual_state(settings_reset, false, false, false);
+        set_line_visual_state(settings_back, false, false, false);
         return;
       }
       bool hover_restart = false;
@@ -1339,6 +1583,19 @@ struct MenuController : public dynamic::DynamicObject {
         selected_gameover_index = 2;
       }
       apply_gameover_visuals(hover_restart, hover_menu, hover_share);
+      return;
+    }
+
+    if (menu_mode == MenuMode::Settings) {
+      ensure_settings_selection();
+      std::optional<size_t> hovered_slot;
+      if (last_pointer) {
+        hovered_slot = settings_slot_at_point(*last_pointer);
+      }
+      if (hovered_slot) {
+        selected_settings_slot = *hovered_slot;
+      }
+      apply_settings_visuals(hovered_slot);
       return;
     }
 
@@ -1422,6 +1679,9 @@ struct MenuController : public dynamic::DynamicObject {
     if (menu_mode != previous_mode) {
       if (menu_mode == MenuMode::Main) {
         ensure_main_selection(current_levels);
+      } else if (menu_mode == MenuMode::Settings) {
+        selected_settings_slot = kSettingsVolumeSlot;
+        ensure_settings_selection();
       } else if (menu_mode == MenuMode::GameOver && !awaiting_name_entry) {
         selected_gameover_index = 0;
         ensure_gameover_selection();
@@ -1490,15 +1750,7 @@ struct MenuController : public dynamic::DynamicObject {
           return;
         }
         if (key == 'V') {
-          toggle_mute(current_levels);
-          return;
-        }
-        if (key == 'A' && selected_main_slot && *selected_main_slot == kAudioMainSlot) {
-          change_volume(-kVolumeAdjustStep, current_levels);
-          return;
-        }
-        if (key == 'D' && selected_main_slot && *selected_main_slot == kAudioMainSlot) {
-          change_volume(kVolumeAdjustStep, current_levels);
+          enter_settings_mode();
           return;
         }
         if (is_arrow_up_key(key)) {
@@ -1517,6 +1769,44 @@ struct MenuController : public dynamic::DynamicObject {
         }
       }
 
+      for (const auto& evt : input::events()) {
+        if (evt.kind != engine::InputKind::PointerDown) continue;
+        const glm::vec2 point{static_cast<float>(evt.x), static_cast<float>(evt.y)};
+        auto slot = main_slot_at_point(point, current_levels);
+        if (slot && is_main_slot_selectable(*slot, current_levels)) {
+          selected_main_slot = *slot;
+          handle_selected_main_action(*slot, current_levels);
+          return;
+        }
+      }
+      return;
+    }
+
+    if (menu_mode == MenuMode::Settings) {
+      if (controls::is_mobile_layout() && pending_control_remap) {
+        pending_control_remap.reset();
+        set_settings_hint("Controls are read-only on mobile");
+      }
+      for (const auto& evt : input::events()) {
+        if (evt.kind == engine::InputKind::PointerUp) {
+          dragging_audio_slider = false;
+        }
+      }
+
+      if (pending_control_remap) {
+        for (const auto& evt : input::events()) {
+          if (evt.kind != engine::InputKind::KeyDown) continue;
+          const int key = controls::canonical_key_code(evt.key_code);
+          if (key == 27) {
+            cancel_control_remap();
+            return;
+          }
+          complete_control_remap(key);
+          return;
+        }
+        return;
+      }
+
       if (dragging_audio_slider) {
         for (const auto& evt : input::events()) {
           if (evt.kind != engine::InputKind::PointerMove &&
@@ -1530,18 +1820,53 @@ struct MenuController : public dynamic::DynamicObject {
       }
 
       for (const auto& evt : input::events()) {
-        if (evt.kind != engine::InputKind::PointerDown) continue;
-        const glm::vec2 point{static_cast<float>(evt.x), static_cast<float>(evt.y)};
-        if (point_hits_slider(audio_line, point)) {
-          dragging_audio_slider = true;
-          selected_main_slot = kAudioMainSlot;
-          set_volume_from_pointer(point, current_levels);
+        if (evt.kind == engine::InputKind::PointerDown) {
+          const glm::vec2 point{static_cast<float>(evt.x), static_cast<float>(evt.y)};
+          if (point_hits_slider(audio_line, point)) {
+            selected_settings_slot = kSettingsVolumeSlot;
+            dragging_audio_slider = true;
+            set_volume_from_pointer(point, current_levels);
+            return;
+          }
+          auto slot = settings_slot_at_point(point);
+          if (slot) {
+            selected_settings_slot = *slot;
+            handle_selected_settings_action(current_levels);
+            return;
+          }
+          continue;
+        }
+
+        if (evt.kind != engine::InputKind::KeyDown) continue;
+        const int key = controls::canonical_key_code(evt.key_code);
+        if (is_arrow_up_key(key)) {
+          move_settings_selection(-1);
+          update_hover_state(current_levels);
+          continue;
+        }
+        if (is_arrow_down_key(key)) {
+          move_settings_selection(1);
+          update_hover_state(current_levels);
+          continue;
+        }
+        if ((key == 'A' || is_arrow_left_key(key)) &&
+            selected_settings_slot == kSettingsVolumeSlot) {
+          change_volume(-kVolumeAdjustStep, current_levels);
+          refresh_settings_lines();
           return;
         }
-        auto slot = main_slot_at_point(point, current_levels);
-        if (slot && is_main_slot_selectable(*slot, current_levels)) {
-          selected_main_slot = *slot;
-          handle_selected_main_action(*slot, current_levels);
+        if ((key == 'D' || is_arrow_right_key(key)) &&
+            selected_settings_slot == kSettingsVolumeSlot) {
+          change_volume(kVolumeAdjustStep, current_levels);
+          refresh_settings_lines();
+          return;
+        }
+        if (key == 27) {
+          enter_main_menu_mode();
+          return;
+        }
+        if (is_confirm_key(key)) {
+          handle_selected_settings_action(current_levels);
           return;
         }
       }
@@ -1666,6 +1991,7 @@ struct MenuController : public dynamic::DynamicObject {
   bool dragging_audio_slider = false;
   std::optional<glm::vec2> last_pointer;
   std::optional<size_t> selected_main_slot;
+  size_t selected_settings_slot = 0;
   size_t selected_gameover_index = 0;
   MenuMode previous_mode = MenuMode::Main;
 };
@@ -1733,7 +2059,8 @@ inline void init() {
   status_line = make_text_line(glm::vec2{kMenuTextX, 0.85f}, 22.0f, 6);
   instruction_line = make_text_line(glm::vec2{kMenuTextX, 0.71f}, 20.0f, 6);
   difficulty_line = make_text_line(glm::vec2{kMenuTextX, 0.56f}, 19.0f, 6);
-  audio_line = make_text_line(glm::vec2{kMenuTextX, 0.48f}, 19.0f, 6);
+  settings_line = make_text_line(glm::vec2{kMenuTextX, 0.48f}, 19.0f, 6);
+  audio_line = make_text_line(glm::vec2{kMenuTextX, 0.42f}, 19.0f, 6);
   tutorial_line = make_text_line(glm::vec2{kMenuTextX, 0.28f}, 20.0f, 6);
   credits_line = make_text_line(glm::vec2{kMenuTextX, -0.92f}, 18.0f, 6);
   update_text(credits_line, "Game by KiK0S, art by deadmarla.");
@@ -1752,6 +2079,7 @@ inline void init() {
     line.selected_scale = 1.0f;
   };
   style_menu_action(difficulty_line);
+  style_menu_action(settings_line);
   style_menu_action(audio_line);
   style_menu_action(tutorial_line);
   ensure_line_slider(audio_line);
@@ -1773,6 +2101,19 @@ inline void init() {
     objective_recipe_lines[i] = make_text_line(pos, 20.0f, 6);
   }
   objective_hint = make_text_line(glm::vec2{kMenuTextX, -0.8f}, 18.0f, 6);
+
+  settings_title = make_text_line(glm::vec2{kMenuTextX, 0.66f}, 24.0f, 6);
+  settings_hint = make_text_line(glm::vec2{kMenuTextX, 0.54f}, 16.0f, 6);
+  const glm::vec2 settings_base = glm::vec2{kMenuTextX, 0.24f};
+  for (size_t i = 0; i < settings_control_lines.size(); ++i) {
+    const glm::vec2 pos = settings_base - glm::vec2(0.0f, spacing * static_cast<float>(i));
+    settings_control_lines[i] = make_text_line(pos, 19.0f, 6);
+    style_menu_action(settings_control_lines[i]);
+  }
+  settings_reset = make_text_line(glm::vec2{kMenuTextX, -0.34f}, 19.0f, 6);
+  settings_back = make_text_line(glm::vec2{kMenuTextX, -0.48f}, 19.0f, 6);
+  style_menu_action(settings_reset);
+  style_menu_action(settings_back);
 
   gameover_title = make_text_line(glm::vec2{kMenuTextX, 0.6f}, 24.0f, 6);
   gameover_level = make_text_line(glm::vec2{kMenuTextX, 0.44f}, 20.0f, 6);

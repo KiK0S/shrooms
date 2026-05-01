@@ -41,6 +41,14 @@ EMSCRIPTEN_KEEPALIVE void shrooms_set_touchscreen_enabled(int enabled) {
   engine::shrooms::set_touchscreen_enabled(enabled != 0);
 }
 
+EMSCRIPTEN_KEEPALIVE void shrooms_set_mobile_layout(int enabled) {
+  engine::shrooms::set_mobile_layout(enabled != 0);
+}
+
+EMSCRIPTEN_KEEPALIVE int shrooms_action_key_code(int action_index) {
+  return engine::shrooms::action_key_code(action_index);
+}
+
 EMSCRIPTEN_KEEPALIVE void shrooms_request_audio_unlock() {
   if (!web_platform) return;
   web_platform->request_audio_unlock();

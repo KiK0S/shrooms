@@ -25,6 +25,7 @@
 #include "systems/transformation/transform_object.hpp"
 
 #include "level_manager.hpp"
+#include "controls.hpp"
 #include "player.hpp"
 #include "shrooms_screen.hpp"
 
@@ -69,7 +70,6 @@ inline bool stage_b_done = false;
 inline int dual_player_catches = 0;
 inline int dual_familiar_catches = 0;
 
-inline constexpr int kKeyE = 'E';
 inline constexpr glm::vec2 kTitleCenterNorm = glm::vec2{0.0f, 0.14f};
 inline constexpr glm::vec2 kHintCenterNorm = glm::vec2{0.0f, -0.02f};
 inline constexpr float kMaxTextWidthRatio = 0.8f;
@@ -325,7 +325,9 @@ inline void set_stage(Stage next, const std::string& feedback) {
     case Stage::MoveLeft: {
       clear_stage_entities();
       update_line(title_text, title_transform, "Tutorial: Stage 1/6", 24.0f, kTitleCenterNorm);
-      update_line(hint_text, hint_transform, "Move left with A to the glowing marker." + base_feedback,
+      update_line(hint_text, hint_transform,
+                  "Move left with " + controls::bound_key_label(controls::Action::MoveLeft) +
+                      " to the glowing marker." + base_feedback,
                   18.0f, kHintCenterNorm);
       show_marker(glm::vec2{view_width() * 0.20f, view_height() * 0.82f},
                   engine::UIColor{0.45f, 0.95f, 0.6f, 0.9f});
@@ -334,7 +336,9 @@ inline void set_stage(Stage next, const std::string& feedback) {
     case Stage::MoveRight: {
       clear_stage_entities();
       update_line(title_text, title_transform, "Tutorial: Stage 2/6", 24.0f, kTitleCenterNorm);
-      update_line(hint_text, hint_transform, "Move right with D to the glowing marker." + base_feedback,
+      update_line(hint_text, hint_transform,
+                  "Move right with " + controls::bound_key_label(controls::Action::MoveRight) +
+                      " to the glowing marker." + base_feedback,
                   18.0f, kHintCenterNorm);
       show_marker(glm::vec2{view_width() * 0.80f, view_height() * 0.82f},
                   engine::UIColor{0.45f, 0.95f, 0.6f, 0.9f});
@@ -351,7 +355,8 @@ inline void set_stage(Stage next, const std::string& feedback) {
     case Stage::ShootOne: {
       update_line(title_text, title_transform, "Tutorial: Stage 4/6", 24.0f, kTitleCenterNorm);
       update_line(hint_text, hint_transform,
-                  "Use W to shoot the mushroom with a familiar. Catching or missing restarts this stage." +
+                  "Use " + controls::bound_key_label(controls::Action::Shoot) +
+                      " to shoot the mushroom with a familiar. Catching or missing restarts this stage." +
                       base_feedback,
                   18.0f, kHintCenterNorm);
       enter_shoot_stage();
@@ -360,8 +365,9 @@ inline void set_stage(Stage next, const std::string& feedback) {
     case Stage::PlaceFamiliarRight: {
       update_line(title_text, title_transform, "Tutorial: Stage 5/6", 24.0f, kTitleCenterNorm);
       update_line(hint_text, hint_transform,
-                  "Press E to plant a familiar on the right side marker." + base_feedback, 18.0f,
-                  kHintCenterNorm);
+                  "Press " + controls::bound_key_label(controls::Action::Trap) +
+                      " to place a trap on the right side marker." + base_feedback,
+                  18.0f, kHintCenterNorm);
       show_marker(glm::vec2{view_width() * 0.76f, view_height() * 0.72f},
                   engine::UIColor{0.55f, 0.72f, 1.0f, 0.9f});
       enter_place_familiar_stage();

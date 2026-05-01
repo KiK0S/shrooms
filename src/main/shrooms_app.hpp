@@ -5,8 +5,10 @@
 namespace engine::shrooms {
 
 bool is_gameplay_active();
+int action_key_code(int action_index);
 void set_page_active(bool active);
 void set_touchscreen_enabled(bool enabled);
+void set_mobile_layout(bool enabled);
 
 class ShroomsLogic : public ecs::EcsLogic {
  public:
