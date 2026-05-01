@@ -845,7 +845,6 @@ inline void on_mushroom_sorted(ecs::Entity* entity) {
   if (recipe_it != level->recipe.end() && progress_for_type(*level, type) > recipe_it->second) {
     trigger_failure(LossReason::TooMany, type);
   }
-  shrooms::audio::play_familiar_shot_explosion();
   vfx::spawn_destroy_effect(entity);
   camera_shake::add_trauma(0.1f);
   entity->mark_deleted();

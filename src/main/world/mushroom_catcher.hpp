@@ -21,7 +21,7 @@ inline void mushroom_fall_handler(ecs::Entity*, collision::ColliderObject* colli
   auto* sprite = entity->get<render_system::SpriteRenderable>();
   const std::string type = sprite ? engine::resources::texture_name(sprite->texture_id) : "";
   levels::on_mushroom_missed(type, entity);
-  shrooms::audio::play_fall_negative();
+  shrooms::audio::play_mushroom_fall();
   entity->mark_deleted();
 }
 

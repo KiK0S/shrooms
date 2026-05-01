@@ -452,6 +452,7 @@ struct FamiliarLogic : public dynamic::DynamicObject {
       sprite->reset_pose();
     }
     state = FamiliarState::Returning;
+    shrooms::audio::play_familiar_return();
     return_timer = delay >= 0.0f ? delay : return_delay;
     if (player_transform) {
       const glm::vec2 player_center =
@@ -516,7 +517,7 @@ struct FamiliarLogic : public dynamic::DynamicObject {
   void begin_strike_dash() {
     state = FamiliarState::StrikeAscend;
     strike_spin_angle = 0.0f;
-    shrooms::audio::play_familiar_shot_wind();
+    shrooms::audio::play_familiar_shot();
     if (sprite) {
       if (strike_texture_id != engine::kInvalidTextureId) {
         sprite->texture_id = strike_texture_id;

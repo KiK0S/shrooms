@@ -22,16 +22,12 @@
 namespace shrooms::audio {
 
 inline constexpr float kBgmGain = 0.35f;
-inline constexpr float kCatchGain = 0.85f;
-inline constexpr float kWindGain = 0.45f;
-inline constexpr float kExplosionGain = 0.75f;
-inline constexpr float kFallNegativeGain = 0.70f;
+inline constexpr float kSfxGain = kBgmGain * 0.40f;
 inline constexpr float kDefaultMasterGain = 1.0f;
-inline constexpr float kWindCrossfadeSeconds = 0.16f;
 inline constexpr double kCatchMinGapSeconds = 0.04;
-inline constexpr double kWindMinGapSeconds = 0.10;
-inline constexpr double kExplosionMinGapSeconds = 0.08;
-inline constexpr double kFallNegativeMinGapSeconds = 0.14;
+inline constexpr double kFamiliarStartMinGapSeconds = 0.10;
+inline constexpr double kFamiliarReturnMinGapSeconds = 0.04;
+inline constexpr double kMushroomFallMinGapSeconds = 0.14;
 inline constexpr size_t kCatchSoundCount = 2;
 
 inline bool initialized = false;
@@ -44,9 +40,9 @@ inline std::array<engine::SoundId, kCatchSoundCount> catch_sound_ids{
     engine::kInvalidSoundId,
     engine::kInvalidSoundId,
 };
-inline engine::SoundId wind_sound_id = engine::kInvalidSoundId;
-inline engine::SoundId explosion_sound_id = engine::kInvalidSoundId;
-inline engine::SoundId fall_negative_sound_id = engine::kInvalidSoundId;
+inline engine::SoundId familiar_start_sound_id = engine::kInvalidSoundId;
+inline engine::SoundId familiar_return_sound_id = engine::kInvalidSoundId;
+inline engine::SoundId mushroom_fall_sound_id = engine::kInvalidSoundId;
 inline std::uint32_t catch_sound_rng = 0x8c2f3a1du;
 
 inline ecs::Entity* bgm_entity = nullptr;
@@ -55,9 +51,9 @@ inline ecs::Entity* voice_controller_entity = nullptr;
 
 enum class ManagedSoundKind : size_t {
   Catch = 0,
-  Wind,
-  Explosion,
-  FallNegative,
+  FamiliarStart,
+  FamiliarReturn,
+  MushroomFall,
   Count,
 };
 
@@ -303,23 +299,23 @@ struct OneShotVoiceControllerSystem : public dynamic::DynamicObject {
 inline void set_page_active(bool active) { page_active = active; }
 
 inline void play_mushroom_catch() {
-  spawn_limited_random_one_shot(ManagedSoundKind::Catch, catch_sound_ids, kCatchGain,
+  spawn_limited_random_one_shot(ManagedSoundKind::Catch, catch_sound_ids, kSfxGain,
                                 kCatchMinGapSeconds, 3);
 }
 
-inline void play_familiar_shot_wind() {
-  spawn_crossfaded_restart(ManagedSoundKind::Wind, wind_sound_id, kWindGain, kWindMinGapSeconds,
-                           kWindCrossfadeSeconds);
+inline void play_familiar_shot() {
+  spawn_limited_one_shot(ManagedSoundKind::FamiliarStart, familiar_start_sound_id, kSfxGain,
+                         kFamiliarStartMinGapSeconds, 2);
 }
 
-inline void play_familiar_shot_explosion() {
-  spawn_limited_one_shot(ManagedSoundKind::Explosion, explosion_sound_id, kExplosionGain,
-                         kExplosionMinGapSeconds, 2);
+inline void play_familiar_return() {
+  spawn_limited_one_shot(ManagedSoundKind::FamiliarReturn, familiar_return_sound_id, kSfxGain,
+                         kFamiliarReturnMinGapSeconds, 3);
 }
 
-inline void play_fall_negative() {
-  spawn_limited_one_shot(ManagedSoundKind::FallNegative, fall_negative_sound_id, kFallNegativeGain,
-                         kFallNegativeMinGapSeconds, 1);
+inline void play_mushroom_fall() {
+  spawn_limited_one_shot(ManagedSoundKind::MushroomFall, mushroom_fall_sound_id, kSfxGain,
+                         kMushroomFallMinGapSeconds, 1);
 }
 
 inline void init() {
@@ -331,16 +327,16 @@ inline void init() {
 
   bgm_sound_id =
       register_and_load_sound("shrooms_bgm_forest_night", "shrooms/audio/bgm/69_forest_night.wav");
-  catch_sound_ids[0] = register_and_load_sound("shrooms_sfx_catch_bloop_1",
-                                               "shrooms/audio/sfx/floraphonic-bloop-1-184019.wav");
-  catch_sound_ids[1] = register_and_load_sound("shrooms_sfx_catch_bloop_2",
-                                               "shrooms/audio/sfx/floraphonic-bloop-2-186531.wav");
-  wind_sound_id = register_and_load_sound("shrooms_sfx_familiar_shot_wind",
-                                          "shrooms/audio/sfx/familiar_shot_wind.wav");
-  explosion_sound_id = register_and_load_sound(
-      "shrooms_sfx_familiar_shot_explosion", "shrooms/audio/sfx/familiar_shot_explosion.wav");
-  fall_negative_sound_id =
-      register_and_load_sound("shrooms_sfx_fall_negative", "shrooms/audio/sfx/fall_negative_alt.wav");
+  catch_sound_ids[0] = register_and_load_sound("shrooms_sfx_mushroom_catch_1",
+                                               "shrooms/audio/sfx/mushroom_catch1.wav");
+  catch_sound_ids[1] = register_and_load_sound("shrooms_sfx_mushroom_catch_2",
+                                               "shrooms/audio/sfx/mushroom_catch2.wav");
+  familiar_start_sound_id = register_and_load_sound("shrooms_sfx_familiar_start",
+                                                    "shrooms/audio/sfx/familiar_start.wav");
+  familiar_return_sound_id = register_and_load_sound("shrooms_sfx_familiar_return",
+                                                     "shrooms/audio/sfx/familiar_return.wav");
+  mushroom_fall_sound_id = register_and_load_sound("shrooms_sfx_mushroom_fall",
+                                                   "shrooms/audio/sfx/mushroom_fall.wav");
 
   if (bgm_sound_id == engine::kInvalidSoundId || bgm_audio) {
     apply_master_gain();
