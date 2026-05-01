@@ -561,7 +561,6 @@ inline void start_catch_consume_vanish(
 
 inline void spawn_spawn_effect(const glm::vec2& center, const glm::vec2& size) {
   if (size.x <= 0.0f || size.y <= 0.0f) return;
-  spawn_burst_at(center, size, spawn_burst);
   const float extent = std::max(size.x, size.y);
   const float base_radius = std::max(2.0f, extent * 0.06f);
   const float spread = extent * 0.35f;
