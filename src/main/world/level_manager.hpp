@@ -827,6 +827,7 @@ inline void on_mushroom_sorted(ecs::Entity* entity) {
   if (tutorial_sort_hook) {
     tutorial_sort_hook(type, entity);
   }
+  shrooms::audio::play_mushroom_shot();
   auto active_it = active_entities.find(type);
   if (active_it != active_entities.end()) {
     active_it->second.erase(entity);

@@ -28,6 +28,7 @@ inline constexpr double kCatchMinGapSeconds = 0.04;
 inline constexpr double kFamiliarStartMinGapSeconds = 0.10;
 inline constexpr double kFamiliarReturnMinGapSeconds = 0.04;
 inline constexpr double kMushroomFallMinGapSeconds = 0.14;
+inline constexpr double kMushroomShotMinGapSeconds = 0.04;
 inline constexpr size_t kCatchSoundCount = 2;
 
 inline bool initialized = false;
@@ -43,6 +44,7 @@ inline std::array<engine::SoundId, kCatchSoundCount> catch_sound_ids{
 inline engine::SoundId familiar_start_sound_id = engine::kInvalidSoundId;
 inline engine::SoundId familiar_return_sound_id = engine::kInvalidSoundId;
 inline engine::SoundId mushroom_fall_sound_id = engine::kInvalidSoundId;
+inline engine::SoundId mushroom_shot_sound_id = engine::kInvalidSoundId;
 inline std::uint32_t catch_sound_rng = 0x8c2f3a1du;
 
 inline ecs::Entity* bgm_entity = nullptr;
@@ -54,6 +56,7 @@ enum class ManagedSoundKind : size_t {
   FamiliarStart,
   FamiliarReturn,
   MushroomFall,
+  MushroomShot,
   Count,
 };
 
@@ -74,6 +77,7 @@ struct ManagedVoice {
 
 inline std::vector<ManagedVoice> managed_voices{};
 inline std::array<double, kManagedSoundCount> last_trigger_times{
+    std::numeric_limits<double>::lowest(),
     std::numeric_limits<double>::lowest(),
     std::numeric_limits<double>::lowest(),
     std::numeric_limits<double>::lowest(),
@@ -318,6 +322,11 @@ inline void play_mushroom_fall() {
                          kMushroomFallMinGapSeconds, 1);
 }
 
+inline void play_mushroom_shot() {
+  spawn_limited_one_shot(ManagedSoundKind::MushroomShot, mushroom_shot_sound_id, kSfxGain,
+                         kMushroomShotMinGapSeconds, 3);
+}
+
 inline void init() {
   if (initialized) {
     apply_master_gain();
@@ -337,6 +346,8 @@ inline void init() {
                                                      "shrooms/audio/sfx/familiar_return.wav");
   mushroom_fall_sound_id = register_and_load_sound("shrooms_sfx_mushroom_fall",
                                                    "shrooms/audio/sfx/mushroom_fall.wav");
+  mushroom_shot_sound_id = register_and_load_sound("shrooms_sfx_mushroom_shot",
+                                                   "shrooms/audio/mushroom_shot.wav");
 
   if (bgm_sound_id == engine::kInvalidSoundId || bgm_audio) {
     apply_master_gain();
