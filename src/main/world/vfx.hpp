@@ -734,7 +734,6 @@ inline bool spawn_miss_effect(ecs::Entity* entity) {
   if (size.x <= 0.0f || size.y <= 0.0f) return false;
   const glm::vec2 center = entity_center(entity, size);
   const float extent = std::max(size.x, size.y);
-  const float diagonal = std::sqrt(size.x * size.x + size.y * size.y);
   const float delete_delay = 0.24f;
   const float sink_distance = std::max(6.0f, extent * 0.22f);
   if (auto* layer = entity->get<layers::ConstLayer>()) {
@@ -746,23 +745,35 @@ inline bool spawn_miss_effect(ecs::Entity* entity) {
 
   const glm::vec2 lava_center = center + glm::vec2{0.0f, size.y * 0.46f};
   const glm::vec2 gulp_center = center + glm::vec2{0.0f, size.y * 0.08f};
-  const float cluster_radius = std::max(extent * 0.39f, diagonal * 0.29f);
+  const float cluster_spread_x = std::max(5.0f, extent * 0.24f);
+  const float cluster_spread_y = std::max(4.0f, extent * 0.14f);
 
-  const int gulp_count = rnd::get_int(4, 7);
+  const int gulp_count = rnd::get_int(7, 10);
   for (int i = 0; i < gulp_count; ++i) {
-    const float side = gulp_count == 2 ? (i == 0 ? -1.0f : 1.0f)
-                                       : static_cast<float>(i - 1);
+    const float angle = static_cast<float>(rnd::get_double(0.0, 6.28318530718));
+    const float radius_t = std::sqrt(static_cast<float>(rnd::get_double(0.0, 1.0)));
+    const glm::vec2 cluster_offset{
+        std::cos(angle) * cluster_spread_x * radius_t,
+        std::sin(angle) * cluster_spread_y * radius_t,
+    };
+    const glm::vec2 rise_jitter{
+        static_cast<float>(rnd::get_double(-extent * 0.04f, extent * 0.04f)),
+        static_cast<float>(rnd::get_double(extent * 0.02f, extent * 0.12f)),
+    };
+    const float start_radius =
+        static_cast<float>(rnd::get_double(std::max(0.5f, extent * 0.025f),
+                                           std::max(1.0f, extent * 0.045f)));
+    const float end_radius =
+        static_cast<float>(rnd::get_double(std::max(start_radius * 1.8f, extent * 0.075f),
+                                           std::max(start_radius * 2.6f, extent * 0.13f)));
     BoilBubbleConfig gulp{};
-    gulp.start_center =
-        lava_center + glm::vec2{side * extent * 0.18f, extent * (0.06f + 0.03f * i)};
-    gulp.end_center = gulp_center + glm::vec2{side * extent * 0.2f,
-                                              static_cast<float>(rnd::get_double(-extent * 0.08f,
-                                                                                  extent * 0.08f))};
+    gulp.start_center = lava_center + cluster_offset * 0.45f + rise_jitter;
+    gulp.end_center = gulp_center + cluster_offset;
     gulp.color = floor_lava_color;
-    gulp.start_radius = std::max(3.0f, extent * 0.07f);
-    gulp.end_radius = cluster_radius * static_cast<float>(rnd::get_double(0.92, 1.08));
+    gulp.start_radius = start_radius;
+    gulp.end_radius = end_radius;
     gulp.lifetime = static_cast<float>(rnd::get_double(0.66, 0.78));
-    gulp.delay = static_cast<float>(i) * 0.035f;
+    gulp.delay = static_cast<float>(rnd::get_double(0.0, 0.12)) + static_cast<float>(i) * 0.008f;
     gulp.start_alpha = 1.0f;
     gulp.peak_alpha = 1.0f;
     gulp.end_alpha = 0.0f;
