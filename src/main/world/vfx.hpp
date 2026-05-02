@@ -761,8 +761,8 @@ inline bool spawn_miss_effect(ecs::Entity* entity) {
         static_cast<float>(rnd::get_double(extent * 0.02f, extent * 0.12f)),
     };
     const float start_radius =
-        static_cast<float>(rnd::get_double(std::max(0.5f, extent * 0.025f),
-                                           std::max(1.0f, extent * 0.045f)));
+        static_cast<float>(rnd::get_double(std::max(1.5f, extent * 0.045f),
+                                           std::max(1.5f, extent * 0.045f)));
     const float end_radius =
         static_cast<float>(rnd::get_double(std::max(start_radius * 1.8f, extent * 0.075f),
                                            std::max(start_radius * 2.6f, extent * 0.13f)));
