@@ -106,14 +106,14 @@ inline void save() {
 
 inline void build_default_entries() {
   static const std::array<const char*, kMaxEntries> kDefaultNames = {
-      "Gandalf",
-      "Leia",
-      "Mario",
-      "Zelda",
-      "Neo",
-      "Ripley",
-      "Frodo",
-      "Trinity",
+      "kikimora1998",
+      "lesnick",
+      "4erni4ka",
+      "forrest_gump",
+      "ko$chei",
+      "badwolf",
+      "elijah.wood",
+      "foxxxy",
   };
   entries.clear();
   entries.reserve(kMaxEntries);
