@@ -61,6 +61,8 @@ inline transform::NoRotationTransform* text_transform = nullptr;
 inline bool active = false;
 inline float elapsed = 0.0f;
 inline std::function<void()> on_done = nullptr;
+inline std::function<void()> on_covered = nullptr;
+inline bool covered_fired = false;
 
 inline float clamp01(float v) {
   return std::min(1.0f, std::max(0.0f, v));
@@ -139,6 +141,8 @@ inline void finish_sequence() {
 
   auto done = std::move(on_done);
   on_done = nullptr;
+  on_covered = nullptr;
+  covered_fired = false;
   if (done) {
     done();
     return;
@@ -148,11 +152,14 @@ inline void finish_sequence() {
   }
 }
 
-inline void start_transition(const std::string& message, std::function<void()> done = nullptr) {
+inline void start_transition(const std::string& message, std::function<void()> done = nullptr,
+                             std::function<void()> covered = nullptr) {
   if (active) return;
   active = true;
   elapsed = 0.0f;
   on_done = std::move(done);
+  on_covered = std::move(covered);
+  covered_fired = false;
 
   update_text_layout(message);
   set_overlay_alpha(0.0f);
@@ -170,10 +177,11 @@ inline void start_transition(const std::string& message, std::function<void()> d
 }
 
 inline void start_round_win(int current_round, int next_round,
-                            std::function<void()> done = nullptr) {
+                            std::function<void()> done = nullptr,
+                            std::function<void()> covered = nullptr) {
   const std::string message = "Round " + std::to_string(current_round) +
                               " won!\nAdvancing to round " + std::to_string(next_round);
-  start_transition(message, std::move(done));
+  start_transition(message, std::move(done), std::move(covered));
 }
 
 inline void start_level_completed(std::function<void()> done = nullptr) {
@@ -195,6 +203,15 @@ struct RoundTransitionController : public dynamic::DynamicObject {
     const float overlay_t =
         fade_value(elapsed, config.overlay_fade_in, config.overlay_hold, config.overlay_fade_out);
     set_overlay_alpha(config.overlay_color.w * overlay_t);
+
+    if (!covered_fired && elapsed >= std::max(0.0f, config.overlay_fade_in)) {
+      covered_fired = true;
+      auto covered = std::move(on_covered);
+      on_covered = nullptr;
+      if (covered) {
+        covered();
+      }
+    }
 
     const float text_elapsed = std::max(0.0f, elapsed - config.text_delay);
     const float text_t =

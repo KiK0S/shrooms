@@ -290,11 +290,20 @@ inline void set_background_texture(const std::string& texture_name) {
   }
 }
 
+inline std::string infinite_background_texture_for_round(int round_index) {
+  if (parsed_levels.empty()) return "";
+  const size_t index =
+      static_cast<size_t>(std::max(0, round_index)) % parsed_levels.size();
+  return parsed_levels[index].id;
+}
+
+inline void apply_infinite_background_for_round(int round_index) {
+  set_background_texture(infinite_background_texture_for_round(round_index));
+}
+
 inline void apply_level_background(const LevelDefinition& level) {
   if (infinite_mode) {
-    if (!parsed_levels.empty()) {
-      set_background_texture(parsed_levels.back().id);
-    }
+    apply_infinite_background_for_round(infinite_round_index);
     return;
   }
   if (tutorial_mode) {
@@ -1194,9 +1203,15 @@ inline void check_completion() {
       if (!round_transition::is_active()) {
         const int current_round = infinite_round_index + 1;
         const int next_round = current_round + 1;
-        round_transition::start_round_win(current_round, next_round, []() {
-          advance_infinite_round();
-        });
+        const int next_round_index = infinite_round_index + 1;
+        round_transition::start_round_win(
+            current_round, next_round,
+            []() {
+              advance_infinite_round();
+            },
+            [next_round_index]() {
+              apply_infinite_background_for_round(next_round_index);
+            });
       }
       return;
     }
