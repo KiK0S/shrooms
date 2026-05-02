@@ -347,7 +347,7 @@ inline void init() {
   mushroom_fall_sound_id = register_and_load_sound("shrooms_sfx_mushroom_fall",
                                                    "shrooms/audio/sfx/mushroom_fall.wav");
   mushroom_shot_sound_id = register_and_load_sound("shrooms_sfx_mushroom_shot",
-                                                   "shrooms/audio/mushroom_shot.wav");
+                                                   "shrooms/audio/sfx/mushroom_shot.wav");
 
   if (bgm_sound_id == engine::kInvalidSoundId || bgm_audio) {
     apply_master_gain();
