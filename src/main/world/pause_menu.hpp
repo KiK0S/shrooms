@@ -66,7 +66,7 @@ struct Config {
   glm::vec2 audio_offset = glm::vec2(0.0f, -0.31f);
   glm::vec2 main_menu_scale = glm::vec2(0.25f, 0.08f);
   glm::vec2 main_menu_offset = glm::vec2(0.0f, -0.45f);
-  glm::vec2 pause_button_position = glm::vec2(0.88f, -0.84f);
+  glm::vec2 pause_button_position = glm::vec2(0.84f, -0.84f);
   glm::vec2 pause_button_scale = glm::vec2(0.11f, 0.11f);
   glm::vec2 pause_icon_scale = glm::vec2(0.065f, 0.065f);
   float countdown_scale = 0.15f;
