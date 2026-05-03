@@ -125,6 +125,16 @@
       opacity: 0;
       transform: translateY(6px);
       transition: opacity 120ms ease-out, transform 120ms ease-out;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    #mobile-controls * {
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
     }
 
     body.mobile-controls-active #mobile-controls {
@@ -146,6 +156,8 @@
       touch-action: none;
       user-select: none;
       -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      -webkit-tap-highlight-color: transparent;
     }
 
     .controls-legend {
