@@ -295,29 +295,40 @@
       image: null,
       rafId: null,
     };
+    const BG_TILE_PATTERN_COLUMNS = 16;
+    const BG_TILE_PATTERN_ROWS = 16;
+    const BG_TILE_PATTERN = [
+      2, 2, 3, 3, 0, 1, 3, 1, 1, 3, 0, 3, 1, 3, 0, 1,
+      0, 0, 3, 2, 3, 2, 3, 1, 0, 2, 3, 0, 3, 1, 2, 1,
+      0, 0, 0, 3, 0, 2, 3, 1, 2, 3, 2, 0, 3, 0, 3, 1,
+      0, 2, 2, 0, 2, 0, 0, 0, 1, 0, 2, 1, 1, 2, 1, 1,
+      2, 0, 2, 0, 3, 1, 3, 3, 2, 2, 1, 3, 3, 0, 2, 1,
+      0, 2, 3, 3, 1, 2, 0, 3, 1, 3, 2, 1, 0, 3, 2, 3,
+      2, 1, 1, 0, 1, 1, 0, 2, 0, 0, 3, 0, 1, 2, 0, 2,
+      1, 2, 2, 2, 3, 0, 1, 2, 1, 3, 0, 2, 0, 2, 2, 2,
+      2, 1, 1, 0, 3, 0, 3, 2, 1, 2, 1, 1, 0, 0, 2, 2,
+      3, 3, 1, 3, 2, 1, 3, 2, 1, 2, 0, 3, 3, 1, 1, 1,
+      3, 2, 2, 3, 3, 3, 3, 1, 0, 0, 0, 1, 1, 0, 3, 2,
+      3, 2, 2, 2, 2, 1, 3, 0, 0, 0, 1, 1, 1, 2, 0, 1,
+      1, 0, 0, 3, 0, 1, 3, 3, 3, 0, 0, 0, 2, 0, 1, 0,
+      1, 0, 2, 0, 1, 2, 0, 1, 1, 3, 3, 1, 1, 1, 2, 1,
+      3, 3, 3, 2, 3, 1, 0, 2, 2, 2, 0, 0, 1, 3, 0, 1,
+      3, 1, 2, 3, 2, 3, 1, 2, 3, 2, 3, 3, 3, 2, 0, 0,
+    ];
 
     function computeBackgroundTileSizePx() {
       const vmin = Math.min(window.innerWidth, window.innerHeight) / 100;
       return Math.max(1, Math.round(BG_TILE_SIZE_VMIN * vmin));
     }
 
-    function hashTileCoordinate(col, row) {
-      let hash = 0x6d2b79f5;
-      hash ^= Math.imul(col + 0x9e3779b9, 0x85ebca6b);
-      hash ^= Math.imul(row + 0xc2b2ae35, 0x27d4eb2f);
-      hash ^= hash >>> 16;
-      hash = Math.imul(hash, 0x7feb352d);
-      hash ^= hash >>> 15;
-      hash = Math.imul(hash, 0x846ca68b);
-      hash ^= hash >>> 16;
-      return hash >>> 0;
+    function pickTileVariantIndex(col, row, variantCount) {
+      const patternCol = col % BG_TILE_PATTERN_COLUMNS;
+      const patternRow = row % BG_TILE_PATTERN_ROWS;
+      return BG_TILE_PATTERN[patternRow * BG_TILE_PATTERN_COLUMNS + patternCol] %
+          variantCount;
     }
 
-    function pickTileVariantIndex(col, row) {
-      return hashTileCoordinate(col, row) % 4;
-    }
-
-    function drawRandomizedBackgroundTiles() {
+    function drawPatternBackgroundTiles() {
       if (!bgTileCanvas || !backgroundState.image) {
         return;
       }
@@ -360,7 +371,7 @@
 
       for (let row = 0; row < rows; row += 1) {
         for (let col = 0; col < columns; col += 1) {
-          const variantIndex = pickTileVariantIndex(col, row);
+          const variantIndex = pickTileVariantIndex(col, row, sourceRects.length);
           const [sx, sy, sw, sh] = sourceRects[variantIndex];
           context.drawImage(
               image,
@@ -383,7 +394,7 @@
       }
       backgroundState.rafId = requestAnimationFrame(() => {
         backgroundState.rafId = null;
-        drawRandomizedBackgroundTiles();
+        drawPatternBackgroundTiles();
       });
     }
 
