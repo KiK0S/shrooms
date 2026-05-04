@@ -313,11 +313,47 @@
       return Math.max(1, Math.round(BG_TILE_SIZE_VMIN * vmin));
     }
 
+    function hashBackgroundTileCell(col, row) {
+      let hash = Math.imul(col + 0x9e3779b9, 0x85ebca6b) ^
+          Math.imul(row + 0xc2b2ae35, 0x27d4eb2f);
+      hash ^= hash >>> 16;
+      hash = Math.imul(hash, 0x7feb352d);
+      hash ^= hash >>> 15;
+      hash = Math.imul(hash, 0x846ca68b);
+      hash ^= hash >>> 16;
+      return hash >>> 0;
+    }
+
     function pickTileVariantIndex(col, row, variantCount) {
       const patternCol = col % BG_TILE_PATTERN_COLUMNS;
       const patternRow = row % BG_TILE_PATTERN_ROWS;
       return BG_TILE_PATTERN[patternRow * BG_TILE_PATTERN_COLUMNS + patternCol] %
           variantCount;
+    }
+
+    function pickTileTransform(col, row) {
+      const hash = hashBackgroundTileCell(col, row);
+      return {
+        flipX: (hash & 1) !== 0,
+        flipY: (hash & 2) !== 0,
+      };
+    }
+
+    function drawBackgroundTile(
+        context,
+        image,
+        sourceRect,
+        x,
+        y,
+        size,
+        transform,
+    ) {
+      const [sx, sy, sw, sh] = sourceRect;
+      context.save();
+      context.translate(x + (transform.flipX ? size : 0), y + (transform.flipY ? size : 0));
+      context.scale(transform.flipX ? -1 : 1, transform.flipY ? -1 : 1);
+      context.drawImage(image, sx, sy, sw, sh, 0, 0, size, size);
+      context.restore();
     }
 
     function drawPatternBackgroundTiles() {
@@ -364,17 +400,14 @@
       for (let row = 0; row < rows; row += 1) {
         for (let col = 0; col < columns; col += 1) {
           const variantIndex = pickTileVariantIndex(col, row, sourceRects.length);
-          const [sx, sy, sw, sh] = sourceRects[variantIndex];
-          context.drawImage(
+          drawBackgroundTile(
+              context,
               image,
-              sx,
-              sy,
-              sw,
-              sh,
+              sourceRects[variantIndex],
               col * tileSizePx,
               row * tileSizePx,
               tileSizePx,
-              tileSizePx,
+              pickTileTransform(col, row),
           );
         }
       }
