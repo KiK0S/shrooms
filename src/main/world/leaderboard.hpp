@@ -23,8 +23,8 @@ constexpr int kDefaultMinScore = 100;
 constexpr int kDefaultMaxScore = 1500;
 
 enum class Profile {
-  Normal,
-  Easy,
+  Recipe,
+  Collector,
 };
 
 inline constexpr std::array<const char*, kMaxEntries> kDefaultNames = {
@@ -40,17 +40,17 @@ inline constexpr std::array<const char*, kMaxEntries> kDefaultNames = {
 
 inline std::vector<Entry> entries{};
 inline bool loaded = false;
-inline Profile current_profile = Profile::Normal;
+inline Profile current_profile = Profile::Collector;
 inline std::string loaded_for_date{};
 constexpr int kSaveVersion = 2;
 
 inline const char* key_for_profile(Profile profile) {
   switch (profile) {
-    case Profile::Easy:
-      return "shrooms_infinite_leaderboard_easy";
-    case Profile::Normal:
+    case Profile::Collector:
+      return "shrooms_infinite_leaderboard_collector";
+    case Profile::Recipe:
     default:
-      return "shrooms_infinite_leaderboard_normal";
+      return "shrooms_infinite_leaderboard_recipe";
   }
 }
 

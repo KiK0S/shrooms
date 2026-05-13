@@ -39,7 +39,14 @@ inline ecs::Entity* score_text_entity = nullptr;
 inline transform::NoRotationTransform* score_text_transform = nullptr;
 inline text::TextObject* score_text = nullptr;
 inline color::OneColor* score_text_color = nullptr;
+inline ecs::Entity* lives_text_entity = nullptr;
+inline transform::NoRotationTransform* lives_text_transform = nullptr;
+inline text::TextObject* lives_text = nullptr;
+inline color::OneColor* lives_text_color = nullptr;
+inline hidden::HiddenObject* lives_text_hidden = nullptr;
 inline int current_score = 0;
+inline int current_lives = 0;
+inline bool lives_visible = false;
 
 inline glm::vec2 resolve_reference_size(const glm::vec2& configured,
                                         std::string_view texture_name,
@@ -75,6 +82,10 @@ inline glm::vec2 score_anchor_px() {
   return panel_center_px() + shrooms::screen::scale_to_pixels(config.score_offset);
 }
 
+inline glm::vec2 lives_anchor_px() {
+  return score_anchor_px() + shrooms::screen::scale_to_pixels(glm::vec2{0.0f, 0.045f});
+}
+
 inline void update_score_layout() {
   if (!score_text || !score_text_transform) return;
   const std::string value = std::to_string(current_score);
@@ -84,12 +95,33 @@ inline void update_score_layout() {
   score_text_transform->pos = score_anchor_px() - size * 0.5f;
 }
 
+inline void update_lives_layout() {
+  if (!lives_text || !lives_text_transform) return;
+  const std::string value = "Lives " + std::to_string(current_lives);
+  lives_text->text = value;
+  const auto layout = engine::text::layout_text(value, 0.0f, 0.0f, config.score_font_px * 0.72f);
+  const glm::vec2 size{layout.width, layout.height};
+  lives_text_transform->pos = lives_anchor_px() - size * 0.5f;
+}
+
 inline void set_score(int score_value) {
   current_score = score_value;
   update_score_layout();
 }
 
 inline int score() { return current_score; }
+
+inline void set_lives(int lives_value) {
+  current_lives = lives_value;
+  update_lives_layout();
+}
+
+inline void set_lives_visible(bool visible) {
+  lives_visible = visible;
+  if (lives_text_hidden) {
+    lives_text_hidden->set_visible(visible);
+  }
+}
 
 inline void reset_hud() {
   const glm::vec2 panel_top_left_px = shrooms::screen::norm_to_pixels(panel_top_left_norm());
@@ -147,10 +179,29 @@ inline void reset_hud() {
   score_text_entity->add(score_text_color);
   score_text_entity->add(arena::create<scene::SceneObject>("main"));
   update_score_layout();
+
+  if (lives_text_entity) {
+    lives_text_entity->mark_deleted();
+  }
+  lives_text_entity = arena::create<ecs::Entity>();
+  lives_text_transform = arena::create<transform::NoRotationTransform>();
+  lives_text_entity->add(lives_text_transform);
+  lives_text_entity->add(arena::create<layers::ConstLayer>(config.layer + 1));
+  lives_text = arena::create<text::TextObject>("Lives 0", config.score_font_px * 0.72f);
+  lives_text_entity->add(lives_text);
+  lives_text_color = arena::create<color::OneColor>(config.score_color);
+  lives_text_entity->add(lives_text_color);
+  lives_text_hidden = arena::create<hidden::HiddenObject>();
+  lives_text_entity->add(lives_text_hidden);
+  lives_text_entity->add(arena::create<scene::SceneObject>("main"));
+  update_lives_layout();
+  set_lives_visible(lives_visible);
 }
 
 inline void init() {
   current_score = 0;
+  current_lives = 0;
+  lives_visible = false;
   reset_hud();
 }
 

@@ -5,6 +5,7 @@
 namespace engine::shrooms {
 
 bool is_gameplay_active();
+bool is_shoot_enabled();
 int action_key_code(int action_index);
 void set_page_active(bool active);
 void set_touchscreen_enabled(bool enabled);

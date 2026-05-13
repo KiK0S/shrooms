@@ -36,15 +36,19 @@ enum class Stage {
   MoveLeft,
   MoveRight,
   CollectOne,
-  ShootOne,
-  PlaceFamiliarRight,
-  DualCatch,
+  PlaceTrap,
+  CollectorComplete,
+  RecipeIntro,
+  ShootTarget,
+  RecipeScenario,
   Complete,
 };
 
 inline bool active = false;
 inline Stage stage = Stage::None;
-inline std::string mushroom_type = "mukhomor";
+inline std::string good_mushroom_type = "borovik";
+inline std::string bad_mushroom_type = "mukhomor";
+inline float stage_timer = 0.0f;
 
 inline ecs::Entity* title_entity = nullptr;
 inline text::TextObject* title_text = nullptr;
@@ -65,17 +69,23 @@ inline float marker_radius = 0.0f;
 
 inline ecs::Entity* stage_entity_a = nullptr;
 inline ecs::Entity* stage_entity_b = nullptr;
+inline ecs::Entity* stage_entity_c = nullptr;
 inline bool stage_a_done = false;
 inline bool stage_b_done = false;
-inline int dual_player_catches = 0;
-inline int dual_familiar_catches = 0;
+inline bool stage_c_done = false;
+inline bool recipe_bad_removed = false;
+inline int recipe_good_catches = 0;
 
-inline constexpr glm::vec2 kTitleCenterNorm = glm::vec2{0.0f, 0.14f};
+inline constexpr glm::vec2 kTitleCenterNorm = glm::vec2{0.0f, 0.16f};
 inline constexpr glm::vec2 kHintCenterNorm = glm::vec2{0.0f, -0.02f};
-inline constexpr float kMaxTextWidthRatio = 0.8f;
+inline constexpr float kMaxTextWidthRatio = 0.86f;
 
 inline float view_width() { return static_cast<float>(shrooms::screen::view_width); }
 inline float view_height() { return static_cast<float>(shrooms::screen::view_height); }
+
+inline float title_font_px() { return controls::is_mobile_layout() ? 30.0f : 26.0f; }
+
+inline float hint_font_px() { return controls::is_mobile_layout() ? 23.0f : 20.0f; }
 
 inline float player_center_x() {
   if (!player::player_transform) return view_width() * 0.5f;
@@ -242,24 +252,12 @@ inline void clear_stage_entities(bool delete_entities = true) {
   };
   clear_one(stage_entity_a);
   clear_one(stage_entity_b);
+  clear_one(stage_entity_c);
   stage_a_done = false;
   stage_b_done = false;
-  dual_player_catches = 0;
-  dual_familiar_catches = 0;
-}
-
-inline player::FamiliarLogic* right_planted_familiar(float min_x) {
-  player::FamiliarLogic* best = nullptr;
-  for (auto* logic : player::familiar_logic) {
-    if (!logic) continue;
-    if (logic->state != player::FamiliarState::Planted) continue;
-    const float x = logic->current_center().x;
-    if (x < min_x) continue;
-    if (!best || x > best->current_center().x) {
-      best = logic;
-    }
-  }
-  return best;
+  stage_c_done = false;
+  recipe_bad_removed = false;
+  recipe_good_catches = 0;
 }
 
 inline bool any_planted_familiar() {
@@ -278,113 +276,147 @@ inline void restart_stage(const std::string& reason) {
   set_stage(stage, reason);
 }
 
-inline void fallback_to_place_stage(const std::string& reason) {
-  set_stage(Stage::PlaceFamiliarRight, reason);
-}
-
-inline ecs::Entity* spawn_single(float x_px) {
+inline ecs::Entity* spawn_single(const std::string& type, float x_px, float y_norm = 0.15f) {
   return levels::spawn_mushroom_now(
-      mushroom_type, glm::vec2{x_px, view_height() * 0.15f});
+      type, glm::vec2{x_px, view_height() * y_norm});
 }
 
 inline void enter_collect_stage() {
   clear_stage_entities();
-  stage_entity_a = spawn_single(std::clamp(player_center_x(), view_width() * 0.22f,
+  stage_entity_a = spawn_single(good_mushroom_type,
+                                std::clamp(player_center_x(), view_width() * 0.22f,
                                            view_width() * 0.78f));
 }
 
-inline void enter_shoot_stage() {
-  clear_stage_entities();
-  player::reset_familiars();
-  stage_entity_a = spawn_single(std::clamp(player_center_x(), view_width() * 0.25f,
-                                           view_width() * 0.75f));
-}
-
-inline void enter_place_familiar_stage() {
+inline void enter_place_trap_stage() {
   clear_stage_entities();
   player::reset_familiars();
 }
 
-inline void enter_dual_stage() {
+inline void enter_shoot_target_stage() {
   clear_stage_entities();
-  const float left_x = view_width() * 0.28f;
-  float right_x = view_width() * 0.74f;
-  if (auto* planted = right_planted_familiar(view_width() * 0.62f)) {
-    right_x = planted->current_center().x;
+  player::reset_familiars();
+  const glm::vec2 center{view_width() * 0.5f, view_height() * 0.15f};
+  show_marker(center, engine::UIColor{0.95f, 0.35f, 0.35f, 0.9f});
+  stage_entity_a = levels::spawn_mushroom_now(bad_mushroom_type, center);
+}
+
+inline void enter_recipe_scenario_stage() {
+  clear_stage_entities();
+  player::reset_familiars();
+  const glm::vec2 bad_center{view_width() * 0.5f, view_height() * 0.14f};
+  show_marker(bad_center, engine::UIColor{0.95f, 0.35f, 0.35f, 0.9f});
+  stage_entity_a = levels::spawn_mushroom_now(bad_mushroom_type, bad_center);
+  stage_entity_b = spawn_single(good_mushroom_type, view_width() * 0.28f, 0.12f);
+  stage_entity_c = spawn_single(good_mushroom_type, view_width() * 0.72f, 0.12f);
+}
+
+inline void maybe_complete_recipe_scenario() {
+  if (recipe_bad_removed && recipe_good_catches >= 2) {
+    set_stage(Stage::Complete);
   }
-  stage_entity_a = spawn_single(left_x);
-  stage_entity_b = spawn_single(right_x);
 }
 
 inline void set_stage(Stage next, const std::string& feedback) {
   stage = next;
+  stage_timer = 0.0f;
   hide_marker();
 
   const std::string base_feedback = feedback.empty() ? "" : ("  " + feedback);
   switch (stage) {
     case Stage::MoveLeft: {
       clear_stage_entities();
-      update_line(title_text, title_transform, "Tutorial: Stage 1/6", 24.0f, kTitleCenterNorm);
+      update_line(title_text, title_transform, "Tutorial: Stage 1/8", title_font_px(),
+                  kTitleCenterNorm);
       update_line(hint_text, hint_transform,
                   "Move left with " + controls::bound_key_label(controls::Action::MoveLeft) +
                       " to the glowing marker." + base_feedback,
-                  18.0f, kHintCenterNorm);
+                  hint_font_px(), kHintCenterNorm);
       show_marker(glm::vec2{view_width() * 0.20f, view_height() * 0.82f},
                   engine::UIColor{0.45f, 0.95f, 0.6f, 0.9f});
       break;
     }
     case Stage::MoveRight: {
       clear_stage_entities();
-      update_line(title_text, title_transform, "Tutorial: Stage 2/6", 24.0f, kTitleCenterNorm);
+      update_line(title_text, title_transform, "Tutorial: Stage 2/8", title_font_px(),
+                  kTitleCenterNorm);
       update_line(hint_text, hint_transform,
                   "Move right with " + controls::bound_key_label(controls::Action::MoveRight) +
                       " to the glowing marker." + base_feedback,
-                  18.0f, kHintCenterNorm);
+                  hint_font_px(), kHintCenterNorm);
       show_marker(glm::vec2{view_width() * 0.80f, view_height() * 0.82f},
                   engine::UIColor{0.45f, 0.95f, 0.6f, 0.9f});
       break;
     }
     case Stage::CollectOne: {
-      update_line(title_text, title_transform, "Tutorial: Stage 3/6", 24.0f, kTitleCenterNorm);
+      update_line(title_text, title_transform, "Tutorial: Stage 3/8", title_font_px(),
+                  kTitleCenterNorm);
       update_line(hint_text, hint_transform,
-                  "Catch the falling mushroom. If it falls, this stage restarts." + base_feedback,
-                  18.0f, kHintCenterNorm);
+                  "Collector mode starts here: catch the falling mushroom. If it falls, you lose a life." +
+                      base_feedback,
+                  hint_font_px(), kHintCenterNorm);
       enter_collect_stage();
       break;
     }
-    case Stage::ShootOne: {
-      update_line(title_text, title_transform, "Tutorial: Stage 4/6", 24.0f, kTitleCenterNorm);
+    case Stage::PlaceTrap: {
+      update_line(title_text, title_transform, "Tutorial: Stage 4/8", title_font_px(),
+                  kTitleCenterNorm);
+      update_line(hint_text, hint_transform,
+                  "Place a trap with " + controls::bound_key_label(controls::Action::Trap) +
+                      ". Collector mode never needs shooting." + base_feedback,
+                  hint_font_px(), kHintCenterNorm);
+      show_marker(glm::vec2{view_width() * 0.62f, view_height() * 0.72f},
+                  engine::UIColor{0.55f, 0.72f, 1.0f, 0.9f});
+      enter_place_trap_stage();
+      break;
+    }
+    case Stage::CollectorComplete: {
+      clear_stage_entities();
+      update_line(title_text, title_transform, "Collector Mode", title_font_px(),
+                  kTitleCenterNorm);
+      update_line(hint_text, hint_transform,
+                  "That is enough for Collector: catch mushrooms, use traps, protect your 3 lives." +
+                      base_feedback,
+                  hint_font_px(), kHintCenterNorm);
+      break;
+    }
+    case Stage::RecipeIntro: {
+      clear_stage_entities();
+      update_line(title_text, title_transform, "Recipe Mode", title_font_px(), kTitleCenterNorm);
+      update_line(hint_text, hint_transform,
+                  "Recipe mode shows icon counts before each level. Any mushroom hitting the floor ends the run." +
+                      base_feedback,
+                  hint_font_px(), kHintCenterNorm);
+      break;
+    }
+    case Stage::ShootTarget: {
+      update_line(title_text, title_transform, "Tutorial: Stage 7/8", title_font_px(),
+                  kTitleCenterNorm);
       update_line(hint_text, hint_transform,
                   "Use " + controls::bound_key_label(controls::Action::Shoot) +
-                      " to shoot the mushroom with a familiar. Catching or missing restarts this stage." +
+                      " to shoot the marked wrong mushroom before it reaches the basket." +
                       base_feedback,
-                  18.0f, kHintCenterNorm);
-      enter_shoot_stage();
+                  hint_font_px(), kHintCenterNorm);
+      enter_shoot_target_stage();
       break;
     }
-    case Stage::PlaceFamiliarRight: {
-      update_line(title_text, title_transform, "Tutorial: Stage 5/6", 24.0f, kTitleCenterNorm);
+    case Stage::RecipeScenario: {
+      update_line(title_text, title_transform, "Tutorial: Stage 8/8", title_font_px(),
+                  kTitleCenterNorm);
       update_line(hint_text, hint_transform,
-                  "Press " + controls::bound_key_label(controls::Action::Trap) +
-                      " to place a trap on the right side marker." + base_feedback,
-                  18.0f, kHintCenterNorm);
-      show_marker(glm::vec2{view_width() * 0.76f, view_height() * 0.72f},
-                  engine::UIColor{0.55f, 0.72f, 1.0f, 0.9f});
-      enter_place_familiar_stage();
-      break;
-    }
-    case Stage::DualCatch: {
-      update_line(title_text, title_transform, "Tutorial: Stage 6/6", 24.0f, kTitleCenterNorm);
-      update_line(hint_text, hint_transform,
-                  "Catch both mushrooms: one by familiar and one by player." + base_feedback, 18.0f,
-                  kHintCenterNorm);
-      enter_dual_stage();
+                  "Keep the basket white-only: catch the borovik mushrooms and shoot the center mukhomor." +
+                      base_feedback,
+                  hint_font_px(), kHintCenterNorm);
+      enter_recipe_scenario_stage();
       break;
     }
     case Stage::Complete: {
       clear_stage_entities(false);
-      update_line(title_text, title_transform, "Tutorial Complete", 24.0f, kTitleCenterNorm);
-      update_line(hint_text, hint_transform, "Great. Entering victory screen...", 18.0f, kHintCenterNorm);
+      update_line(title_text, title_transform, "Tutorial Complete", title_font_px(),
+                  kTitleCenterNorm);
+      update_line(hint_text, hint_transform,
+                  "Returning to the menu with Collector selected.", hint_font_px(),
+                  kHintCenterNorm);
       levels::finish_tutorial(true);
       break;
     }
@@ -397,7 +429,8 @@ inline void set_stage(Stage next, const std::string& feedback) {
 
 inline void start() {
   active = true;
-  mushroom_type = levels::default_spawn_type();
+  good_mushroom_type = "borovik";
+  bad_mushroom_type = "mukhomor";
   set_visible(true);
   set_stage(Stage::MoveLeft);
 }
@@ -418,44 +451,33 @@ inline bool is_stage_entity(ecs::Entity* entity, ecs::Entity* tracked) {
 
 inline void on_mushroom_spawned(const std::string&, ecs::Entity*) {}
 
-inline void on_mushroom_caught(const std::string&, ecs::Entity* entity, bool from_familiar) {
+inline void on_mushroom_caught(const std::string&, ecs::Entity* entity, bool) {
   if (!active || !entity) return;
   if (stage == Stage::CollectOne) {
     if (is_stage_entity(entity, stage_entity_a)) {
-      set_stage(Stage::ShootOne);
+      set_stage(Stage::PlaceTrap);
     }
     return;
   }
-  if (stage == Stage::ShootOne) {
+  if (stage == Stage::ShootTarget) {
     if (is_stage_entity(entity, stage_entity_a)) {
-      restart_stage("That one must be shot.");
+      restart_stage("Shoot the marked mushroom instead of catching it.");
     }
     return;
   }
-  if (stage == Stage::DualCatch) {
-    if (is_stage_entity(entity, stage_entity_a) && !stage_a_done) {
-      stage_a_done = true;
-      if (from_familiar) {
-        dual_familiar_catches += 1;
-      } else {
-        dual_player_catches += 1;
-      }
-    } else if (is_stage_entity(entity, stage_entity_b) && !stage_b_done) {
+  if (stage == Stage::RecipeScenario) {
+    if (is_stage_entity(entity, stage_entity_a)) {
+      restart_stage("The mukhomor must be shot, not caught.");
+      return;
+    }
+    if (is_stage_entity(entity, stage_entity_b) && !stage_b_done) {
       stage_b_done = true;
-      if (from_familiar) {
-        dual_familiar_catches += 1;
-      } else {
-        dual_player_catches += 1;
-      }
+      recipe_good_catches += 1;
+    } else if (is_stage_entity(entity, stage_entity_c) && !stage_c_done) {
+      stage_c_done = true;
+      recipe_good_catches += 1;
     }
-
-    if (stage_a_done && stage_b_done) {
-      if (dual_familiar_catches >= 1 && dual_player_catches >= 1) {
-        set_stage(Stage::Complete);
-      } else {
-        fallback_to_place_stage("Use both player and familiar catches.");
-      }
-    }
+    maybe_complete_recipe_scenario();
   }
 }
 
@@ -465,13 +487,14 @@ inline void on_mushroom_missed(const std::string&, ecs::Entity* entity) {
     restart_stage("It fell. Try again.");
     return;
   }
-  if (stage == Stage::ShootOne && is_stage_entity(entity, stage_entity_a)) {
+  if (stage == Stage::ShootTarget && is_stage_entity(entity, stage_entity_a)) {
     restart_stage("It fell. Shoot it before it drops.");
     return;
   }
-  if (stage == Stage::DualCatch &&
-      (is_stage_entity(entity, stage_entity_a) || is_stage_entity(entity, stage_entity_b))) {
-    fallback_to_place_stage("A mushroom fell. Re-place familiar and retry.");
+  if (stage == Stage::RecipeScenario &&
+      (is_stage_entity(entity, stage_entity_a) || is_stage_entity(entity, stage_entity_b) ||
+       is_stage_entity(entity, stage_entity_c))) {
+    restart_stage("Recipe mode ends if anything hits the floor.");
   }
 }
 
@@ -481,13 +504,20 @@ inline void on_mushroom_sorted(const std::string&, ecs::Entity* entity) {
     restart_stage("This stage needs a catch, not a shot.");
     return;
   }
-  if (stage == Stage::ShootOne && is_stage_entity(entity, stage_entity_a)) {
-    set_stage(Stage::PlaceFamiliarRight);
+  if (stage == Stage::ShootTarget && is_stage_entity(entity, stage_entity_a)) {
+    set_stage(Stage::RecipeScenario);
     return;
   }
-  if (stage == Stage::DualCatch &&
-      (is_stage_entity(entity, stage_entity_a) || is_stage_entity(entity, stage_entity_b))) {
-    fallback_to_place_stage("Do not shoot in this stage.");
+  if (stage == Stage::RecipeScenario) {
+    if (is_stage_entity(entity, stage_entity_a)) {
+      recipe_bad_removed = true;
+      stage_a_done = true;
+      maybe_complete_recipe_scenario();
+      return;
+    }
+    if (is_stage_entity(entity, stage_entity_b) || is_stage_entity(entity, stage_entity_c)) {
+      restart_stage("Borovik belongs in the basket.");
+    }
   }
 }
 
@@ -502,6 +532,7 @@ struct TutorialController : public dynamic::DynamicObject {
       return;
     }
     if (scene::is_current_scene_paused()) return;
+    stage_timer += static_cast<float>(ecs::context().delta_seconds);
 
     if (stage == Stage::MoveLeft) {
       if (player_center_x() <= view_width() * 0.22f) {
@@ -515,14 +546,22 @@ struct TutorialController : public dynamic::DynamicObject {
       }
       return;
     }
-    if (stage == Stage::PlaceFamiliarRight) {
-      if (right_planted_familiar(view_width() * 0.62f)) {
-        set_stage(Stage::DualCatch);
+    if (stage == Stage::PlaceTrap) {
+      if (any_planted_familiar()) {
+        set_stage(Stage::CollectorComplete);
         return;
       }
-      if (any_planted_familiar()) {
-        restart_stage("Place it in the right zone.");
-        return;
+      return;
+    }
+    if (stage == Stage::CollectorComplete) {
+      if (stage_timer >= 2.7f) {
+        set_stage(Stage::RecipeIntro);
+      }
+      return;
+    }
+    if (stage == Stage::RecipeIntro) {
+      if (stage_timer >= 3.6f) {
+        set_stage(Stage::ShootTarget);
       }
       return;
     }

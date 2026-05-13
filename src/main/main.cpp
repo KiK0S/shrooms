@@ -69,6 +69,10 @@ EMSCRIPTEN_KEEPALIVE int shrooms_is_gameplay_active() {
   return engine::shrooms::is_gameplay_active() ? 1 : 0;
 }
 
+EMSCRIPTEN_KEEPALIVE int shrooms_is_shoot_enabled() {
+  return engine::shrooms::is_shoot_enabled() ? 1 : 0;
+}
+
 }  // extern "C"
 #endif
 

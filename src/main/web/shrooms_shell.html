@@ -29,6 +29,10 @@
       color: #dfd6ab;
       overflow-x: hidden;
       touch-action: manipulation;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      -webkit-tap-highlight-color: transparent;
     }
 
     #bg-tile-canvas {
@@ -71,6 +75,7 @@
 
     h1 {
       margin: 0;
+      padding-top: calc(12px + env(safe-area-inset-top, 0px));
       display: flex;
       justify-content: center;
       width: 100%;
@@ -111,6 +116,9 @@
       box-shadow: none;
       touch-action: none;
       user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      -webkit-tap-highlight-color: transparent;
     }
 
     #mobile-controls {
@@ -129,12 +137,15 @@
       user-select: none;
       -webkit-user-select: none;
       -webkit-touch-callout: none;
+      -webkit-tap-highlight-color: transparent;
     }
 
     #mobile-controls * {
       user-select: none;
       -webkit-user-select: none;
       -webkit-touch-callout: none;
+      -webkit-user-drag: none;
+      -webkit-tap-highlight-color: transparent;
     }
 
     body.mobile-controls-active #mobile-controls {
@@ -160,6 +171,12 @@
       -webkit-tap-highlight-color: transparent;
     }
 
+    .action-button[aria-disabled="true"] {
+      opacity: 0.42;
+      border-color: #777;
+      color: #aaa;
+    }
+
     .controls-legend {
       grid-column: 1 / -1;
       display: grid;
@@ -172,13 +189,25 @@
     }
 
     .controls-legend div {
-      display: flex;
-      justify-content: space-between;
+      display: inline-flex;
+      justify-content: flex-start;
+      align-items: center;
       gap: 8px;
       min-width: 0;
     }
 
+    .controls-legend span:first-child {
+      min-width: 0;
+    }
+
     .controls-legend span:last-child {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 1.85em;
+      padding: 1px 5px;
+      border: 1px solid rgba(255, 255, 255, 0.55);
+      border-radius: 5px;
       color: #fff;
       white-space: nowrap;
     }
@@ -254,6 +283,28 @@
     const shootKeyLabel = document.getElementById("shoot-key");
     const trapKeyLabel = document.getElementById("trap-key");
 
+    const startupPerf = {
+      marks: new Map(),
+      start: performance.now(),
+      loggedInteractive: false,
+    };
+
+    function markStartup(name) {
+      const now = performance.now();
+      startupPerf.marks.set(name, now);
+      console.debug(`[startup] ${name}: ${(now - startupPerf.start).toFixed(1)}ms`);
+      return now;
+    }
+
+    function measureStartup(name, from, to) {
+      const start = startupPerf.marks.get(from);
+      const end = startupPerf.marks.get(to) ?? performance.now();
+      if (start === undefined) return;
+      console.debug(`[startup] ${name}: ${(end - start).toFixed(1)}ms`);
+    }
+
+    markStartup("shell-script-start");
+
     const KEY_A = 65;
     const KEY_D = 68;
     const KEY_W = 87;
@@ -278,6 +329,7 @@
       runtimeReady: false,
       controlsActive: false,
       gameplayActive: false,
+      shootEnabled: true,
       pageAudioActive:
         !document.hidden &&
         (typeof document.hasFocus !== "function" || document.hasFocus()),
@@ -428,9 +480,12 @@
         return;
       }
 
+      markStartup("background-init-start");
       const image = new Image();
       image.decoding = "async";
       image.onload = () => {
+        markStartup("background-image-loaded");
+        measureStartup("background-image-load", "background-init-start", "background-image-loaded");
         backgroundState.image = image;
         scheduleBackgroundRedraw();
       };
@@ -440,10 +495,20 @@
       image.src = BG_TILEMAP_URL;
     }
 
+    function scheduleDeferredBackgroundInit() {
+      const start = () => initBackgroundTiles();
+      if ("requestIdleCallback" in window) {
+        window.requestIdleCallback(start, { timeout: 1500 });
+      } else {
+        window.setTimeout(start, 250);
+      }
+    }
+
     function drawGameFontTitle() {
       if (!titleCanvas) return;
       const context = titleCanvas.getContext("2d");
       if (!context) return;
+      markStartup("title-draw-start");
 
       const glyphWidth = 8;
       const glyphHeight = 8;
@@ -489,6 +554,8 @@
         }
         cursorX += (glyphWidth + spacing) * pixelSize;
       }
+      markStartup("title-draw-end");
+      measureStartup("title-draw", "title-draw-start", "title-draw-end");
     }
 
     function bridgeReady() {
@@ -602,6 +669,13 @@
       return Module._shrooms_is_gameplay_active() !== 0;
     }
 
+    function queryShootEnabled() {
+      if (!bridgeReady() || typeof Module._shrooms_is_shoot_enabled !== "function") {
+        return true;
+      }
+      return Module._shrooms_is_shoot_enabled() !== 0;
+    }
+
     function syncMoveKeys() {
       const moveLeft = controlState.moveLeftPointers.size > 0;
       const moveRight = controlState.moveRightPointers.size > 0;
@@ -680,8 +754,14 @@
     function applyControlsMode() {
       const nextActive = shouldUseMobileControls();
       const canvasTouchscreenEnabled = !shouldUseMobileTouchLayout();
+      controlState.shootEnabled = queryShootEnabled();
       setMobileLayout(shouldUseMobileTouchLayout());
       updateControlLegend();
+      fireButton.toggleAttribute("disabled", !controlState.shootEnabled);
+      fireButton.setAttribute("aria-disabled", controlState.shootEnabled ? "false" : "true");
+      if (!controlState.shootEnabled) {
+        releaseButtonPointers(controlState.firePointers, ACTION_SHOOT);
+      }
       if (nextActive === controlState.controlsActive) {
         setCanvasTouchscreenEnabled(canvasTouchscreenEnabled);
         syncCanvasSize();
@@ -705,8 +785,10 @@
         return;
       }
       const active = queryGameplayActive();
-      if (active !== controlState.gameplayActive) {
+      const shootEnabled = queryShootEnabled();
+      if (active !== controlState.gameplayActive || shootEnabled !== controlState.shootEnabled) {
         controlState.gameplayActive = active;
+        controlState.shootEnabled = shootEnabled;
         applyControlsMode();
       } else if (controlState.controlsActive) {
         updateControlLegend();
@@ -722,10 +804,13 @@
     }
 
     function onActionPointerDown(evt, setRef, action) {
+      evt.preventDefault();
       if (!controlState.controlsActive) {
         return;
       }
-      evt.preventDefault();
+      if (action === ACTION_SHOOT && !controlState.shootEnabled) {
+        return;
+      }
       setRef.add(evt.pointerId);
       if (typeof evt.target.setPointerCapture === "function") {
         evt.target.setPointerCapture(evt.pointerId);
@@ -734,6 +819,7 @@
     }
 
     function onActionPointerUp(evt, setRef, action) {
+      evt.preventDefault();
       if (!setRef.delete(evt.pointerId)) {
         return;
       }
@@ -743,10 +829,10 @@
     }
 
     function onMovePointerDown(evt, setRef) {
+      evt.preventDefault();
       if (!controlState.controlsActive) {
         return;
       }
-      evt.preventDefault();
       setRef.add(evt.pointerId);
       if (typeof evt.target.setPointerCapture === "function") {
         evt.target.setPointerCapture(evt.pointerId);
@@ -755,6 +841,7 @@
     }
 
     function onMovePointerUp(evt, setRef) {
+      evt.preventDefault();
       if (!setRef.delete(evt.pointerId)) {
         return;
       }
@@ -812,6 +899,23 @@
     deployButton.addEventListener("lostpointercapture", (evt) => {
       onActionPointerUp(evt, controlState.deployPointers, ACTION_TRAP);
     });
+
+    for (const element of [canvasElement, controlsElement, moveLeftButton, moveRightButton, fireButton, deployButton]) {
+      element.addEventListener("contextmenu", (evt) => {
+        evt.preventDefault();
+      });
+      element.addEventListener("selectstart", (evt) => {
+        evt.preventDefault();
+      });
+      element.addEventListener("dragstart", (evt) => {
+        evt.preventDefault();
+      });
+      element.addEventListener("touchstart", (evt) => {
+        if (element === controlsElement || element.classList.contains("action-button")) {
+          evt.preventDefault();
+        }
+      }, { passive: false });
+    }
 
     window.addEventListener("blur", () => {
       releaseAllControlKeys();
@@ -887,18 +991,45 @@
         return canvas;
       })(),
       setStatus: (text) => {
+        if (text) {
+          console.debug(`[startup] status: ${text}`);
+        }
         statusElement.textContent = text || "";
       },
       totalDependencies: 0,
       monitorRunDependencies: (left) => {
+        if (left > 0 && !startupPerf.marks.has("dependencies-start")) {
+          markStartup("dependencies-start");
+        }
         Module.totalDependencies = Math.max(Module.totalDependencies, left);
+        if (left === 0) {
+          markStartup("dependencies-complete");
+          measureStartup("dependencies", "dependencies-start", "dependencies-complete");
+        }
         Module.setStatus(left ? `Preparing... (${Module.totalDependencies - left}/${Module.totalDependencies})` : "");
       },
+      preRun: [() => {
+        markStartup("runtime-prerun");
+      }],
+      postRun: [() => {
+        markStartup("runtime-postrun");
+        measureStartup("runtime-run", "runtime-prerun", "runtime-postrun");
+      }],
       onRuntimeInitialized: () => {
+        markStartup("runtime-initialized");
         controlState.runtimeReady = true;
         controlState.gameplayActive = queryGameplayActive();
+        controlState.shootEnabled = queryShootEnabled();
         setPageActive(controlState.pageAudioActive);
         applyControlsMode();
+        requestAnimationFrame(() => {
+          if (!startupPerf.loggedInteractive) {
+            startupPerf.loggedInteractive = true;
+            markStartup("first-interactive-frame");
+            measureStartup("shell-to-interactive", "shell-script-start", "first-interactive-frame");
+          }
+        });
+        scheduleDeferredBackgroundInit();
         if (controlState.pollTimer !== null) {
           clearInterval(controlState.pollTimer);
         }
@@ -907,10 +1038,10 @@
     };
 
     Module.setStatus("Downloading...");
-    initBackgroundTiles();
     drawGameFontTitle();
     syncPageActive();
     applyControlsMode();
+    markStartup("emscripten-script-start");
 
     window.onerror = (message) => {
       Module.setStatus("Error. Check JavaScript console.");

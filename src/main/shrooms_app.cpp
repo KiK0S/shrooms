@@ -77,6 +77,10 @@ bool is_gameplay_active() {
   return main_scene && active_scene == main_scene && !scene::is_current_scene_paused();
 }
 
+bool is_shoot_enabled() {
+  return ::levels::shooting_enabled();
+}
+
 int action_key_code(int action_index) {
   if (action_index < 0 ||
       action_index >= static_cast<int>(::controls::kActionCount)) {

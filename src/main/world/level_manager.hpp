@@ -46,9 +46,9 @@ enum class ObjectiveRule {
   SortOnly,
 };
 
-enum class Difficulty {
-  Normal,
-  Easy,
+enum class GameMode {
+  Collector,
+  Recipe,
 };
 
 struct SpawnerPlan {
@@ -77,6 +77,7 @@ struct LastResult {
   std::string level_id;
   bool infinite_mode = false;
   bool tutorial_mode = false;
+  GameMode game_mode = GameMode::Collector;
   int rounds_won = 0;
   int round_index = 0;
 };
@@ -86,6 +87,7 @@ enum class LossReason {
   TooMany,
   NotEnough,
   WrongAction,
+  Dropped,
 };
 
 struct LossInfo {
@@ -115,6 +117,8 @@ inline bool infinite_mode = false;
 inline bool tutorial_mode = false;
 inline int infinite_round_index = 0;
 inline int infinite_rounds_won = 0;
+inline constexpr int kCollectorLivesPerRun = 3;
+inline int collector_lives_remaining = kCollectorLivesPerRun;
 inline int current_run_score = 0;
 inline std::unordered_set<std::string> milestone_bonus_awarded{};
 inline bool infinite_preview_ready = false;
@@ -126,7 +130,7 @@ inline std::unordered_map<std::string, SpawnerPlan> base_spawner_plans{};
 inline std::vector<std::string> infinite_types{};
 inline render_system::SpriteRenderable* background_sprite = nullptr;
 inline transform::NoRotationTransform* background_transform = nullptr;
-inline Difficulty current_difficulty = Difficulty::Normal;
+inline GameMode current_game_mode = GameMode::Collector;
 inline std::string current_daily_date{};
 inline uint32_t current_daily_seed = 0;
 
@@ -141,25 +145,36 @@ inline TutorialMissHook tutorial_miss_hook{};
 inline TutorialSortHook tutorial_sort_hook{};
 
 constexpr const char* kLegacyProgressKey = "shrooms_progress";
+constexpr const char* kSelectedModeKey = "shrooms_selected_mode";
 inline constexpr size_t kTutorialLevelIndexOffset = 1;
 
-inline const char* progress_key_for_difficulty(Difficulty difficulty) {
-  switch (difficulty) {
-    case Difficulty::Easy:
+inline const char* progress_key_for_mode(GameMode mode) {
+  switch (mode) {
+    case GameMode::Collector:
+      return "shrooms_progress_collector";
+    case GameMode::Recipe:
+    default:
+      return "shrooms_progress_recipe";
+  }
+}
+
+inline const char* legacy_progress_key_for_mode(GameMode mode) {
+  switch (mode) {
+    case GameMode::Collector:
       return "shrooms_progress_easy";
-    case Difficulty::Normal:
+    case GameMode::Recipe:
     default:
       return "shrooms_progress_normal";
   }
 }
 
-inline leaderboard::Profile leaderboard_profile_for_difficulty(Difficulty difficulty) {
-  switch (difficulty) {
-    case Difficulty::Easy:
-      return leaderboard::Profile::Easy;
-    case Difficulty::Normal:
+inline leaderboard::Profile leaderboard_profile_for_mode(GameMode mode) {
+  switch (mode) {
+    case GameMode::Collector:
+      return leaderboard::Profile::Collector;
+    case GameMode::Recipe:
     default:
-      return leaderboard::Profile::Normal;
+      return leaderboard::Profile::Recipe;
   }
 }
 
@@ -171,19 +186,27 @@ inline void set_tutorial_hooks(TutorialSpawnHook spawn_hook, TutorialCatchHook c
   tutorial_sort_hook = std::move(sort_hook);
 }
 
-inline Difficulty difficulty() { return current_difficulty; }
+inline GameMode game_mode() { return current_game_mode; }
 
-inline std::string difficulty_label() {
-  switch (current_difficulty) {
-    case Difficulty::Easy:
-      return "Easy";
-    case Difficulty::Normal:
+inline std::string mode_label() {
+  switch (current_game_mode) {
+    case GameMode::Collector:
+      return "Collector";
+    case GameMode::Recipe:
     default:
-      return "Normal";
+      return "Recipe";
   }
 }
 
 inline bool is_tutorial_mode() { return tutorial_mode; }
+
+inline bool is_collector_mode() { return current_game_mode == GameMode::Collector; }
+
+inline bool is_recipe_mode() { return current_game_mode == GameMode::Recipe; }
+
+inline bool shooting_enabled() { return tutorial_mode || is_recipe_mode(); }
+
+inline int collector_lives() { return collector_lives_remaining; }
 
 inline int score() { return current_run_score; }
 
@@ -256,6 +279,13 @@ inline std::string objective_line_text(const LevelDefinition& level, const std::
     default:
       return "Collect " + std::to_string(target) + " " + type;
   }
+}
+
+inline std::string mushroom_icon_texture(const std::string& type) {
+  if (type == "mukhomor" || type == "lisi4ka" || type == "borovik") {
+    return type + "_small";
+  }
+  return type;
 }
 
 inline void layout_background_sprite(const std::string& texture_name) {
@@ -343,6 +373,15 @@ inline std::string loss_reason_label(const LossInfo& info) {
       }
       return "Wrong action";
     }
+    case LossReason::Dropped: {
+      if (current_game_mode == GameMode::Collector) {
+        return "No lives left";
+      }
+      if (!info.type.empty()) {
+        return info.type + " hit the floor";
+      }
+      return "Mushroom hit the floor";
+    }
     case LossReason::None:
     default:
       return "Game over";
@@ -351,13 +390,16 @@ inline std::string loss_reason_label(const LossInfo& info) {
 
 inline void save_progress() {
   if (parsed_levels.empty()) return;
-  save::write_text(progress_key_for_difficulty(current_difficulty),
+  save::write_text(progress_key_for_mode(current_game_mode),
                    std::to_string(unlocked_level_count));
 }
 
 inline void load_progress() {
   unlocked_level_count = parsed_levels.empty() ? 0 : 1;
-  auto saved = save::read_text(progress_key_for_difficulty(current_difficulty));
+  auto saved = save::read_text(progress_key_for_mode(current_game_mode));
+  if (!saved) {
+    saved = save::read_text(legacy_progress_key_for_mode(current_game_mode));
+  }
   if (!saved) {
     // Migration path from the old shared key.
     saved = save::read_text(kLegacyProgressKey);
@@ -370,6 +412,20 @@ inline void load_progress() {
     return;
   }
   unlocked_level_count = clamp_unlocked(count);
+}
+
+inline void save_selected_mode() {
+  save::write_text(kSelectedModeKey,
+                   current_game_mode == GameMode::Collector ? "collector" : "recipe");
+}
+
+inline GameMode load_selected_mode() {
+  auto saved = save::read_text(kSelectedModeKey);
+  if (!saved) return GameMode::Collector;
+  if (*saved == "recipe" || *saved == "Recipe") {
+    return GameMode::Recipe;
+  }
+  return GameMode::Collector;
 }
 
 inline void unlock_next_level(size_t level_index) {
@@ -401,19 +457,19 @@ inline uint32_t fnv1a_append(uint32_t hash, const std::string& text) {
   return hash;
 }
 
-inline std::string difficulty_seed_tag() {
-  switch (current_difficulty) {
-    case Difficulty::Easy:
-      return "easy";
-    case Difficulty::Normal:
+inline std::string mode_seed_tag() {
+  switch (current_game_mode) {
+    case GameMode::Collector:
+      return "collector";
+    case GameMode::Recipe:
     default:
-      return "normal";
+      return "recipe";
   }
 }
 
 inline void refresh_daily_seed_if_needed() {
   const std::string today = daily_runtime::local_calendar_date().iso_yyyy_mm_dd();
-  const std::string salt = std::string("shrooms_daily_infinite_v1_") + difficulty_seed_tag();
+  const std::string salt = std::string("shrooms_daily_infinite_v2_") + mode_seed_tag();
   const uint32_t seed = daily_runtime::day_hash(salt, today);
   if (today == current_daily_date && seed == current_daily_seed) {
     return;
@@ -468,76 +524,48 @@ inline void build_infinite_spawner_cache() {
   }
 }
 
-inline SpawnerPlan make_easy_spawner(SpawnerPlan plan, int target) {
-  plan.period = std::clamp(plan.period * 0.65f, 0.75f, 1.4f);
-  plan.density = 1.0;
-  plan.total_to_spawn = target;
-  return plan;
-}
-
 inline void reset_level_defaults(LevelDefinition& level) {
   level.objective_rule = ObjectiveRule::CollectOnly;
   level.objective_hint.clear();
 }
 
-inline ObjectiveRule easy_goal_rule_for_index(size_t index) {
-  return (index % 2 == 0) ? ObjectiveRule::CollectOnly : ObjectiveRule::SortOnly;
-}
-
-inline void apply_easy_profile(LevelDefinition& level, size_t level_index) {
-  if (level.spawners.empty()) return;
-  const size_t focus_index = level_index % level.spawners.size();
-  const auto& focus_plan = level.spawners[focus_index];
-  const std::string focus_type = focus_plan.type;
-
-  int base_target = 3;
-  auto recipe_it = level.recipe.find(focus_type);
-  if (recipe_it != level.recipe.end()) {
-    base_target = recipe_it->second;
-  } else if (!level.recipe_order.empty()) {
-    base_target = level.recipe_order.front().second;
-  }
-  const int target = std::max(2, std::min(5, (base_target / 2) + 1));
-
+inline void apply_collector_profile(LevelDefinition& level) {
   level.recipe.clear();
   level.recipe_order.clear();
-  level.recipe[focus_type] = target;
-  level.recipe_order.emplace_back(focus_type, target);
-  level.spawners = {make_easy_spawner(focus_plan, target)};
-  level.objective_rule = easy_goal_rule_for_index(level_index);
-  level.objective_hint =
-      (level.objective_rule == ObjectiveRule::CollectOnly) ? "Collect" : "Shoot";
+  level.objective_rule = ObjectiveRule::CollectOnly;
+  level.objective_hint = "Catch every mushroom";
 }
 
-inline void apply_difficulty_to_levels() {
+inline void apply_mode_to_levels() {
   parsed_levels = base_levels;
   for (auto& level : parsed_levels) {
     reset_level_defaults(level);
   }
-  if (current_difficulty == Difficulty::Easy) {
-    for (size_t i = 0; i < parsed_levels.size(); ++i) {
-      apply_easy_profile(parsed_levels[i], i);
+  if (current_game_mode == GameMode::Collector) {
+    for (auto& level : parsed_levels) {
+      apply_collector_profile(level);
     }
   }
   unlocked_level_count = clamp_unlocked(unlocked_level_count);
   build_infinite_spawner_cache();
 }
 
-inline void set_difficulty(Difficulty new_difficulty) {
-  if (current_difficulty == new_difficulty) return;
-  current_difficulty = new_difficulty;
+inline void set_game_mode(GameMode new_mode) {
+  if (current_game_mode == new_mode) return;
+  current_game_mode = new_mode;
+  save_selected_mode();
   current_daily_date.clear();
   current_daily_seed = 0;
   infinite_preview_ready = false;
-  apply_difficulty_to_levels();
+  apply_mode_to_levels();
   load_progress();
-  leaderboard::set_profile(leaderboard_profile_for_difficulty(current_difficulty));
+  leaderboard::set_profile(leaderboard_profile_for_mode(current_game_mode));
   refresh_daily_seed_if_needed();
 }
 
-inline void cycle_difficulty() {
-  set_difficulty(current_difficulty == Difficulty::Normal ? Difficulty::Easy
-                                                          : Difficulty::Normal);
+inline void cycle_game_mode() {
+  set_game_mode(current_game_mode == GameMode::Collector ? GameMode::Recipe
+                                                         : GameMode::Collector);
 }
 
 inline int infinite_target_for_round_type(int round_index, const std::string& type) {
@@ -564,37 +592,12 @@ inline void build_infinite_level(int round_index) {
     return;
   }
 
-  if (current_difficulty == Difficulty::Easy) {
-    const size_t base_index = static_cast<size_t>(round_index);
-    const size_t day_offset =
-        (infinite_types.empty() ? 0u : static_cast<size_t>(current_daily_seed) % infinite_types.size());
-    const std::string& type = infinite_types[(base_index + day_offset) % infinite_types.size()];
-    const int target = std::max(2, std::min(6, 2 + round_index / 3));
-    infinite_level.recipe[type] = target;
-    infinite_level.recipe_order.emplace_back(type, target);
-    infinite_level.objective_rule = easy_goal_rule_for_index(static_cast<size_t>(round_index));
-    infinite_level.objective_hint =
-        (infinite_level.objective_rule == ObjectiveRule::CollectOnly) ? "Collect" : "Shoot";
-
-    SpawnerPlan plan{};
-    auto base_it = base_spawner_plans.find(type);
-    if (base_it != base_spawner_plans.end()) {
-      plan = base_it->second;
-    } else {
-      plan.type = type;
-      plan.template_name = type + "_spawned";
-      plan.period = 2.0f;
-      plan.density = 0.5;
-      plan.total_to_spawn = target + 3;
-    }
-    infinite_level.spawners.push_back(make_easy_spawner(plan, target));
-    return;
-  }
-
   for (const auto& type : infinite_types) {
     const int target = infinite_target_for_round_type(round_index, type);
-    infinite_level.recipe[type] = target;
-    infinite_level.recipe_order.emplace_back(type, target);
+    if (current_game_mode == GameMode::Recipe) {
+      infinite_level.recipe[type] = target;
+      infinite_level.recipe_order.emplace_back(type, target);
+    }
 
     SpawnerPlan plan{};
     plan.type = type;
@@ -608,12 +611,14 @@ inline void build_infinite_level(int round_index) {
       plan.period = 2.0f;
       plan.density = 0.7;
     }
-    const int spare = std::max(2, target / 2);
-    plan.total_to_spawn = target + spare;
+    const int spare = current_game_mode == GameMode::Collector ? std::max(1, round_index / 3)
+                                                               : std::max(2, target / 2);
+    plan.total_to_spawn = std::max(1, target + spare);
     infinite_level.spawners.push_back(plan);
   }
   infinite_level.objective_rule = ObjectiveRule::CollectOnly;
-  infinite_level.objective_hint.clear();
+  infinite_level.objective_hint =
+      current_game_mode == GameMode::Collector ? "Catch every mushroom" : "";
 }
 
 inline void prepare_infinite_preview() {
@@ -664,7 +669,7 @@ inline void parse_levels(const std::string& filename) {
     parsed_levels.push_back(current);
   }
   base_levels = parsed_levels;
-  apply_difficulty_to_levels();
+  apply_mode_to_levels();
 }
 
 inline void register_spawner(periodic_spawn::PeriodicSpawnerObject* spawner) {
@@ -722,6 +727,29 @@ inline void maybe_award_recipe_milestone(const std::string& type, int progress, 
 inline void check_completion();
 inline void trigger_failure(LossReason reason, const std::string& type = "");
 inline void finalize_level(bool success);
+
+inline bool uses_recipe_targets() {
+  return current_game_mode == GameMode::Recipe && !tutorial_mode;
+}
+
+inline void reset_collector_lives_if_needed() {
+  if (current_game_mode != GameMode::Collector || tutorial_mode) {
+    collector_lives_remaining = 0;
+    score_hud::set_lives_visible(false);
+    return;
+  }
+  if (!infinite_mode || infinite_round_index == 0) {
+    collector_lives_remaining = kCollectorLivesPerRun;
+  }
+  score_hud::set_lives_visible(true);
+  score_hud::set_lives(collector_lives_remaining);
+}
+
+inline void decrement_collector_life() {
+  if (current_game_mode != GameMode::Collector || tutorial_mode) return;
+  collector_lives_remaining = std::max(0, collector_lives_remaining - 1);
+  score_hud::set_lives(collector_lives_remaining);
+}
 
 inline void finalize_success_after_transition() {
   level_failed = false;
@@ -787,6 +815,12 @@ inline void on_mushroom_caught(
 
   auto recipe_it = level->recipe.find(type);
   if (recipe_it == level->recipe.end()) {
+    if (current_game_mode == GameMode::Collector && !tutorial_mode) {
+      if (score_enabled) {
+        apply_score_delta(kScoreCatch, score_anchor, true);
+      }
+      collected_counts[type] += 1;
+    }
     check_completion();
     return;
   }
@@ -820,6 +854,17 @@ inline void on_mushroom_missed(const std::string& type, ecs::Entity* entity) {
   }
   vfx::spawn_miss_effect(entity);
   camera_shake::add_trauma(0.06f);
+  if (!tutorial_mode) {
+    if (current_game_mode == GameMode::Recipe) {
+      trigger_failure(LossReason::Dropped, type);
+      return;
+    }
+    decrement_collector_life();
+    if (collector_lives_remaining <= 0) {
+      trigger_failure(LossReason::Dropped, type);
+      return;
+    }
+  }
   check_completion();
 }
 
@@ -905,9 +950,13 @@ inline void start_level_with_definition(const LevelDefinition& level, size_t dis
     collected_counts[type] = 0;
     sorted_counts[type] = 0;
   }
-  const std::string score_task =
-      (current_difficulty == Difficulty::Easy) ? level.objective_hint : "";
+  for (const auto& plan : level.spawners) {
+    collected_counts.try_emplace(plan.type, 0);
+    sorted_counts.try_emplace(plan.type, 0);
+  }
+  const std::string score_task = "";
   scoreboard::init_with_targets(level.recipe_order, score_task);
+  reset_collector_lives_if_needed();
   configure_spawners_for_level(level);
   seed_spawners_for_level(level, seed_index);
   for (const auto& [type, target] : level.recipe_order) {
@@ -1061,6 +1110,7 @@ inline int remaining_spawns_for(const std::string& type) {
 inline LossInfo evaluate_loss_info() {
   LossInfo info{};
   if (tutorial_mode) return info;
+  if (current_game_mode == GameMode::Collector) return info;
   auto* level = current_level();
   if (!level) return info;
   for (const auto& [type, target] : level->recipe_order) {
@@ -1124,6 +1174,7 @@ inline void finalize_level(bool success) {
   last_result.level_id = level->id;
   last_result.infinite_mode = infinite_mode;
   last_result.tutorial_mode = tutorial_mode;
+  last_result.game_mode = current_game_mode;
   last_result.rounds_won = infinite_rounds_won;
   last_result.round_index = infinite_round_index + 1;
   last_result_valid = true;
@@ -1137,6 +1188,9 @@ inline void finalize_level(bool success) {
     last_game_status = "Infinite run ended (score " + std::to_string(current_run_score) + ")";
     last_game_success = success;
   } else if (tutorial_mode) {
+    if (success) {
+      set_game_mode(GameMode::Collector);
+    }
     last_result.level_index = tutorial_menu_index();
     last_result.level_id = "Tutorial";
     last_game_status = success ? "Completed Tutorial" : "Failed Tutorial";
@@ -1234,10 +1288,10 @@ inline void check_completion() {
 }
 
 inline void initialize() {
-  current_difficulty = Difficulty::Normal;
+  current_game_mode = load_selected_mode();
   parse_levels(shrooms::asset_path("levels.data"));
   build_infinite_spawner_cache();
-  leaderboard::set_profile(leaderboard_profile_for_difficulty(current_difficulty));
+  leaderboard::set_profile(leaderboard_profile_for_mode(current_game_mode));
   leaderboard::load_or_default();
   current_daily_date.clear();
   current_daily_seed = 0;
@@ -1254,6 +1308,7 @@ inline void initialize() {
   tutorial_mode = false;
   infinite_round_index = 0;
   infinite_rounds_won = 0;
+  collector_lives_remaining = kCollectorLivesPerRun;
   current_run_score = 0;
   milestone_bonus_awarded.clear();
   infinite_preview_ready = false;
