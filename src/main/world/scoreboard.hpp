@@ -128,9 +128,9 @@ inline glm::vec2 current_panel_center_px() {
   return shrooms::screen::norm_to_pixels(panel_center_norm()) + shake_offset_px;
 }
 
-inline glm::vec2 corner_relative_norm(float x_norm, float y_norm) {
+inline float corner_relative_x_norm(float x_norm) {
   const glm::vec2 corner = corner_panel_center_norm();
-  return panel_center_norm() + glm::vec2{x_norm - corner.x, y_norm - corner.y};
+  return panel_center_norm().x + (x_norm - corner.x);
 }
 
 inline float row_center_y_norm(size_t row_index) {
@@ -141,12 +141,12 @@ inline float row_center_y_norm(size_t row_index) {
 }
 
 inline glm::vec2 row_icon_position(size_t row_index) {
-  const glm::vec2 norm = corner_relative_norm(config.icon_x, row_center_y_norm(row_index));
+  const glm::vec2 norm{corner_relative_x_norm(config.icon_x), row_center_y_norm(row_index)};
   return shrooms::screen::norm_to_pixels(norm) + shake_offset_px;
 }
 
 inline glm::vec2 row_score_center(size_t row_index) {
-  const glm::vec2 norm = corner_relative_norm(config.score_x, row_center_y_norm(row_index));
+  const glm::vec2 norm{corner_relative_x_norm(config.score_x), row_center_y_norm(row_index)};
   return shrooms::screen::norm_to_pixels(norm) + shake_offset_px;
 }
 
