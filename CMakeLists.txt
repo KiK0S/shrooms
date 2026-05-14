@@ -123,6 +123,7 @@ if(ENGINE_PLATFORM STREQUAL "web")
   target_link_options(shrooms PRIVATE
     "-sWASM=1"
     "--use-preload-plugins"
+    "-sEXPORTED_RUNTIME_METHODS=['FS']"
     "-sALLOW_MEMORY_GROWTH=1"
     "-sINITIAL_MEMORY=134217728"
     "-sMAXIMUM_MEMORY=1073741824"
