@@ -195,6 +195,7 @@ inline void enter_tutorial_objective_mode();
 inline void enter_game_over_mode();
 inline void enter_main_menu_mode();
 inline void enter_settings_mode();
+inline void begin_started_level_intro(const std::string& title, bool recipe_first = false);
 inline void start_level_from_menu(size_t level_index);
 inline void start_infinite_from_menu();
 
@@ -1034,9 +1035,20 @@ inline void start_pending_level() {
   } else if (pending_infinite) {
     tutorial::stop();
     levels::start_infinite_mode();
+    const std::string title =
+        levels::game_mode() == levels::GameMode::Recipe
+            ? "Round " + std::to_string(levels::infinite_round_index + 1)
+            : "Daily Infinity";
+    begin_started_level_intro(title, levels::game_mode() == levels::GameMode::Recipe);
+    return;
   } else {
     tutorial::stop();
     levels::start_level(pending_level_index);
+    const std::string title =
+        "Level " + std::to_string(pending_level_index + 1) + ": " +
+        display_level_name(levels::parsed_levels[pending_level_index].id);
+    begin_started_level_intro(title, levels::game_mode() == levels::GameMode::Recipe);
+    return;
   }
   player::reset_for_new_level();
   camera_shake::reset();
@@ -1070,7 +1082,7 @@ inline void finish_level_intro_countdown() {
   }
 }
 
-inline void begin_started_level_intro(const std::string& title, bool recipe_first = false) {
+inline void begin_started_level_intro(const std::string& title, bool recipe_first) {
   player::reset_for_new_level();
   camera_shake::reset();
   vfx::reset_wobble_offsets();
@@ -1103,7 +1115,7 @@ inline void start_level_from_menu(size_t level_index) {
   const std::string title =
       "Level " + std::to_string(level_index + 1) + ": " +
       display_level_name(levels::parsed_levels[level_index].id);
-  begin_started_level_intro(title);
+  begin_started_level_intro(title, levels::game_mode() == levels::GameMode::Recipe);
 }
 
 inline void start_infinite_from_menu() {
