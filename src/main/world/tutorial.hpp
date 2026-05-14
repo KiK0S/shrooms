@@ -14,6 +14,7 @@
 #include "ecs/ecs.hpp"
 #include "utils/arena.hpp"
 #include "systems/color/color_system.hpp"
+#include "systems/defer/deferred_system.hpp"
 #include "systems/dynamic/dynamic_object.hpp"
 #include "systems/hidden/hidden_object.hpp"
 #include "systems/input/input_system.hpp"
@@ -53,6 +54,9 @@ inline Stage stage = Stage::None;
 inline std::string good_mushroom_type = "borovik";
 inline std::string bad_mushroom_type = "mukhomor";
 inline float stage_timer = 0.0f;
+inline bool stage_restart_pending = false;
+inline Stage pending_restart_stage = Stage::None;
+inline std::string pending_restart_feedback{};
 
 inline ecs::Entity* title_entity = nullptr;
 inline text::TextObject* title_text = nullptr;
@@ -333,7 +337,21 @@ inline void hide_tutorial_recipe_board() {
 }
 
 inline void restart_stage(const std::string& reason) {
-  set_stage(stage, reason);
+  pending_restart_stage = stage;
+  pending_restart_feedback = reason;
+  if (stage_restart_pending) return;
+  stage_restart_pending = true;
+  deferred::fire_deferred(
+      []() {
+        const Stage restart = pending_restart_stage;
+        const std::string feedback = pending_restart_feedback;
+        stage_restart_pending = false;
+        pending_restart_stage = Stage::None;
+        pending_restart_feedback.clear();
+        if (!active || stage != restart) return;
+        set_stage(restart, feedback);
+      },
+      0);
 }
 
 inline ecs::Entity* spawn_single(const std::string& type, float x_px, float y_norm = 0.15f) {
@@ -521,6 +539,9 @@ inline void start() {
   active = true;
   good_mushroom_type = "borovik";
   bad_mushroom_type = "mukhomor";
+  stage_restart_pending = false;
+  pending_restart_stage = Stage::None;
+  pending_restart_feedback.clear();
   set_visible(true);
   set_stage(Stage::MoveLeft);
 }
@@ -528,6 +549,9 @@ inline void start() {
 inline void stop() {
   active = false;
   stage = Stage::None;
+  stage_restart_pending = false;
+  pending_restart_stage = Stage::None;
+  pending_restart_feedback.clear();
   clear_stage_entities();
   hide_tutorial_lives();
   hide_tutorial_recipe_board();
@@ -545,6 +569,7 @@ inline void on_mushroom_spawned(const std::string&, ecs::Entity*) {}
 
 inline void on_mushroom_caught(const std::string&, ecs::Entity* entity, bool from_familiar) {
   if (!active || !entity) return;
+  if (stage_restart_pending) return;
   if (stage == Stage::CollectOne) {
     if (is_stage_entity(entity, stage_entity_a)) {
       set_stage(Stage::PlaceTrap);
@@ -586,6 +611,7 @@ inline void on_mushroom_caught(const std::string&, ecs::Entity* entity, bool fro
 
 inline void on_mushroom_missed(const std::string&, ecs::Entity* entity) {
   if (!active || !entity) return;
+  if (stage_restart_pending) return;
   if (stage == Stage::CollectOne && is_stage_entity(entity, stage_entity_a)) {
     restart_stage("It fell. Try again.");
     return;
@@ -601,12 +627,13 @@ inline void on_mushroom_missed(const std::string&, ecs::Entity* entity) {
   if (stage == Stage::RecipeScenario &&
       (is_stage_entity(entity, stage_entity_a) || is_stage_entity(entity, stage_entity_b) ||
        is_stage_entity(entity, stage_entity_c))) {
-    restart_stage("That would lower your score. Try the recipe step again.");
+    restart_stage("Not enough borovik left. Try the recipe step again.");
   }
 }
 
 inline void on_mushroom_sorted(const std::string&, ecs::Entity* entity) {
   if (!active || !entity) return;
+  if (stage_restart_pending) return;
   if (stage == Stage::CollectOne && is_stage_entity(entity, stage_entity_a)) {
     restart_stage("This stage needs a catch, not a shot.");
     return;
