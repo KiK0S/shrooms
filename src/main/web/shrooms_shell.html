@@ -4,14 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no">
   <title>Shrooms</title>
-  <link rel="icon" type="image/svg+xml" href="assets/shrooms/icon.svg">
+  <link rel="icon" type="image/svg+xml">
   <style>
-    @font-face {
-      font-family: "Vera";
-      src: url("assets/Vera.ttf") format("truetype");
-      font-display: swap;
-    }
-
     * {
       box-sizing: border-box;
     }
@@ -313,7 +307,9 @@
     const ACTION_MOVE_RIGHT = 1;
     const ACTION_SHOOT = 2;
     const ACTION_TRAP = 3;
-    const BG_TILEMAP_URL = "assets/shrooms/tilemap.png";
+    const FONT_ASSET_PATH = "/assets/Vera.ttf";
+    const ICON_ASSET_PATH = "/assets/shrooms/icon.svg";
+    const BG_TILEMAP_PATH = "/assets/shrooms/tilemap.png";
     const BG_TILE_SIZE_VMIN = 20;
     const BG_ALPHA = 0.5;
     const TITLE_TEXT = "SHROOMS";
@@ -347,6 +343,7 @@
       image: null,
       rafId: null,
     };
+    const shellAssetUrls = [];
     const BG_TILE_PATTERN_COLUMNS = 8;
     const BG_TILE_PATTERN_ROWS = 8;
     const BG_TILE_PATTERN = [
@@ -359,6 +356,54 @@
       2, 3, 0, 1, 3, 2, 1, 0,
       1, 0, 3, 2, 0, 1, 2, 3,
     ];
+
+    function preloadedFs() {
+      if (typeof Module !== "undefined" && Module.FS) {
+        return Module.FS;
+      }
+      if (typeof FS !== "undefined") {
+        return FS;
+      }
+      return null;
+    }
+
+    function createPreloadedAssetUrl(path, mimeType) {
+      const fs = preloadedFs();
+      if (!fs) {
+        return "";
+      }
+      try {
+        const bytes = fs.readFile(path);
+        const url = URL.createObjectURL(new Blob([bytes], { type: mimeType }));
+        shellAssetUrls.push(url);
+        return url;
+      } catch (err) {
+        console.warn("Failed to load shell asset:", path, err);
+        return "";
+      }
+    }
+
+    function installRuntimeShellAssets() {
+      const fontUrl = createPreloadedAssetUrl(FONT_ASSET_PATH, "font/ttf");
+      if (fontUrl) {
+        const style = document.createElement("style");
+        style.textContent =
+            `@font-face { font-family: "Vera"; src: url("${fontUrl}") format("truetype"); font-display: swap; }`;
+        document.head.appendChild(style);
+      }
+
+      const iconUrl = createPreloadedAssetUrl(ICON_ASSET_PATH, "image/svg+xml");
+      if (iconUrl) {
+        let link = document.querySelector("link[rel~='icon']");
+        if (!link) {
+          link = document.createElement("link");
+          link.rel = "icon";
+          document.head.appendChild(link);
+        }
+        link.type = "image/svg+xml";
+        link.href = iconUrl;
+      }
+    }
 
     function computeBackgroundTileSizePx() {
       const vmin = Math.min(window.innerWidth, window.innerHeight) / 100;
@@ -492,7 +537,12 @@
       image.onerror = () => {
         console.error("Failed to load tiled background image.");
       };
-      image.src = BG_TILEMAP_URL;
+      const imageUrl = createPreloadedAssetUrl(BG_TILEMAP_PATH, "image/png");
+      if (!imageUrl) {
+        image.onerror();
+        return;
+      }
+      image.src = imageUrl;
     }
 
     function scheduleDeferredBackgroundInit() {
@@ -1022,6 +1072,7 @@
         controlState.shootEnabled = queryShootEnabled();
         setPageActive(controlState.pageAudioActive);
         applyControlsMode();
+        installRuntimeShellAssets();
         requestAnimationFrame(() => {
           if (!startupPerf.loggedInteractive) {
             startupPerf.loggedInteractive = true;

@@ -90,17 +90,30 @@ if(NOT EXISTS "${SHROOMS_ASSET_DIR}")
   message(FATAL_ERROR "Missing assets directory: ${SHROOMS_ASSET_DIR}")
 endif()
 
-add_custom_command(TARGET shrooms POST_BUILD
-  COMMAND ${CMAKE_COMMAND} -E copy_directory
-  ${SHROOMS_ASSET_DIR}
-  $<TARGET_FILE_DIR:shrooms>/assets
-  COMMAND ${CMAKE_COMMAND} -E copy_directory
-  ${SHROOMS_SHADER_DIR}
-  $<TARGET_FILE_DIR:shrooms>/shaders
-  COMMAND ${CMAKE_COMMAND} -E copy_directory
-  ${SHROOMS_CUSTOM_SHADER_DIR}
-  $<TARGET_FILE_DIR:shrooms>/shaders
-)
+if(ENGINE_PLATFORM STREQUAL "web")
+  add_custom_command(TARGET shrooms POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E rm -rf
+    $<TARGET_FILE_DIR:shrooms>/assets
+    COMMAND ${CMAKE_COMMAND} -E rm -rf
+    $<TARGET_FILE_DIR:shrooms>/shaders
+  )
+else()
+  add_custom_command(TARGET shrooms POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E rm -rf
+    $<TARGET_FILE_DIR:shrooms>/assets
+    COMMAND ${CMAKE_COMMAND} -E rm -rf
+    $<TARGET_FILE_DIR:shrooms>/shaders
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${SHROOMS_ASSET_DIR}
+    $<TARGET_FILE_DIR:shrooms>/assets
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${SHROOMS_SHADER_DIR}
+    $<TARGET_FILE_DIR:shrooms>/shaders
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${SHROOMS_CUSTOM_SHADER_DIR}
+    $<TARGET_FILE_DIR:shrooms>/shaders
+  )
+endif()
 
 if(ENGINE_PLATFORM STREQUAL "web")
   set_target_properties(shrooms PROPERTIES SUFFIX ".html")
