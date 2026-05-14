@@ -21,7 +21,7 @@ if(ENGINE_PLATFORM STREQUAL "web")
     COMMAND ${CMAKE_COMMAND} -E rm -rf
     $<TARGET_FILE_DIR:shrooms_demo>/assets
   )
-  target_link_options(shrooms_demo PRIVATE "-sWASM=1" "--use-preload-plugins"
+  target_link_options(shrooms_demo PRIVATE "-sWASM=1"
     "-sMIN_WEBGL_VERSION=2" "-sMAX_WEBGL_VERSION=2" "-sUSE_WEBGL2=1" "-sFULL_ES3=1"
     "-sUSE_SDL=2"
     "SHELL:--preload-file ${CMAKE_SOURCE_DIR}/assets@/assets"

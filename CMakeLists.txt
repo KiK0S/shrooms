@@ -120,10 +120,12 @@ if(ENGINE_PLATFORM STREQUAL "web")
   set_property(TARGET shrooms APPEND PROPERTY LINK_DEPENDS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/main/web/shrooms_shell.html
   )
-  target_link_options(shrooms PRIVATE
-    "-sWASM=1"
-    "--use-preload-plugins"
-    "-sEXPORTED_RUNTIME_METHODS=['FS']"
+	  target_link_options(shrooms PRIVATE
+	    "-sWASM=1"
+	    # The engine decodes assets from the preloaded filesystem itself.
+	    # Emscripten preload plugins add browser-side image/audio decode
+	    # dependencies before main(), which can stall startup on WAV files.
+	    "-sEXPORTED_RUNTIME_METHODS=['FS']"
     "-sALLOW_MEMORY_GROWTH=1"
     "-sINITIAL_MEMORY=134217728"
     "-sMAXIMUM_MEMORY=1073741824"
