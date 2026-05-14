@@ -16,6 +16,7 @@
 #include "world/ambient_layers.hpp"
 #include "world/global_fx.hpp"
 #include "world/game_over_sequence.hpp"
+#include "world/level_intro.hpp"
 #include "world/round_transition.hpp"
 #include "world/menu.hpp"
 #include "world/shrooms_assets.hpp"
@@ -123,6 +124,7 @@ void ShroomsLogic::on_init() {
   ambient_layers::init();
   global_fx::init();
   game_over_sequence::init();
+  level_intro::init();
   round_transition::init();
   tutorial::init();
   menu::init();

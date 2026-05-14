@@ -26,6 +26,7 @@
 #include "systems/hidden/hidden_object.hpp"
 
 #include "countdown.hpp"
+#include "level_intro.hpp"
 #include "leaderboard.hpp"
 #include "level_manager.hpp"
 #include "score_hud.hpp"
@@ -194,6 +195,8 @@ inline void enter_tutorial_objective_mode();
 inline void enter_game_over_mode();
 inline void enter_main_menu_mode();
 inline void enter_settings_mode();
+inline void start_level_from_menu(size_t level_index);
+inline void start_infinite_from_menu();
 
 inline std::string infinite_background_texture() {
   if (!levels::parsed_levels.empty()) {
@@ -855,7 +858,7 @@ inline std::optional<size_t> level_index_at_point(const glm::vec2& point) {
 
 inline void handle_level_selection(size_t index) {
   if (is_infinite_entry(index)) {
-    enter_infinite_objective_mode();
+    start_infinite_from_menu();
     return;
   }
   if (index >= levels::parsed_levels.size()) {
@@ -864,7 +867,7 @@ inline void handle_level_selection(size_t index) {
   if (!levels::is_unlocked(index)) {
     return;
   }
-  enter_objective_mode(index);
+  start_level_from_menu(index);
 }
 
 inline void refresh_objective_lines_from_level(const levels::LevelDefinition& level,
@@ -1057,6 +1060,57 @@ inline void start_pending_level() {
   pending_tutorial = false;
   suppress_input_for_frames(2);
   set_menu_mode(MenuMode::Main);
+}
+
+inline void finish_level_intro_countdown() {
+  camera_shake::reset();
+  vfx::reset_wobble_offsets();
+  if (auto* main_scene = scene::get_scene("main")) {
+    main_scene->set_pause(false);
+  }
+}
+
+inline void begin_started_level_intro(const std::string& title) {
+  player::reset_for_new_level();
+  camera_shake::reset();
+  vfx::reset_wobble_offsets();
+  if (auto* menu_scene = scene::get_scene("menu")) {
+    menu_scene->set_pause(true);
+  }
+  has_pending_level = false;
+  pending_infinite = false;
+  pending_tutorial = false;
+  suppress_input_for_frames(2);
+  set_menu_mode(MenuMode::Main);
+  level_intro::start(title, levels::mode_label() + " Mode", []() {
+    finish_level_intro_countdown();
+  });
+}
+
+inline void start_level_from_menu(size_t level_index) {
+  if (level_index >= levels::parsed_levels.size()) return;
+  tutorial::stop();
+  awaiting_name_entry = false;
+  show_leaderboard = false;
+  text_input::end();
+  levels::start_level(level_index);
+  const std::string title =
+      "Level " + std::to_string(level_index + 1) + ": " +
+      display_level_name(levels::parsed_levels[level_index].id);
+  begin_started_level_intro(title);
+}
+
+inline void start_infinite_from_menu() {
+  tutorial::stop();
+  awaiting_name_entry = false;
+  show_leaderboard = false;
+  text_input::end();
+  levels::start_infinite_mode();
+  const std::string title =
+      levels::game_mode() == levels::GameMode::Recipe
+          ? "Round " + std::to_string(levels::infinite_round_index + 1)
+          : "Daily Infinity";
+  begin_started_level_intro(title);
 }
 
 inline void enter_objective_mode(size_t level_index) {
@@ -1631,11 +1685,11 @@ struct MenuController : public dynamic::DynamicObject {
     ensure_gameover_selection();
     if (selected_gameover_index == 0) {
       if (levels::last_result.infinite_mode) {
-        enter_infinite_objective_mode();
+        start_infinite_from_menu();
       } else if (levels::last_result.tutorial_mode) {
         enter_tutorial_objective_mode();
       } else {
-        enter_objective_mode(restart_index);
+        start_level_from_menu(restart_index);
       }
       return;
     }

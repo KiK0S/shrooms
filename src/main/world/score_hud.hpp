@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <map>
 #include <string>
 #include <string_view>
@@ -11,9 +12,11 @@
 #include "glm/glm/vec4.hpp"
 
 #include "ecs/ecs.hpp"
+#include "ecs/context.hpp"
 #include "utils/arena.hpp"
 #include "systems/animation/sprite_animation.hpp"
 #include "systems/color/color_system.hpp"
+#include "systems/dynamic/dynamic_object.hpp"
 #include "systems/hidden/hidden_object.hpp"
 #include "systems/layer/layered_object.hpp"
 #include "systems/render/sprite_system.hpp"
@@ -34,6 +37,8 @@ struct Config {
   glm::vec2 score_offset = glm::vec2(-0.005f, -0.075f);
   float score_font_px = 20.0f;
   glm::vec4 score_color = glm::vec4(1.0f);
+  float intro_slide_duration = 0.65f;
+  float intro_slide_pad_px = 18.0f;
   int layer = 1;
 } config;
 
@@ -41,6 +46,8 @@ inline constexpr size_t kMaxLifeHearts = 3;
 
 inline ecs::Entity* face_icon = nullptr;
 inline ecs::Entity* panel = nullptr;
+inline transform::NoRotationTransform* panel_transform = nullptr;
+inline transform::NoRotationTransform* face_transform = nullptr;
 inline ecs::Entity* score_text_entity = nullptr;
 inline transform::NoRotationTransform* score_text_transform = nullptr;
 inline text::TextObject* score_text = nullptr;
@@ -52,6 +59,22 @@ inline std::array<hidden::HiddenObject*, kMaxLifeHearts> life_heart_hidden{};
 inline int current_score = 0;
 inline int current_lives = 0;
 inline bool lives_visible = false;
+inline glm::vec2 hud_offset_px{0.0f, 0.0f};
+inline glm::vec2 hud_anim_start_px{0.0f, 0.0f};
+inline glm::vec2 hud_anim_target_px{0.0f, 0.0f};
+inline float hud_anim_elapsed = 0.0f;
+inline float hud_anim_duration = 0.0f;
+inline bool hud_anim_active = false;
+
+inline float clamp01(float value) {
+  return std::min(1.0f, std::max(0.0f, value));
+}
+
+inline float ease_out(float value) {
+  const float t = clamp01(value);
+  const float inv = 1.0f - t;
+  return 1.0f - inv * inv;
+}
 
 inline glm::vec2 resolve_reference_size(const glm::vec2& configured,
                                         std::string_view texture_name,
@@ -84,7 +107,8 @@ inline glm::vec2 panel_center_norm() {
 }
 
 inline glm::vec2 score_anchor_px() {
-  return panel_center_px() + shrooms::screen::scale_to_pixels(config.score_offset);
+  return panel_center_px() + shrooms::screen::scale_to_pixels(config.score_offset) +
+         hud_offset_px;
 }
 
 inline glm::vec2 lives_anchor_px() {
@@ -129,6 +153,27 @@ inline void update_lives_layout() {
   }
 }
 
+inline void update_panel_layout() {
+  const glm::vec2 panel_top_left_px = shrooms::screen::norm_to_pixels(panel_top_left_norm());
+  const glm::vec2 panel_size = panel_size_px();
+  const glm::vec2 panel_center = panel_top_left_px + panel_size * 0.5f + hud_offset_px;
+  const glm::vec2 center_norm = panel_center_norm();
+
+  if (panel_transform) {
+    panel_transform->pos = shrooms::screen::center_to_top_left(panel_center, panel_size);
+  }
+  if (face_transform) {
+    const glm::vec2 ref_size =
+        resolve_reference_size(config.face_reference_size, "face_mini_1", 24.0f);
+    const glm::vec2 size = shrooms::texture_sizing::from_reference_size(ref_size);
+    const glm::vec2 center =
+        shrooms::screen::norm_to_pixels(center_norm + config.face_offset) + hud_offset_px;
+    face_transform->pos = shrooms::screen::center_to_top_left(center, size);
+  }
+  update_score_layout();
+  update_lives_layout();
+}
+
 inline void set_score(int score_value) {
   current_score = score_value;
   update_score_layout();
@@ -146,6 +191,46 @@ inline void set_lives_visible(bool visible) {
   update_lives_layout();
 }
 
+inline void animate_offset_to(const glm::vec2& target, float duration) {
+  hud_anim_start_px = hud_offset_px;
+  hud_anim_target_px = target;
+  hud_anim_elapsed = 0.0f;
+  hud_anim_duration = std::max(0.0f, duration);
+  hud_anim_active = hud_anim_duration > 0.0f;
+  if (!hud_anim_active) {
+    hud_offset_px = target;
+  }
+  update_panel_layout();
+}
+
+inline void start_intro_slide_in(float duration = config.intro_slide_duration) {
+  hud_offset_px = glm::vec2{-(panel_size_px().x + config.intro_slide_pad_px), 0.0f};
+  update_panel_layout();
+  animate_offset_to(glm::vec2{0.0f, 0.0f}, duration);
+}
+
+struct ScoreHudController : public dynamic::DynamicObject {
+  ScoreHudController() : dynamic::DynamicObject() {}
+  ~ScoreHudController() override { Component::component_count--; }
+
+  void update() override {
+    if (!hud_anim_active) return;
+    const float dt = static_cast<float>(ecs::context().delta_seconds);
+    hud_anim_elapsed += dt;
+    const float t =
+        hud_anim_duration > 0.0f ? clamp01(hud_anim_elapsed / hud_anim_duration) : 1.0f;
+    const float eased = ease_out(t);
+    hud_offset_px = hud_anim_start_px + (hud_anim_target_px - hud_anim_start_px) * eased;
+    if (t >= 1.0f) {
+      hud_anim_active = false;
+      hud_offset_px = hud_anim_target_px;
+    }
+    update_panel_layout();
+  }
+};
+
+inline ScoreHudController controller{};
+
 inline void reset_hud() {
   const glm::vec2 panel_top_left_px = shrooms::screen::norm_to_pixels(panel_top_left_norm());
   const glm::vec2 panel_size = panel_size_px();
@@ -157,9 +242,10 @@ inline void reset_hud() {
   }
   panel = arena::create<ecs::Entity>();
   {
-    auto* transform = arena::create<transform::NoRotationTransform>();
-    transform->pos = shrooms::screen::center_to_top_left(panel_center, panel_size);
-    panel->add(transform);
+    panel_transform = arena::create<transform::NoRotationTransform>();
+    panel_transform->pos =
+        shrooms::screen::center_to_top_left(panel_center + hud_offset_px, panel_size);
+    panel->add(panel_transform);
     panel->add(arena::create<layers::ConstLayer>(config.layer));
     const engine::TextureId tex_id = engine::resources::register_texture("menu_face");
     panel->add(arena::create<render_system::SpriteRenderable>(tex_id, panel_size));
@@ -175,9 +261,9 @@ inline void reset_hud() {
         resolve_reference_size(config.face_reference_size, "face_mini_1", 24.0f);
     const glm::vec2 size = shrooms::texture_sizing::from_reference_size(ref_size);
     const glm::vec2 center = shrooms::screen::norm_to_pixels(center_norm + config.face_offset);
-    auto* transform = arena::create<transform::NoRotationTransform>();
-    transform->pos = shrooms::screen::center_to_top_left(center, size);
-    face_icon->add(transform);
+    face_transform = arena::create<transform::NoRotationTransform>();
+    face_transform->pos = shrooms::screen::center_to_top_left(center + hud_offset_px, size);
+    face_icon->add(face_transform);
     face_icon->add(arena::create<layers::ConstLayer>(config.layer));
     const engine::TextureId frame_1 = engine::resources::register_texture("face_mini_1");
     const engine::TextureId frame_2 = engine::resources::register_texture("face_mini_2");
@@ -227,6 +313,8 @@ inline void init() {
   current_score = 0;
   current_lives = 0;
   lives_visible = false;
+  hud_offset_px = glm::vec2{0.0f, 0.0f};
+  hud_anim_active = false;
   reset_hud();
 }
 

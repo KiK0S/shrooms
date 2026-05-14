@@ -22,6 +22,7 @@
 #include "systems/spawn/periodic_spawner_object.hpp"
 #include "systems/scene/scene_system.hpp"
 #include "systems/transformation/transform_object.hpp"
+#include "systems/defer/deferred_system.hpp"
 #include "utils/save_system.hpp"
 
 #include "scoreboard.hpp"
@@ -36,6 +37,7 @@
 #include "vfx.hpp"
 #include "camera_shake.hpp"
 #include "round_transition.hpp"
+#include "level_intro.hpp"
 #include "leaderboard.hpp"
 #include "daily_runtime.hpp"
 
@@ -95,6 +97,11 @@ struct LossInfo {
   std::string type;
 };
 
+struct InfiniteCollectorTicket {
+  std::string type;
+  uint32_t index = 0;
+};
+
 inline std::vector<LevelDefinition> parsed_levels{};
 inline std::vector<LevelDefinition> base_levels{};
 inline std::unordered_map<std::string, periodic_spawn::PeriodicSpawnerObject*> spawners_by_type{};
@@ -133,6 +140,10 @@ inline transform::NoRotationTransform* background_transform = nullptr;
 inline GameMode current_game_mode = GameMode::Collector;
 inline std::string current_daily_date{};
 inline uint32_t current_daily_seed = 0;
+inline std::vector<InfiniteCollectorTicket> infinite_collector_queue{};
+inline uint32_t infinite_collector_ticket_index = 0;
+inline constexpr size_t kInfiniteCollectorMinQueue = 3;
+inline constexpr size_t kInfiniteCollectorMaxQueue = 5;
 
 using TutorialSpawnHook = std::function<void(const std::string&, ecs::Entity*)>;
 using TutorialCatchHook =
@@ -205,6 +216,10 @@ inline bool is_collector_mode() { return current_game_mode == GameMode::Collecto
 inline bool is_recipe_mode() { return current_game_mode == GameMode::Recipe; }
 
 inline bool shooting_enabled() { return tutorial_mode || is_recipe_mode(); }
+
+inline bool is_infinite_collector_run() {
+  return infinite_mode && current_game_mode == GameMode::Collector && !tutorial_mode;
+}
 
 inline int collector_lives() { return collector_lives_remaining; }
 
@@ -487,6 +502,15 @@ inline uint32_t hash_daily_round(uint32_t stream, int round_index) {
   return hash;
 }
 
+inline uint32_t hash_daily_ticket(uint32_t stream, uint32_t ticket_index) {
+  refresh_daily_seed_if_needed();
+  uint32_t hash = current_daily_seed;
+  hash ^= stream * 0x9e3779b9u;
+  hash ^= (ticket_index + 1u) * 0x85ebca6bu;
+  hash *= 16777619u;
+  return hash;
+}
+
 inline uint32_t seed_for_level(const LevelDefinition& level, size_t seed_index,
                                const std::string& spawner_type) {
   uint32_t hash = 2166136261u;
@@ -611,14 +635,117 @@ inline void build_infinite_level(int round_index) {
       plan.period = 2.0f;
       plan.density = 0.7;
     }
-    const int spare = current_game_mode == GameMode::Collector ? std::max(1, round_index / 3)
-                                                               : std::max(2, target / 2);
-    plan.total_to_spawn = std::max(1, target + spare);
+    if (current_game_mode == GameMode::Collector) {
+      plan.total_to_spawn = -1;
+    } else {
+      const int spare = std::max(2, target / 2);
+      plan.total_to_spawn = std::max(1, target + spare);
+    }
     infinite_level.spawners.push_back(plan);
   }
   infinite_level.objective_rule = ObjectiveRule::CollectOnly;
   infinite_level.objective_hint =
-      current_game_mode == GameMode::Collector ? "Catch every mushroom" : "";
+      current_game_mode == GameMode::Collector ? "Catch mushrooms until your lives run out" : "";
+}
+
+inline std::string infinite_collector_type_for_ticket(uint32_t ticket_index) {
+  if (infinite_types.empty()) {
+    build_infinite_spawner_cache();
+  }
+  if (infinite_types.empty()) {
+    return "";
+  }
+  const uint32_t hash = hash_daily_ticket(0x7235u, ticket_index);
+  return infinite_types[static_cast<size_t>(hash % infinite_types.size())];
+}
+
+inline uint32_t infinite_collector_seed_for_ticket(const InfiniteCollectorTicket& ticket) {
+  uint32_t hash = hash_daily_ticket(0x9f41u, ticket.index);
+  hash = fnv1a_append(hash, ticket.type);
+  return hash;
+}
+
+inline void refill_infinite_collector_queue() {
+  if (infinite_types.empty()) {
+    build_infinite_spawner_cache();
+  }
+  while (infinite_collector_queue.size() < kInfiniteCollectorMaxQueue &&
+         !infinite_types.empty()) {
+    const uint32_t ticket_index = infinite_collector_ticket_index++;
+    const std::string type = infinite_collector_type_for_ticket(ticket_index);
+    if (type.empty()) break;
+    infinite_collector_queue.push_back(InfiniteCollectorTicket{type, ticket_index});
+  }
+}
+
+inline void reset_infinite_collector_queue() {
+  infinite_collector_queue.clear();
+  infinite_collector_ticket_index = 0;
+  refill_infinite_collector_queue();
+}
+
+inline SpawnerPlan infinite_collector_plan_for_type(const std::string& type) {
+  auto it = base_spawner_plans.find(type);
+  if (it != base_spawner_plans.end()) {
+    return it->second;
+  }
+  SpawnerPlan plan{};
+  plan.type = type;
+  plan.template_name = type + "_spawned";
+  plan.period = 2.0f;
+  plan.density = 0.7;
+  plan.total_to_spawn = 1;
+  return plan;
+}
+
+inline void disable_all_spawners() {
+  for (auto& [_, spawner] : spawners_by_type) {
+    if (spawner) {
+      spawner->enabled = false;
+    }
+  }
+}
+
+inline void activate_infinite_collector_front_spawner() {
+  disable_all_spawners();
+  refill_infinite_collector_queue();
+
+  while (!infinite_collector_queue.empty()) {
+    const auto& ticket = infinite_collector_queue.front();
+    auto spawner_it = spawners_by_type.find(ticket.type);
+    if (spawner_it == spawners_by_type.end() || !spawner_it->second) {
+      infinite_collector_queue.erase(infinite_collector_queue.begin());
+      refill_infinite_collector_queue();
+      continue;
+    }
+
+    const SpawnerPlan plan = infinite_collector_plan_for_type(ticket.type);
+    auto* spawner = spawner_it->second;
+    spawner->configure(plan.period, plan.density, 1);
+    spawner->reseed(infinite_collector_seed_for_ticket(ticket));
+    spawner->enabled = true;
+    return;
+  }
+}
+
+inline void on_infinite_collector_ticket_spawned(const std::string& type) {
+  if (!is_infinite_collector_run()) return;
+  if (!infinite_collector_queue.empty() && infinite_collector_queue.front().type == type) {
+    infinite_collector_queue.erase(infinite_collector_queue.begin());
+  } else {
+    auto it = std::find_if(infinite_collector_queue.begin(), infinite_collector_queue.end(),
+                           [&](const InfiniteCollectorTicket& ticket) {
+                             return ticket.type == type;
+                           });
+    if (it != infinite_collector_queue.end()) {
+      infinite_collector_queue.erase(it);
+    }
+  }
+  refill_infinite_collector_queue();
+  if (infinite_collector_queue.size() < kInfiniteCollectorMinQueue) {
+    refill_infinite_collector_queue();
+  }
+  deferred::fire_deferred([]() { activate_infinite_collector_front_spawner(); }, 0);
 }
 
 inline void prepare_infinite_preview() {
@@ -788,6 +915,7 @@ inline void on_mushroom_spawned(const std::string& type, ecs::Entity* entity) {
   }
   if (!current_level()) return;
   active_entities[type].insert(entity);
+  on_infinite_collector_ticket_spawned(type);
 }
 
 inline void on_mushroom_caught(
@@ -906,9 +1034,11 @@ inline void on_mushroom_sorted(ecs::Entity* entity) {
 }
 
 inline void configure_spawners_for_level(const LevelDefinition& level) {
-  for (auto& [type, spawner] : spawners_by_type) {
-    if (!spawner) continue;
-    spawner->enabled = false;
+  disable_all_spawners();
+  if (is_infinite_collector_run()) {
+    reset_infinite_collector_queue();
+    activate_infinite_collector_front_spawner();
+    return;
   }
   for (const auto& plan : level.spawners) {
     auto it = spawners_by_type.find(plan.type);
@@ -964,30 +1094,35 @@ inline void start_level_with_definition(const LevelDefinition& level, size_t dis
 
   if (auto* main_scene = scene::get_scene("main")) {
     main_scene->activate();
-    main_scene->set_pause(false);
+    main_scene->set_pause(true);
   }
 }
 
 inline void start_infinite_mode() {
   refresh_daily_seed_if_needed();
   tutorial_mode = false;
-  if (!infinite_preview_ready || infinite_preview_date != current_daily_date) {
-    infinite_round_index = 0;
-    infinite_rounds_won = 0;
-    build_infinite_level(infinite_round_index);
-    infinite_preview_date = current_daily_date;
-  }
+  infinite_round_index = 0;
+  infinite_rounds_won = 0;
+  build_infinite_level(infinite_round_index);
+  infinite_preview_date = current_daily_date;
   infinite_mode = true;
   infinite_preview_ready = false;
   current_run_score = 0;
   milestone_bonus_awarded.clear();
-  const std::string status = "Infinite run: round " + std::to_string(infinite_round_index + 1) +
-                             " (score " + std::to_string(current_run_score) + ")";
+  if (current_game_mode == GameMode::Collector) {
+    reset_infinite_collector_queue();
+  }
+  const std::string status =
+      current_game_mode == GameMode::Collector
+          ? "Infinite run (score " + std::to_string(current_run_score) + ")"
+          : "Infinite run: round " + std::to_string(infinite_round_index + 1) +
+                " (score " + std::to_string(current_run_score) + ")";
   start_level_with_definition(infinite_level, infinite_menu_index(),
                               static_cast<size_t>(infinite_round_index), status);
 }
 
 inline void advance_infinite_round() {
+  if (current_game_mode == GameMode::Collector) return;
   apply_score_delta(kScoreRoundAdvance, score_hud::score_anchor_px(), true);
   infinite_rounds_won += 1;
   infinite_round_index += 1;
@@ -1077,6 +1212,7 @@ inline void advance_level() {
 }
 
 inline bool all_spawns_exhausted() {
+  if (is_infinite_collector_run()) return false;
   auto* level = current_level();
   if (!level) return false;
   for (const auto& plan : level->spawners) {
@@ -1238,6 +1374,7 @@ inline void fail_level(LossReason reason = LossReason::None, const std::string& 
 inline void check_completion() {
   if (tutorial_mode) return;
   if (level_finished || game_over_pending) return;
+  if (is_infinite_collector_run()) return;
   if (!all_spawns_exhausted()) return;
 
   auto* level = current_level();
@@ -1252,18 +1389,12 @@ inline void check_completion() {
   }
   if (infinite_mode) {
     if (success) {
-      if (!round_transition::is_active()) {
-        const int current_round = infinite_round_index + 1;
-        const int next_round = current_round + 1;
-        const int next_round_index = infinite_round_index + 1;
-        round_transition::start_round_win(
-            current_round, next_round,
-            []() {
-              advance_infinite_round();
-            },
-            [next_round_index]() {
-              apply_infinite_background_for_round(next_round_index);
-            });
+      if (current_game_mode == GameMode::Recipe && !level_intro::is_active()) {
+        const int next_round = infinite_round_index + 2;
+        level_intro::start_recipe_round_transition(
+            "Recipe complete",
+            "Round " + std::to_string(next_round),
+            []() { advance_infinite_round(); });
       }
       return;
     }
@@ -1313,6 +1444,8 @@ inline void initialize() {
   infinite_preview_date.clear();
   infinite_level = LevelDefinition{};
   tutorial_level = LevelDefinition{};
+  infinite_collector_queue.clear();
+  infinite_collector_ticket_index = 0;
   progress_save_exists = false;
   load_progress();
   active_entities.clear();

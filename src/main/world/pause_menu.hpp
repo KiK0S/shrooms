@@ -25,6 +25,7 @@
 #include "countdown.hpp"
 #include "game_audio.hpp"
 #include "level_manager.hpp"
+#include "level_intro.hpp"
 #include "score_hud.hpp"
 #include "menu.hpp"
 #include "player.hpp"
@@ -187,7 +188,8 @@ inline bool is_main_scene_active() {
 }
 
 inline bool pause_controls_blocked() {
-  return levels::has_pending_failure() || levels::level_finished || round_transition::is_active();
+  return levels::has_pending_failure() || levels::level_finished || round_transition::is_active() ||
+         level_intro::is_active();
 }
 
 inline float clamp_unit(float value) {
