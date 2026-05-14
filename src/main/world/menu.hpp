@@ -1070,7 +1070,7 @@ inline void finish_level_intro_countdown() {
   }
 }
 
-inline void begin_started_level_intro(const std::string& title) {
+inline void begin_started_level_intro(const std::string& title, bool recipe_first = false) {
   player::reset_for_new_level();
   camera_shake::reset();
   vfx::reset_wobble_offsets();
@@ -1082,9 +1082,15 @@ inline void begin_started_level_intro(const std::string& title) {
   pending_tutorial = false;
   suppress_input_for_frames(2);
   set_menu_mode(MenuMode::Main);
-  level_intro::start(title, levels::mode_label() + " Mode", []() {
+  auto done = []() {
     finish_level_intro_countdown();
-  });
+  };
+  if (recipe_first) {
+    level_intro::start_recipe_then_countdown(title, levels::mode_label() + " Mode",
+                                             std::move(done));
+    return;
+  }
+  level_intro::start(title, levels::mode_label() + " Mode", std::move(done));
 }
 
 inline void start_level_from_menu(size_t level_index) {
@@ -1110,7 +1116,7 @@ inline void start_infinite_from_menu() {
       levels::game_mode() == levels::GameMode::Recipe
           ? "Round " + std::to_string(levels::infinite_round_index + 1)
           : "Daily Infinity";
-  begin_started_level_intro(title);
+  begin_started_level_intro(title, levels::game_mode() == levels::GameMode::Recipe);
 }
 
 inline void enter_objective_mode(size_t level_index) {
@@ -1151,13 +1157,14 @@ inline void enter_tutorial_objective_mode() {
 
   update_text(objective_title, "Tutorial");
   update_text(objective_level, "Learn catching and traps, then recipes");
-  active_objective_lines = 7;
-  const std::array<std::string, 7> lines{
+  active_objective_lines = 6;
+  const std::array<std::string, 6> lines{
       "1. Move left and right",
-      "2. Catch one mushroom",
-      "3. Place a trap",
-      "4. Shoot the mukhomor",
-      "5. Complete the recipe",
+      "2. Catch three mushrooms",
+      "3. Place three traps",
+      "4. Collect far pairs",
+      "5. Shoot three mukhomor",
+      "6. Complete the recipe",
   };
   for (size_t i = 0; i < lines.size(); ++i) {
     set_line_icon_texture(objective_recipe_lines[i], "");

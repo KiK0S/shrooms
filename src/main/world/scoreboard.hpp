@@ -353,15 +353,24 @@ inline void start_intro_move_to_corner(float duration = 2.3f) {
   animate_to_layout(LayoutState::Corner, duration);
 }
 
-inline void start_center_shake(float duration = config.shake_duration,
-                               float amplitude_px = config.shake_amplitude_px) {
+inline void start_shake(float duration = config.shake_duration,
+                        float amplitude_px = config.shake_amplitude_px) {
   if (current_recipe.empty()) return;
-  set_layout(LayoutState::CenterIntro);
+  animation_active = false;
+  animation_elapsed = 0.0f;
+  animation_duration = 0.0f;
   shake_elapsed = 0.0f;
   shake_duration = std::max(0.0f, duration);
   active_shake_amplitude_px = amplitude_px;
   shake_offset_px = glm::vec2{0.0f, 0.0f};
   apply_layout();
+}
+
+inline void start_center_shake(float duration = config.shake_duration,
+                               float amplitude_px = config.shake_amplitude_px) {
+  if (current_recipe.empty()) return;
+  set_layout(LayoutState::CenterIntro);
+  start_shake(duration, amplitude_px);
 }
 
 inline bool is_animating() {

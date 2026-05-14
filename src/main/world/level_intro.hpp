@@ -34,19 +34,22 @@ struct Config {
   glm::vec4 title_color{1.0f, 1.0f, 1.0f, 1.0f};
   glm::vec4 mode_color{0.92f, 0.92f, 0.96f, 1.0f};
   int text_layer = 119;
+  float intro_recipe_hold_duration = 1.0f;
   float intro_recipe_move_duration = 2.35f;
-  float round_move_to_center = 0.45f;
   float round_old_shake = 0.45f;
   float round_new_shake = 0.3f;
-  float round_move_to_corner = 0.65f;
 } config;
+
+enum class IntroPhase {
+  Idle,
+  RecipeHold,
+  RecipeMove,
+};
 
 enum class RoundPhase {
   Idle,
-  MoveToCenter,
   ShakeOld,
   ShakeNew,
-  MoveToCorner,
 };
 
 inline ecs::Entity* title_entity = nullptr;
@@ -62,6 +65,9 @@ inline color::OneColor* mode_color = nullptr;
 inline hidden::HiddenObject* mode_hidden = nullptr;
 
 inline bool intro_active = false;
+inline IntroPhase intro_phase = IntroPhase::Idle;
+inline float intro_phase_elapsed = 0.0f;
+inline std::function<void()> intro_done = nullptr;
 inline bool round_transition_active = false;
 inline RoundPhase round_phase = RoundPhase::Idle;
 inline float round_phase_elapsed = 0.0f;
@@ -70,14 +76,10 @@ inline std::function<void()> round_done = nullptr;
 
 inline float phase_duration(RoundPhase phase) {
   switch (phase) {
-    case RoundPhase::MoveToCenter:
-      return config.round_move_to_center;
     case RoundPhase::ShakeOld:
       return config.round_old_shake;
     case RoundPhase::ShakeNew:
       return config.round_new_shake;
-    case RoundPhase::MoveToCorner:
-      return config.round_move_to_corner;
     case RoundPhase::Idle:
     default:
       return 0.0f;
@@ -114,6 +116,9 @@ inline bool is_active() {
 
 inline void finish_intro(std::function<void()> done) {
   intro_active = false;
+  intro_phase = IntroPhase::Idle;
+  intro_phase_elapsed = 0.0f;
+  intro_done = nullptr;
   set_text_visible(false);
   if (!scoreboard::current_recipe.empty()) {
     scoreboard::animate_to_layout(scoreboard::LayoutState::Corner, 0.12f);
@@ -123,10 +128,19 @@ inline void finish_intro(std::function<void()> done) {
   }
 }
 
+inline void start_countdown(std::function<void()> done) {
+  countdown::start("main", 3, [done = std::move(done)]() mutable {
+    finish_intro(std::move(done));
+  });
+}
+
 inline void start(const std::string& title, const std::string& mode,
                   std::function<void()> done = nullptr) {
   countdown::cancel();
   intro_active = true;
+  intro_phase = IntroPhase::Idle;
+  intro_phase_elapsed = 0.0f;
+  intro_done = nullptr;
   set_text(title, mode);
   set_text_visible(true);
   score_hud::start_intro_slide_in();
@@ -140,29 +154,42 @@ inline void start(const std::string& title, const std::string& mode,
     main_scene->set_pause(true);
   }
 
-  countdown::start("main", 3, [done = std::move(done)]() mutable {
-    finish_intro(std::move(done));
-  });
+  start_countdown(std::move(done));
+}
+
+inline void start_recipe_then_countdown(const std::string& title, const std::string& mode,
+                                        std::function<void()> done = nullptr) {
+  if (scoreboard::current_recipe.empty()) {
+    start(title, mode, std::move(done));
+    return;
+  }
+
+  countdown::cancel();
+  intro_active = true;
+  intro_phase = IntroPhase::RecipeHold;
+  intro_phase_elapsed = 0.0f;
+  intro_done = std::move(done);
+  set_text(title, mode);
+  set_text_visible(true);
+  score_hud::start_intro_slide_in();
+  scoreboard::set_layout(scoreboard::LayoutState::CenterIntro);
+
+  if (auto* main_scene = scene::get_scene("main")) {
+    main_scene->activate();
+    main_scene->set_pause(true);
+  }
 }
 
 inline void begin_round_phase(RoundPhase phase) {
   round_phase = phase;
   round_phase_elapsed = 0.0f;
   switch (phase) {
-    case RoundPhase::MoveToCenter:
-      scoreboard::animate_to_layout(scoreboard::LayoutState::CenterIntro,
-                                    config.round_move_to_center);
-      break;
     case RoundPhase::ShakeOld:
-      scoreboard::start_center_shake(config.round_old_shake);
+      scoreboard::start_shake(config.round_old_shake);
       break;
     case RoundPhase::ShakeNew:
-      scoreboard::start_center_shake(config.round_new_shake,
-                                     scoreboard::config.shake_amplitude_px * 0.75f);
-      break;
-    case RoundPhase::MoveToCorner:
-      scoreboard::animate_to_layout(scoreboard::LayoutState::Corner,
-                                    config.round_move_to_corner);
+      scoreboard::start_shake(config.round_new_shake,
+                              scoreboard::config.shake_amplitude_px * 0.75f);
       break;
     case RoundPhase::Idle:
     default:
@@ -204,7 +231,7 @@ inline void start_recipe_round_transition(const std::string& title,
     main_scene->set_pause(true);
   }
 
-  begin_round_phase(RoundPhase::MoveToCenter);
+  begin_round_phase(RoundPhase::ShakeOld);
 }
 
 struct LevelIntroController : public dynamic::DynamicObject {
@@ -212,6 +239,27 @@ struct LevelIntroController : public dynamic::DynamicObject {
   ~LevelIntroController() override { Component::component_count--; }
 
   void update() override {
+    if (intro_active && intro_phase != IntroPhase::Idle) {
+      const float dt = static_cast<float>(ecs::context().delta_seconds);
+      intro_phase_elapsed += dt;
+      if (intro_phase == IntroPhase::RecipeHold) {
+        if (intro_phase_elapsed >= config.intro_recipe_hold_duration) {
+          intro_phase = IntroPhase::RecipeMove;
+          intro_phase_elapsed = 0.0f;
+          scoreboard::animate_to_layout(scoreboard::LayoutState::Corner,
+                                        config.intro_recipe_move_duration);
+        }
+      } else if (intro_phase == IntroPhase::RecipeMove) {
+        if (intro_phase_elapsed >= config.intro_recipe_move_duration) {
+          auto done = std::move(intro_done);
+          intro_done = nullptr;
+          intro_phase = IntroPhase::Idle;
+          intro_phase_elapsed = 0.0f;
+          start_countdown(std::move(done));
+        }
+      }
+    }
+
     if (!round_transition_active || round_phase == RoundPhase::Idle) return;
 
     const float dt = static_cast<float>(ecs::context().delta_seconds);
@@ -222,9 +270,6 @@ struct LevelIntroController : public dynamic::DynamicObject {
     }
 
     switch (round_phase) {
-      case RoundPhase::MoveToCenter:
-        begin_round_phase(RoundPhase::ShakeOld);
-        break;
       case RoundPhase::ShakeOld: {
         auto reconfigure = std::move(round_reconfigure);
         round_reconfigure = nullptr;
@@ -235,9 +280,6 @@ struct LevelIntroController : public dynamic::DynamicObject {
         break;
       }
       case RoundPhase::ShakeNew:
-        begin_round_phase(RoundPhase::MoveToCorner);
-        break;
-      case RoundPhase::MoveToCorner:
         finish_round_transition();
         break;
       case RoundPhase::Idle:
