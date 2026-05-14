@@ -14,6 +14,7 @@
 #include "systems/animation/animation_system.hpp"
 #include "systems/animation/sprite_animation.hpp"
 #include "systems/collision/collider_object.hpp"
+#include "systems/color/color_system.hpp"
 #include "systems/geometry/shapes/quad.hpp"
 #include "systems/render/sprite_system.hpp"
 #include "systems/render/implicit_skeletoned_sprite.hpp"
@@ -42,6 +43,10 @@ inline ecs::Entity* player_entity = nullptr;
 inline transform::NoRotationTransform* player_transform = nullptr;
 inline glm::vec2 player_size{0.0f, 0.0f};
 inline animation::SpriteAnimation* player_anim = nullptr;
+inline color::OneColor* player_color = nullptr;
+inline bool player_movement_locked = false;
+inline float blocked_movement_flash_timer = 0.0f;
+inline constexpr float kBlockedMovementFlashDuration = 0.22f;
 
 struct PlayerVibe : public dynamic::DynamicObject {
   PlayerVibe() : dynamic::DynamicObject() {}
@@ -89,6 +94,40 @@ inline void kick_recoil(float amount) {
   if (!player_vibe) return;
   player_vibe->kick(amount);
 }
+
+inline void apply_blocked_movement_flash_color() {
+  if (!player_color) return;
+  if (blocked_movement_flash_timer <= 0.0f) {
+    player_color->color = glm::vec4{1.0f, 1.0f, 1.0f, 1.0f};
+    return;
+  }
+  const float t =
+      std::clamp(blocked_movement_flash_timer / kBlockedMovementFlashDuration, 0.0f, 1.0f);
+  const float pulse = 0.45f + 0.55f * std::sin(t * 3.14159265f);
+  player_color->color = glm::vec4{1.0f, 1.0f - 0.82f * pulse, 1.0f - 0.82f * pulse, 1.0f};
+}
+
+inline void tick_blocked_movement_flash(float dt) {
+  if (blocked_movement_flash_timer > 0.0f) {
+    blocked_movement_flash_timer = std::max(0.0f, blocked_movement_flash_timer - dt);
+  }
+  apply_blocked_movement_flash_color();
+}
+
+inline void flash_blocked_movement() {
+  blocked_movement_flash_timer = kBlockedMovementFlashDuration;
+  apply_blocked_movement_flash_color();
+}
+
+inline void set_movement_locked(bool locked) {
+  player_movement_locked = locked;
+  if (!locked) {
+    blocked_movement_flash_timer = 0.0f;
+    apply_blocked_movement_flash_color();
+  }
+}
+
+inline bool movement_locked() { return player_movement_locked; }
 
 enum class FamiliarState {
   Orbit,
@@ -788,6 +827,9 @@ struct PlayerController : public dynamic::DynamicObject {
     if (scene::is_current_scene_paused()) return;
     if (!player_transform) return;
 
+    const float dt = static_cast<float>(ecs::context().delta_seconds);
+    tick_blocked_movement_flash(dt);
+
     const bool deploy_pressed =
         controls::is_down(controls::Action::Trap) || touchscreen::deploy_pressed;
     if (deploy_pressed && !deploy_pressed_last) {
@@ -806,6 +848,14 @@ struct PlayerController : public dynamic::DynamicObject {
     if (controls::is_down(controls::Action::MoveLeft)) dx -= step_px;
     if (controls::is_down(controls::Action::MoveRight)) dx += step_px;
     dx += touchscreen::joystick_value.x * step_px;
+
+    if (player_movement_locked) {
+      if (std::abs(dx) > 0.001f) {
+        flash_blocked_movement();
+      }
+      dust_timer = 0.0f;
+      return;
+    }
 
     if (dx == 0.0f) {
       dust_timer = 0.0f;
@@ -880,6 +930,7 @@ inline collision::TriggerObject* make_player_trigger() {
 
 inline void reset_for_new_level() {
   if (!player_transform) return;
+  set_movement_locked(false);
   glm::vec2 center = shrooms::screen::norm_to_pixels(glm::vec2{0.0f, -0.6f});
   player_transform->pos = shrooms::screen::center_to_top_left(center, player_size);
   reset_familiars();
@@ -908,6 +959,8 @@ inline void init() {
   const engine::TextureId tex_id =
       engine::resources::register_texture("witch_right_1");
   player_entity->add(arena::create<render_system::SpriteRenderable>(tex_id, player_size));
+  player_color = arena::create<color::OneColor>(glm::vec4{1.0f, 1.0f, 1.0f, 1.0f});
+  player_entity->add(player_color);
 
   std::map<std::string, std::vector<animation::SpriteFrame>> clips{};
   clips["left"] = {animation::SpriteFrame{engine::resources::register_texture("witch_left_1"),
