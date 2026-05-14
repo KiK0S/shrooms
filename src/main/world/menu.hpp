@@ -1156,12 +1156,12 @@ inline void enter_tutorial_objective_mode() {
   pending_tutorial = true;
 
   update_text(objective_title, "Tutorial");
-  update_text(objective_level, "Learn catching and traps, then recipes");
+  update_text(objective_level, "Learn catching and bats, then recipes");
   active_objective_lines = 6;
   const std::array<std::string, 6> lines{
       "1. Move left and right",
       "2. Catch three mushrooms",
-      "3. Place three traps",
+      "3. Send three bats",
       "4. Collect far pairs",
       "5. Shoot three mukhomor",
       "6. Complete the recipe",

@@ -43,6 +43,7 @@ struct Config {
 } config;
 
 inline constexpr size_t kMaxLifeHearts = 3;
+inline constexpr size_t kMaxBatIcons = 3;
 
 inline ecs::Entity* face_icon = nullptr;
 inline ecs::Entity* panel = nullptr;
@@ -56,8 +57,13 @@ inline std::array<ecs::Entity*, kMaxLifeHearts> life_heart_entities{};
 inline std::array<transform::NoRotationTransform*, kMaxLifeHearts> life_heart_transforms{};
 inline std::array<render_system::SpriteRenderable*, kMaxLifeHearts> life_heart_sprites{};
 inline std::array<hidden::HiddenObject*, kMaxLifeHearts> life_heart_hidden{};
+inline std::array<ecs::Entity*, kMaxBatIcons> bat_icon_entities{};
+inline std::array<transform::NoRotationTransform*, kMaxBatIcons> bat_icon_transforms{};
+inline std::array<render_system::SpriteRenderable*, kMaxBatIcons> bat_icon_sprites{};
+inline std::array<color::OneColor*, kMaxBatIcons> bat_icon_colors{};
 inline int current_score = 0;
 inline int current_lives = 0;
+inline int current_ready_bats = static_cast<int>(kMaxBatIcons);
 inline bool lives_visible = false;
 inline glm::vec2 hud_offset_px{0.0f, 0.0f};
 inline glm::vec2 hud_anim_start_px{0.0f, 0.0f};
@@ -106,6 +112,11 @@ inline glm::vec2 panel_center_norm() {
   };
 }
 
+inline glm::vec2 face_center_px() {
+  return shrooms::screen::norm_to_pixels(panel_center_norm() + config.face_offset) +
+         hud_offset_px;
+}
+
 inline glm::vec2 score_anchor_px() {
   return panel_center_px() + shrooms::screen::scale_to_pixels(config.score_offset) +
          hud_offset_px;
@@ -113,6 +124,10 @@ inline glm::vec2 score_anchor_px() {
 
 inline glm::vec2 lives_anchor_px() {
   return score_anchor_px() + shrooms::screen::scale_to_pixels(glm::vec2{0.0f, 0.047f});
+}
+
+inline glm::vec2 bats_anchor_px() {
+  return face_center_px() + shrooms::screen::scale_to_pixels(glm::vec2{0.0f, 0.034f});
 }
 
 inline void update_score_layout() {
@@ -153,11 +168,41 @@ inline void update_lives_layout() {
   }
 }
 
+inline void update_bat_layout() {
+  const float bat_width =
+      std::max(11.0f, shrooms::screen::scale_to_pixels(glm::vec2{0.018f, 0.0f}).x);
+  const glm::vec2 bat_size = shrooms::texture_sizing::from_width_px("famiriar", bat_width);
+  const float gap = std::max(2.0f, bat_width * 0.16f);
+  const float total_width =
+      bat_size.x * static_cast<float>(kMaxBatIcons) + gap * static_cast<float>(kMaxBatIcons - 1);
+  const glm::vec2 row_start = bats_anchor_px() - glm::vec2{total_width * 0.5f, 0.0f};
+  const int ready_bats = std::clamp(current_ready_bats, 0, static_cast<int>(kMaxBatIcons));
+
+  for (size_t i = 0; i < kMaxBatIcons; ++i) {
+    if (bat_icon_transforms[i]) {
+      const glm::vec2 center =
+          row_start + glm::vec2{bat_size.x * 0.5f + static_cast<float>(i) * (bat_size.x + gap),
+                                0.0f};
+      bat_icon_transforms[i]->pos = shrooms::screen::center_to_top_left(center, bat_size);
+    }
+    if (bat_icon_sprites[i]) {
+      bat_icon_sprites[i]->size = bat_size;
+      bat_icon_sprites[i]->geometry = engine::geometry::make_quad(bat_size.x, bat_size.y);
+      bat_icon_sprites[i]->uploaded = false;
+    }
+    if (bat_icon_colors[i]) {
+      const bool ready = static_cast<int>(i) < ready_bats;
+      bat_icon_colors[i]->color =
+          ready ? glm::vec4{1.0f, 1.0f, 1.0f, 1.0f}
+                : glm::vec4{0.32f, 0.32f, 0.36f, 0.72f};
+    }
+  }
+}
+
 inline void update_panel_layout() {
   const glm::vec2 panel_top_left_px = shrooms::screen::norm_to_pixels(panel_top_left_norm());
   const glm::vec2 panel_size = panel_size_px();
   const glm::vec2 panel_center = panel_top_left_px + panel_size * 0.5f + hud_offset_px;
-  const glm::vec2 center_norm = panel_center_norm();
 
   if (panel_transform) {
     panel_transform->pos = shrooms::screen::center_to_top_left(panel_center, panel_size);
@@ -166,12 +211,11 @@ inline void update_panel_layout() {
     const glm::vec2 ref_size =
         resolve_reference_size(config.face_reference_size, "face_mini_1", 24.0f);
     const glm::vec2 size = shrooms::texture_sizing::from_reference_size(ref_size);
-    const glm::vec2 center =
-        shrooms::screen::norm_to_pixels(center_norm + config.face_offset) + hud_offset_px;
-    face_transform->pos = shrooms::screen::center_to_top_left(center, size);
+    face_transform->pos = shrooms::screen::center_to_top_left(face_center_px(), size);
   }
   update_score_layout();
   update_lives_layout();
+  update_bat_layout();
 }
 
 inline void set_score(int score_value) {
@@ -189,6 +233,11 @@ inline void set_lives(int lives_value) {
 inline void set_lives_visible(bool visible) {
   lives_visible = visible;
   update_lives_layout();
+}
+
+inline void set_bat_availability(int ready_count) {
+  current_ready_bats = std::clamp(ready_count, 0, static_cast<int>(kMaxBatIcons));
+  update_bat_layout();
 }
 
 inline void animate_offset_to(const glm::vec2& target, float duration) {
@@ -307,11 +356,30 @@ inline void reset_hud() {
   }
   update_lives_layout();
   set_lives_visible(lives_visible);
+
+  for (size_t i = 0; i < kMaxBatIcons; ++i) {
+    if (bat_icon_entities[i]) {
+      bat_icon_entities[i]->mark_deleted();
+    }
+    bat_icon_entities[i] = arena::create<ecs::Entity>();
+    bat_icon_transforms[i] = arena::create<transform::NoRotationTransform>();
+    bat_icon_entities[i]->add(bat_icon_transforms[i]);
+    bat_icon_entities[i]->add(arena::create<layers::ConstLayer>(config.layer + 1));
+    const engine::TextureId tex_id = engine::resources::register_texture("famiriar");
+    const glm::vec2 size = shrooms::texture_sizing::from_width_px("famiriar", 14.0f);
+    bat_icon_sprites[i] = arena::create<render_system::SpriteRenderable>(tex_id, size);
+    bat_icon_entities[i]->add(bat_icon_sprites[i]);
+    bat_icon_colors[i] = arena::create<color::OneColor>(glm::vec4{1.0f});
+    bat_icon_entities[i]->add(bat_icon_colors[i]);
+    bat_icon_entities[i]->add(arena::create<scene::SceneObject>("main"));
+  }
+  update_bat_layout();
 }
 
 inline void init() {
   current_score = 0;
   current_lives = 0;
+  current_ready_bats = static_cast<int>(kMaxBatIcons);
   lives_visible = false;
   hud_offset_px = glm::vec2{0.0f, 0.0f};
   hud_anim_active = false;

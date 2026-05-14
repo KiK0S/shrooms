@@ -95,7 +95,7 @@ inline const char* action_label(Action action) {
     case Action::Shoot:
       return "Shoot";
     case Action::Trap:
-      return "Trap";
+      return "Bat";
     case Action::Count:
       break;
   }

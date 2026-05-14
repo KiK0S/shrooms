@@ -367,7 +367,7 @@ inline bool any_planted_familiar() { return planted_familiar_count() > 0; }
 inline bool any_familiar_busy() {
   for (auto* logic : player::familiar_logic) {
     if (!logic) continue;
-    if (logic->state != player::FamiliarState::Orbit) {
+    if (logic->state != player::FamiliarState::Ready) {
       return true;
     }
   }
@@ -530,7 +530,7 @@ inline void spawn_trap_demo_mushrooms() {
   player::set_movement_locked(true);
   hide_marker();
   update_line(hint_text, hint_transform,
-              "Movement is locked. Let the three traps collect everything.",
+              "Movement is locked. Let the three bats collect everything.",
               hint_font_px(), kHintCenterNorm);
   stage_entity_a = levels::spawn_mushroom_now(
       good_mushroom_type, glm::vec2{trap_familiar_centers_px[0].x, view_height() * 0.12f});
@@ -553,7 +553,7 @@ inline void spawn_pair_practice_pair(const std::string& feedback = "") {
   stage_entity_b = spawn_single(good_mushroom_type, view_width() * pair.second, 0.12f);
   ++pair_spawn_index;
   update_line(hint_text, hint_transform,
-              "Use traps and movement to collect three far-apart pairs: " +
+              "Use bats and movement to collect three far-apart pairs: " +
                   std::to_string(pair_practice_pairs_completed) + "/" +
                   std::to_string(kPracticeTarget) + "." +
                   (feedback.empty() ? "" : ("  " + feedback)),
@@ -738,28 +738,28 @@ inline void set_stage(Stage next, const std::string& feedback) {
       break;
     }
     case Stage::PlaceThreeTraps: {
-      update_line(title_text, title_transform, "Tutorial: Traps", title_font_px(),
+      update_line(title_text, title_transform, "Tutorial: Bats", title_font_px(),
                   kTitleCenterNorm);
       update_line(hint_text, hint_transform,
-                  "Place three traps with " + controls::bound_key_label(controls::Action::Trap) +
-                      " on the blue targets. Off-target traps reset this step." +
+                  "Send three bats with " + controls::bound_key_label(controls::Action::Trap) +
+                      " to the blue targets. Off-target bats reset this step." +
                       base_feedback,
                   hint_font_px(), kHintCenterNorm);
       enter_place_three_traps_stage();
       break;
     }
     case Stage::TrapCollectDemo: {
-      update_line(title_text, title_transform, "Tutorial: Trap Demo", title_font_px(),
+      update_line(title_text, title_transform, "Tutorial: Bat Demo", title_font_px(),
                   kTitleCenterNorm);
       update_line(hint_text, hint_transform,
-                  "Move to the border marker and wait while the traps collect everything." +
+                  "Move to the border marker and wait while the bats collect everything." +
                       base_feedback,
                   hint_font_px(), kHintCenterNorm);
       enter_trap_collect_demo_stage();
       break;
     }
     case Stage::TrapPairPractice: {
-      update_line(title_text, title_transform, "Tutorial: Trap Practice", title_font_px(),
+      update_line(title_text, title_transform, "Tutorial: Bat Practice", title_font_px(),
                   kTitleCenterNorm);
       enter_pair_practice_stage(feedback);
       break;
@@ -873,7 +873,7 @@ inline void on_mushroom_caught(const std::string&, ecs::Entity* entity, bool fro
                          is_stage_entity(entity, stage_entity_c);
     if (!tracked) return;
     if (!from_familiar) {
-      restart_stage("Let the traps collect these.");
+      restart_stage("Let the bats collect these.");
       return;
     }
     if (is_stage_entity(entity, stage_entity_a) && !stage_a_done) {
@@ -948,7 +948,7 @@ inline void on_mushroom_missed(const std::string&, ecs::Entity* entity) {
   if (stage == Stage::TrapCollectDemo &&
       (is_stage_entity(entity, stage_entity_a) || is_stage_entity(entity, stage_entity_b) ||
        is_stage_entity(entity, stage_entity_c))) {
-    restart_stage("A trap missed one. Place the traps again.", Stage::PlaceThreeTraps);
+    restart_stage("A bat missed one. Send the bats again.", Stage::PlaceThreeTraps);
     return;
   }
   if (stage == Stage::TrapPairPractice &&
@@ -980,7 +980,7 @@ inline void on_mushroom_sorted(const std::string&, ecs::Entity* entity) {
   if (stage == Stage::TrapCollectDemo &&
       (is_stage_entity(entity, stage_entity_a) || is_stage_entity(entity, stage_entity_b) ||
        is_stage_entity(entity, stage_entity_c))) {
-    restart_stage("Let the traps collect these.", Stage::PlaceThreeTraps);
+    restart_stage("Let the bats collect these.", Stage::PlaceThreeTraps);
     return;
   }
   if (stage == Stage::TrapPairPractice &&
@@ -1047,7 +1047,7 @@ struct TutorialController : public dynamic::DynamicObject {
           reset_trap_targets();
           show_trap_markers();
           update_line(hint_text, hint_transform,
-                      "That trap was not on a target. Place all three again.",
+                      "That bat was not on a target. Send all three again.",
                       hint_font_px(), kHintCenterNorm);
           return;
         }
@@ -1056,7 +1056,7 @@ struct TutorialController : public dynamic::DynamicObject {
           return;
         }
         update_line(hint_text, hint_transform,
-                    "Place three traps on the blue targets: " +
+                    "Send three bats to the blue targets: " +
                         std::to_string(trap_target_filled_count) + "/" +
                         std::to_string(kTrapTargetCount) + ".",
                     hint_font_px(), kHintCenterNorm);
@@ -1066,7 +1066,7 @@ struct TutorialController : public dynamic::DynamicObject {
     }
     if (stage == Stage::TrapCollectDemo) {
       if (planted_familiar_count() < kTrapTargetCount && !trap_demo_spawned) {
-        set_stage(Stage::PlaceThreeTraps, "Place all three traps first.");
+        set_stage(Stage::PlaceThreeTraps, "Send all three bats first.");
         return;
       }
       const bool reached_marker =

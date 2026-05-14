@@ -16,6 +16,7 @@
 #include "systems/collision/collider_object.hpp"
 #include "systems/color/color_system.hpp"
 #include "systems/geometry/shapes/quad.hpp"
+#include "systems/hidden/hidden_object.hpp"
 #include "systems/render/sprite_system.hpp"
 #include "systems/render/implicit_skeletoned_sprite.hpp"
 #include "systems/scene/scene_object.hpp"
@@ -31,8 +32,10 @@
 #include "level_manager.hpp"
 #include "controls.hpp"
 #include "game_audio.hpp"
+#include "ambient_layers.hpp"
 #include "vfx.hpp"
 #include "camera_shake.hpp"
+#include "score_hud.hpp"
 #include "shrooms_screen.hpp"
 #include "shrooms_texture_sizing.hpp"
 #include "touchscreen.hpp"
@@ -130,14 +133,18 @@ inline void set_movement_locked(bool locked) {
 inline bool movement_locked() { return player_movement_locked; }
 
 enum class FamiliarState {
-  Orbit,
+  Ready,
+  EmergingTrap,
   Planted,
   Carry,
-  StrikeAlign,
-  StrikeCharge,
+  EmergingStrike,
   StrikeAscend,
   Returning,
+  Sinking,
+  Cooldown,
 };
+
+inline void update_bat_hud();
 
 inline engine::ShaderId familiar_sleep_shader_id() {
   static const engine::ShaderId id =
@@ -220,17 +227,11 @@ struct FamiliarSprite : public render_system::ImplicitSkeletonedSprite {
 };
 
 struct FamiliarLogic : public dynamic::DynamicObject {
-  FamiliarLogic(float orbit_radius_px, float orbit_speed, float phase)
-      : dynamic::DynamicObject(),
-        orbit_radius_px(orbit_radius_px),
-        orbit_speed(orbit_speed),
-        orbit_angle(phase),
-        orbit_phase(phase) {}
+  FamiliarLogic() : dynamic::DynamicObject() {}
   ~FamiliarLogic() override { Component::component_count--; }
 
   void update() override {
     if (scene::is_current_scene_paused()) return;
-    if (!player_transform) return;
 
     if (!transform) {
       transform = entity ? entity->get<transform::NoRotationTransform>() : nullptr;
@@ -244,88 +245,48 @@ struct FamiliarLogic : public dynamic::DynamicObject {
       begin_return();
     }
 
-    const glm::vec2 player_center =
-        player_transform->pos + glm::vec2{player_size.x * 0.5f, player_size.y * 0.5f};
-
-    if (state == FamiliarState::Orbit) {
-      orbit_angle += orbit_speed * dt;
-      set_center(player_center + orbit_offset(orbit_angle));
-    } else if (state == FamiliarState::Planted) {
-      set_center(planted_center);
-    } else if (state == FamiliarState::Carry) {
-      glm::vec2 center = current_center();
-      const glm::vec2 to_player = player_center - center;
-      const float dist = glm::length(to_player);
-      if (dist <= carry_speed * dt + 1.0f) {
-        set_center(player_center + carry_offset);
-        deliver();
-      } else if (dist > 0.0001f) {
-        center += glm::normalize(to_player) * carry_speed * dt;
-        set_center(center);
+    switch (state) {
+      case FamiliarState::Ready: {
+        set_center(floor_center_for_x(player_center().x));
+        break;
       }
-    } else if (state == FamiliarState::StrikeAlign) {
-      glm::vec2 center = current_center();
-      const float dx = strike_lane_x - center.x;
-      const float step = strike_align_speed * strike_setup_speed_multiplier * dt;
-      if (std::abs(dx) <= step) {
+      case FamiliarState::EmergingTrap:
+      case FamiliarState::EmergingStrike: {
+        update_emerge(dt);
+        break;
+      }
+      case FamiliarState::Planted: {
+        set_center(planted_center);
+        break;
+      }
+      case FamiliarState::Carry: {
+        move_toward_player(dt);
+        break;
+      }
+      case FamiliarState::StrikeAscend: {
+        glm::vec2 center = current_center();
         center.x = strike_lane_x;
+        center.y -= strike_up_speed * dt;
         set_center(center);
-        begin_strike_charge();
-      } else if (dx > 0.0f) {
-        center.x += step;
-        set_center(center);
-      } else {
-        center.x -= step;
-        set_center(center);
+        if (center.y <= strike_top_y) {
+          begin_return(strike_return_delay);
+        }
+        break;
       }
-    } else if (state == FamiliarState::StrikeCharge) {
-      glm::vec2 center = current_center();
-      center.x += (strike_lane_x - center.x) * std::min(1.0f, strike_lane_blend * dt);
-      set_center(center);
-
-      strike_charge_elapsed += dt * strike_setup_speed_multiplier;
-      const float raw_t = strike_charge_duration > 0.0f
-                              ? (strike_charge_elapsed / strike_charge_duration)
-                              : 1.0f;
-      const float t = std::clamp(raw_t, 0.0f, 1.0f);
-      const float accel_t = t * t;
-      const float angular_speed =
-          strike_spin_speed_start + (strike_spin_speed_end - strike_spin_speed_start) * accel_t;
-      strike_spin_angle += angular_speed * dt;
-      if (sprite) {
-        const float charge_scale = 1.0f + (strike_charge_scale - 1.0f) * t;
-        sprite->model_scale = std::max(0.1f, charge_scale);
-        sprite->model_rotation_rad = strike_spin_angle;
+      case FamiliarState::Returning: {
+        update_returning(dt);
+        break;
       }
-      if (t >= 1.0f) {
-        begin_strike_dash();
+      case FamiliarState::Sinking: {
+        update_sinking(dt);
+        break;
       }
-    } else if (state == FamiliarState::StrikeAscend) {
-      glm::vec2 center = current_center();
-      center.x += (strike_lane_x - center.x) * std::min(1.0f, strike_lane_blend * dt);
-      center.y -= strike_up_speed * dt;
-      set_center(center);
-      if (center.y <= strike_top_y) {
-        begin_return(strike_return_delay);
-      }
-    } else if (state == FamiliarState::Returning) {
-      return_timer = std::max(0.0f, return_timer - dt);
-      orbit_angle += orbit_speed * dt;
-      const glm::vec2 orbit_center = player_center + orbit_offset(orbit_angle);
-      glm::vec2 center = current_center();
-      const glm::vec2 to_orbit = orbit_center - center;
-      const float dist = glm::length(to_orbit);
-      bool reached_orbit = false;
-      if (dist > return_speed * dt + 1.0f && dist > 0.0001f) {
-        center += glm::normalize(to_orbit) * return_speed * dt;
-        set_center(center);
-      } else {
-        set_center(orbit_center);
-        reached_orbit = true;
-      }
-      if (reached_orbit && return_timer <= 0.0f) {
-        shrooms::audio::play_familiar_return();
-        state = FamiliarState::Orbit;
+      case FamiliarState::Cooldown: {
+        cooldown_timer = std::max(0.0f, cooldown_timer - dt);
+        if (cooldown_timer <= 0.0f) {
+          begin_ready();
+        }
+        break;
       }
     }
 
@@ -342,36 +303,19 @@ struct FamiliarLogic : public dynamic::DynamicObject {
     update_visual_state();
   }
 
-  bool is_idle() const { return state == FamiliarState::Orbit; }
+  bool is_idle() const { return state == FamiliarState::Ready; }
 
   bool can_capture() const { return state == FamiliarState::Planted && !carried; }
 
-  bool can_strike_hit() const {
-    return state == FamiliarState::StrikeAscend;
-  }
+  bool can_strike_hit() const { return state == FamiliarState::StrikeAscend; }
 
   void launch_strike() {
     if (!is_idle()) return;
-    if (player_transform) {
-      const glm::vec2 player_center =
-          player_transform->pos + glm::vec2{player_size.x * 0.5f, player_size.y * 0.5f};
-      strike_lane_x = player_center.x;
-    } else {
-      strike_lane_x = current_center().x;
-    }
+    const glm::vec2 target = action_center();
+    strike_lane_x = target.x;
     strike_top_y = -size.y * 0.6f;
-    strike_charge_elapsed = 0.0f;
-    strike_spin_angle = 0.0f;
-    state = FamiliarState::StrikeAlign;
-    if (sprite) {
-      if (normal_texture_id != engine::kInvalidTextureId) {
-        sprite->texture_id = normal_texture_id;
-      }
-      sprite->reset_pose();
-    }
-    trail_timer = 0.0f;
+    begin_emerge(target, FamiliarState::EmergingStrike);
     kick_recoil(0.45f);
-    vfx::spawn_projectile_flash(current_center(), size);
   }
 
   void handle_strike_hit(ecs::Entity* mushroom) {
@@ -384,14 +328,8 @@ struct FamiliarLogic : public dynamic::DynamicObject {
 
   void deploy() {
     if (!is_idle()) return;
-    if (player_transform) {
-      const glm::vec2 player_center =
-          player_transform->pos + glm::vec2{player_size.x * 0.5f, player_size.y * 0.5f};
-      planted_center = player_center + glm::vec2{0.0f, -player_size.y * 0.65f};
-    } else {
-      planted_center = current_center();
-    }
-    state = FamiliarState::Planted;
+    planted_center = action_center();
+    begin_emerge(planted_center, FamiliarState::EmergingTrap);
   }
 
   void handle_capture(ecs::Entity* mushroom) {
@@ -420,34 +358,24 @@ struct FamiliarLogic : public dynamic::DynamicObject {
 
   void reset() {
     clear_carried(true);
-    state = FamiliarState::Orbit;
-    return_timer = 0.0f;
+    state = FamiliarState::Ready;
+    transition_elapsed = 0.0f;
+    return_hold_timer = 0.0f;
+    cooldown_timer = 0.0f;
     trail_timer = 0.0f;
-    strike_charge_elapsed = 0.0f;
-    strike_spin_angle = 0.0f;
-    orbit_angle = orbit_phase;
     if (!transform) {
       transform = entity ? entity->get<transform::NoRotationTransform>() : nullptr;
     }
-    if (transform && player_transform) {
-      const glm::vec2 player_center =
-          player_transform->pos + glm::vec2{player_size.x * 0.5f, player_size.y * 0.5f};
-      const glm::vec2 offset{
-          std::cos(orbit_angle) * orbit_radius_px,
-          std::sin(orbit_angle) * orbit_radius_px * orbit_y_scale,
-      };
-      set_center(player_center + offset);
-      strike_lane_x = player_center.x;
-    }
-    planted_center = current_center();
-    strike_top_y = -size.y * 0.6f;
     if (sprite) {
       if (normal_texture_id != engine::kInvalidTextureId) {
         sprite->texture_id = normal_texture_id;
       }
       sprite->reset_pose();
+      sprite->grayscale = false;
     }
-    update_visual_state();
+    if (hidden) hidden->hide();
+    set_center(floor_center_for_x(player_center().x));
+    update_bat_hud();
   }
 
   void clear_carried(bool delete_entity) {
@@ -469,12 +397,11 @@ struct FamiliarLogic : public dynamic::DynamicObject {
 
     const float nan = std::numeric_limits<float>::quiet_NaN();
     glm::vec2 catch_center{nan, nan};
-    if (player_transform) {
-      const glm::vec2 player_center =
-          player_transform->pos + glm::vec2{player_size.x * 0.5f, player_size.y * 0.5f};
-      catch_center = player_center;
+    const glm::vec2 center = player_center();
+    if (center.x == center.x && center.y == center.y) {
+      catch_center = center;
       if (carried_transform) {
-        carried_transform->pos = shrooms::screen::center_to_top_left(player_center, carried_size);
+        carried_transform->pos = shrooms::screen::center_to_top_left(center, carried_size);
       }
     }
 
@@ -485,22 +412,17 @@ struct FamiliarLogic : public dynamic::DynamicObject {
     begin_return();
   }
 
-  void begin_return(float delay = -1.0f) {
+  void begin_return(float delay = 0.0f) {
     if (sprite) {
       if (normal_texture_id != engine::kInvalidTextureId) {
         sprite->texture_id = normal_texture_id;
       }
       sprite->reset_pose();
+      sprite->grayscale = false;
     }
+    if (hidden) hidden->show();
     state = FamiliarState::Returning;
-    return_timer = delay >= 0.0f ? delay : return_delay;
-    if (player_transform) {
-      const glm::vec2 player_center =
-          player_transform->pos + glm::vec2{player_size.x * 0.5f, player_size.y * 0.5f};
-      const glm::vec2 rel = current_center() - player_center;
-      const float scaled_y = orbit_y_scale > 0.0001f ? rel.y / orbit_y_scale : rel.y;
-      orbit_angle = std::atan2(scaled_y, rel.x);
-    }
+    return_hold_timer = std::max(0.0f, delay);
     update_visual_state();
   }
 
@@ -521,84 +443,211 @@ struct FamiliarLogic : public dynamic::DynamicObject {
     carried_transform->pos = target_center - carried_size * 0.5f;
   }
 
-  bool is_sleeping() const { return state == FamiliarState::Returning; }
-
-  glm::vec2 orbit_offset(float angle) const {
-    return glm::vec2{
-        std::cos(angle) * orbit_radius_px,
-        std::sin(angle) * orbit_radius_px * orbit_y_scale,
-    };
-  }
-
-  void update_visual_state() {
-    if (!sprite) return;
-    const bool strike_animating = state == FamiliarState::StrikeAlign ||
-                                  state == FamiliarState::StrikeCharge ||
-                                  state == FamiliarState::StrikeAscend;
-    sprite->use_idle_wobble(!strike_animating);
-    if (!strike_animating) {
-      sprite->reset_pose();
-    }
-    sprite->grayscale = is_sleeping();
-  }
-
-  void begin_strike_charge() {
-    state = FamiliarState::StrikeCharge;
-    strike_charge_elapsed = 0.0f;
-    strike_spin_angle = 0.0f;
+  void begin_ready() {
+    state = FamiliarState::Ready;
+    cooldown_timer = 0.0f;
+    transition_elapsed = 0.0f;
     if (sprite) {
       if (normal_texture_id != engine::kInvalidTextureId) {
         sprite->texture_id = normal_texture_id;
       }
       sprite->reset_pose();
+      sprite->grayscale = false;
     }
+    if (hidden) hidden->hide();
+    set_center(floor_center_for_x(player_center().x));
+    update_bat_hud();
+  }
+
+  void begin_emerge(const glm::vec2& target, FamiliarState emerge_state) {
+    state = emerge_state;
+    transition_elapsed = 0.0f;
+    emerge_target = target;
+    emerge_start = floor_center_for_x(target.x);
+    set_center(emerge_start);
+    if (hidden) hidden->show();
+    if (sprite) {
+      if (normal_texture_id != engine::kInvalidTextureId) {
+        sprite->texture_id = normal_texture_id;
+      }
+      sprite->model_scale = 0.25f;
+      sprite->model_rotation_rad = 0.0f;
+      sprite->grayscale = false;
+    }
+    trail_timer = 0.0f;
+    vfx::spawn_projectile_flash(emerge_start, size);
+    update_bat_hud();
+  }
+
+  void update_emerge(float dt) {
+    transition_elapsed += dt;
+    const float t = smooth01(emerge_duration > 0.0f ? transition_elapsed / emerge_duration : 1.0f);
+    set_center(lerp(emerge_start, emerge_target, t));
+    if (sprite) {
+      sprite->model_scale = 0.25f + 0.75f * t;
+      sprite->model_rotation_rad = 0.0f;
+    }
+    if (t < 1.0f) return;
+
+    set_center(emerge_target);
+    if (state == FamiliarState::EmergingTrap) {
+      state = FamiliarState::Planted;
+    } else {
+      begin_strike_dash();
+    }
+  }
+
+  void move_toward_player(float dt) {
+    glm::vec2 center = current_center();
+    const glm::vec2 target = player_center() + carry_offset;
+    const glm::vec2 to_player = target - center;
+    const float dist = glm::length(to_player);
+    if (dist <= carry_speed * dt + 1.0f) {
+      set_center(target);
+      deliver();
+    } else if (dist > 0.0001f) {
+      center += glm::normalize(to_player) * carry_speed * dt;
+      set_center(center);
+    }
+  }
+
+  void update_returning(float dt) {
+    if (return_hold_timer > 0.0f) {
+      return_hold_timer = std::max(0.0f, return_hold_timer - dt);
+      return;
+    }
+
+    glm::vec2 center = current_center();
+    const glm::vec2 target = action_center();
+    const glm::vec2 to_player = target - center;
+    const float dist = glm::length(to_player);
+    if (dist > return_speed * dt + 1.0f && dist > 0.0001f) {
+      center += glm::normalize(to_player) * return_speed * dt;
+      set_center(center);
+      return;
+    }
+
+    set_center(target);
+    begin_sink();
+  }
+
+  void begin_sink() {
+    shrooms::audio::play_familiar_return();
+    state = FamiliarState::Sinking;
+    transition_elapsed = 0.0f;
+    sink_start = current_center();
+    sink_target = floor_center_for_x(player_center().x);
+    if (sprite) {
+      if (normal_texture_id != engine::kInvalidTextureId) {
+        sprite->texture_id = normal_texture_id;
+      }
+      sprite->reset_pose();
+      sprite->grayscale = false;
+    }
+  }
+
+  void update_sinking(float dt) {
+    transition_elapsed += dt;
+    const float t = smooth01(sink_duration > 0.0f ? transition_elapsed / sink_duration : 1.0f);
+    set_center(lerp(sink_start, sink_target, t));
+    if (sprite) {
+      sprite->model_scale = std::max(0.05f, 1.0f - 0.75f * t);
+      sprite->model_rotation_rad = 0.0f;
+    }
+    if (t < 1.0f) return;
+
+    if (hidden) hidden->hide();
+    cooldown_timer = return_delay;
+    state = FamiliarState::Cooldown;
   }
 
   void begin_strike_dash() {
     state = FamiliarState::StrikeAscend;
-    strike_spin_angle = 0.0f;
     shrooms::audio::play_familiar_shot();
     if (sprite) {
       if (strike_texture_id != engine::kInvalidTextureId) {
         sprite->texture_id = strike_texture_id;
       }
       sprite->reset_pose();
+      sprite->grayscale = false;
     }
     trail_timer = 0.0f;
+    vfx::spawn_projectile_flash(current_center(), size);
+  }
+
+  glm::vec2 player_center() const {
+    if (!player_transform) {
+      return current_center();
+    }
+    return player_transform->pos + player_size * 0.5f;
+  }
+
+  glm::vec2 action_center() const {
+    return player_center() + glm::vec2{0.0f, -player_size.y * 0.65f};
+  }
+
+  glm::vec2 floor_center_for_x(float x) const {
+    glm::vec2 floor_top_left{0.0f, 0.0f};
+    glm::vec2 floor_size{0.0f, 0.0f};
+    if (ambient_layers::resolve_bottom_sprite_bounds(floor_top_left, floor_size)) {
+      const float min_x = floor_top_left.x + size.x * 0.5f;
+      const float max_x = floor_top_left.x + floor_size.x - size.x * 0.5f;
+      const float clamped_x = min_x <= max_x ? std::clamp(x, min_x, max_x) : x;
+      return glm::vec2{clamped_x, floor_top_left.y + floor_size.y * 0.52f};
+    }
+    return action_center();
+  }
+
+  float smooth01(float value) const {
+    const float t = std::clamp(value, 0.0f, 1.0f);
+    return t * t * (3.0f - 2.0f * t);
+  }
+
+  glm::vec2 lerp(const glm::vec2& a, const glm::vec2& b, float t) const {
+    return a + (b - a) * std::clamp(t, 0.0f, 1.0f);
+  }
+
+  void update_visual_state() {
+    const bool visible = state != FamiliarState::Ready && state != FamiliarState::Cooldown;
+    if (hidden) hidden->set_visible(visible);
+    if (!sprite) return;
+    const bool transition =
+        state == FamiliarState::EmergingTrap || state == FamiliarState::EmergingStrike ||
+        state == FamiliarState::Sinking;
+    sprite->use_idle_wobble(state != FamiliarState::StrikeAscend);
+    if (!transition) {
+      sprite->reset_pose();
+    }
+    sprite->grayscale = false;
   }
 
   transform::NoRotationTransform* transform = nullptr;
   FamiliarSprite* sprite = nullptr;
+  hidden::HiddenObject* hidden = nullptr;
   glm::vec2 size{0.0f, 0.0f};
   engine::TextureId normal_texture_id = engine::kInvalidTextureId;
   engine::TextureId strike_texture_id = engine::kInvalidTextureId;
-  float orbit_radius_px = 0.0f;
-  float orbit_speed = 2.3f;
-  float orbit_angle = 0.0f;
-  float orbit_phase = 0.0f;
-  float orbit_y_scale = 0.65f;
   float carry_speed = 820.0f;
-  float strike_align_speed = 880.0f;
   float strike_up_speed = 980.0f;
-  float strike_lane_blend = 8.0f;
-  float strike_setup_speed_multiplier = 2.0f;
-  float strike_charge_duration = 0.35f;
-  float strike_charge_scale = 0.62f;
-  float strike_spin_speed_start = 8.0f;
-  float strike_spin_speed_end = 42.0f;
-  float strike_spin_angle = 0.0f;
-  float strike_charge_elapsed = 0.0f;
   float strike_top_y = -50.0f;
   float strike_lane_x = 0.0f;
   float strike_return_delay = 0.22f;
   float return_speed = 720.0f;
   float return_delay = 1.0f;
-  float return_timer = 0.0f;
+  float return_hold_timer = 0.0f;
+  float transition_elapsed = 0.0f;
+  float emerge_duration = 0.22f;
+  float sink_duration = 0.24f;
+  float cooldown_timer = 0.0f;
   float trail_timer = 0.0f;
   float trail_period = 0.05f;
   glm::vec2 carry_offset{0.0f, 0.0f};
   glm::vec2 planted_center{0.0f, 0.0f};
-  FamiliarState state = FamiliarState::Orbit;
+  glm::vec2 emerge_start{0.0f, 0.0f};
+  glm::vec2 emerge_target{0.0f, 0.0f};
+  glm::vec2 sink_start{0.0f, 0.0f};
+  glm::vec2 sink_target{0.0f, 0.0f};
+  FamiliarState state = FamiliarState::Ready;
   ecs::Entity* carried = nullptr;
   transform::NoRotationTransform* carried_transform = nullptr;
   glm::vec2 carried_size{0.0f, 0.0f};
@@ -609,6 +658,19 @@ inline std::array<ecs::Entity*, kFamiliarCount> familiar_entities{};
 inline std::array<FamiliarLogic*, kFamiliarCount> familiar_logic{};
 inline glm::vec2 familiar_size{0.0f, 0.0f};
 
+inline int ready_familiar_count() {
+  int count = 0;
+  for (auto* logic : familiar_logic) {
+    if (!logic) continue;
+    if (logic->is_idle()) ++count;
+  }
+  return count;
+}
+
+inline void update_bat_hud() {
+  score_hud::set_bat_availability(ready_familiar_count());
+}
+
 inline FamiliarLogic* find_idle_familiar() {
   for (auto* logic : familiar_logic) {
     if (!logic) continue;
@@ -618,19 +680,7 @@ inline FamiliarLogic* find_idle_familiar() {
 }
 
 inline FamiliarLogic* find_idle_familiar_for_strike() {
-  if (!player_transform) return find_idle_familiar();
-  FamiliarLogic* best = nullptr;
-  const float lane_x = player_transform->pos.x + player_size.x * 0.5f;
-  float best_distance = 0.0f;
-  for (auto* logic : familiar_logic) {
-    if (!logic || !logic->is_idle()) continue;
-    const float distance = std::abs(logic->current_center().x - lane_x);
-    if (!best || distance < best_distance) {
-      best = logic;
-      best_distance = distance;
-    }
-  }
-  return best;
+  return find_idle_familiar();
 }
 
 inline void deploy_familiar() {
@@ -673,22 +723,21 @@ inline collision::TriggerObject* make_familiar_sort_trigger(FamiliarLogic* logic
 inline void init_familiars() {
   if (!player_transform) return;
   familiar_size = shrooms::texture_sizing::from_reference_width("famiriar", 29.0f);
-  const float orbit_radius = player_size.x * 2.0f;
-  const float orbit_speed = 2.4f;
   const engine::TextureId tex_id = engine::resources::register_texture("famiriar");
   const engine::TextureId strike_tex_id = engine::resources::register_texture("familiar_attack");
 
   for (int i = 0; i < kFamiliarCount; ++i) {
     auto* entity = arena::create<ecs::Entity>();
     auto* transform = arena::create<transform::NoRotationTransform>();
-    const float phase = static_cast<float>(i) * 6.28318f / static_cast<float>(kFamiliarCount);
     const glm::vec2 player_center =
         player_transform->pos + glm::vec2{player_size.x * 0.5f, player_size.y * 0.5f};
-    const glm::vec2 offset{
-        std::cos(phase) * orbit_radius,
-        std::sin(phase) * orbit_radius * 0.65f,
-    };
-    transform->pos = shrooms::screen::center_to_top_left(player_center + offset, familiar_size);
+    glm::vec2 spawn_center = player_center;
+    glm::vec2 floor_top_left{0.0f, 0.0f};
+    glm::vec2 floor_size{0.0f, 0.0f};
+    if (ambient_layers::resolve_bottom_sprite_bounds(floor_top_left, floor_size)) {
+      spawn_center = glm::vec2{player_center.x, floor_top_left.y + floor_size.y * 0.52f};
+    }
+    transform->pos = shrooms::screen::center_to_top_left(spawn_center, familiar_size);
     entity->add(transform);
 
     entity->add(arena::create<geometry::Quad>(
@@ -797,9 +846,13 @@ inline void init_familiars() {
         };
     familiar_sprite->idle_point_generator = familiar_sprite->point_generator;
     entity->add(familiar_sprite);
-    auto* logic = arena::create<FamiliarLogic>(orbit_radius, orbit_speed, phase);
+    auto* hidden = arena::create<hidden::HiddenObject>();
+    hidden->hide();
+    entity->add(hidden);
+    auto* logic = arena::create<FamiliarLogic>();
     logic->size = familiar_size;
     logic->sprite = familiar_sprite;
+    logic->hidden = hidden;
     logic->normal_texture_id = tex_id;
     logic->strike_texture_id = strike_tex_id;
     entity->add(logic);
@@ -810,6 +863,7 @@ inline void init_familiars() {
     familiar_entities[i] = entity;
     familiar_logic[i] = logic;
   }
+  update_bat_hud();
 }
 
 inline void reset_familiars() {
