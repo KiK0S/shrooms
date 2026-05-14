@@ -855,14 +855,12 @@ inline void on_mushroom_missed(const std::string& type, ecs::Entity* entity) {
   vfx::spawn_miss_effect(entity);
   camera_shake::add_trauma(0.06f);
   if (!tutorial_mode) {
-    if (current_game_mode == GameMode::Recipe) {
-      trigger_failure(LossReason::Dropped, type);
-      return;
-    }
-    decrement_collector_life();
-    if (collector_lives_remaining <= 0) {
-      trigger_failure(LossReason::Dropped, type);
-      return;
+    if (current_game_mode == GameMode::Collector) {
+      decrement_collector_life();
+      if (collector_lives_remaining <= 0) {
+        trigger_failure(LossReason::Dropped, type);
+        return;
+      }
     }
   }
   check_completion();

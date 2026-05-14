@@ -1096,16 +1096,14 @@ inline void enter_tutorial_objective_mode() {
   pending_tutorial = true;
 
   update_text(objective_title, "Tutorial");
-  update_text(objective_level, "Learn Collector first, then Recipe");
+  update_text(objective_level, "Learn catching and traps, then recipes");
   active_objective_lines = 7;
   const std::array<std::string, 7> lines{
       "1. Move left and right",
       "2. Catch one mushroom",
       "3. Place a trap",
-      "4. Collector mode complete",
-      "5. Read a recipe",
-      "6. Shoot the wrong mushroom",
-      "7. Keep the basket white-only",
+      "4. Shoot the mukhomor",
+      "5. Complete the recipe",
   };
   for (size_t i = 0; i < lines.size(); ++i) {
     set_line_icon_texture(objective_recipe_lines[i], "");
@@ -2120,20 +2118,16 @@ inline void init() {
     style_menu_action(level_lines[i]);
   }
 
-  objective_title = make_text_line(glm::vec2{0.0f, 0.66f}, 26.0f, 6);
-  objective_title.center_on_anchor = true;
-  objective_level = make_text_line(glm::vec2{0.0f, 0.44f}, 20.0f, 6);
-  objective_level.center_on_anchor = true;
-  const glm::vec2 objective_base = glm::vec2{0.0f, 0.16f};
+  objective_title = make_text_line(glm::vec2{kMenuTextX, 0.65f}, 24.0f, 6);
+  objective_level = make_text_line(glm::vec2{kMenuTextX, 0.48f}, 20.0f, 6);
+  const glm::vec2 objective_base = glm::vec2{kMenuTextX, 0.25f};
   for (size_t i = 0; i < kMaxLevelLines; ++i) {
     const glm::vec2 pos = objective_base - glm::vec2(0.0f, spacing * static_cast<float>(i));
     objective_recipe_lines[i] = make_text_line(pos, 20.0f, 6);
-    objective_recipe_lines[i].center_on_anchor = true;
     objective_recipe_lines[i].icon_before_text = true;
     objective_recipe_lines[i].icon_gap_px = 10.0f;
   }
-  objective_hint = make_text_line(glm::vec2{0.0f, -0.78f}, 18.0f, 6);
-  objective_hint.center_on_anchor = true;
+  objective_hint = make_text_line(glm::vec2{kMenuTextX, -0.8f}, 18.0f, 6);
 
   settings_title = make_text_line(glm::vec2{kMenuTextX, 0.66f}, 24.0f, 6);
   settings_hint = make_text_line(glm::vec2{kMenuTextX, 0.54f}, 16.0f, 6);

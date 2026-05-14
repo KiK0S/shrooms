@@ -1,5 +1,7 @@
 #pragma once
 
+#include <algorithm>
+#include <array>
 #include <map>
 #include <string>
 #include <string_view>
@@ -12,11 +14,13 @@
 #include "utils/arena.hpp"
 #include "systems/animation/sprite_animation.hpp"
 #include "systems/color/color_system.hpp"
+#include "systems/hidden/hidden_object.hpp"
 #include "systems/layer/layered_object.hpp"
 #include "systems/render/sprite_system.hpp"
 #include "systems/scene/scene_object.hpp"
 #include "systems/text/text_object.hpp"
 #include "systems/transformation/transform_object.hpp"
+#include "engine/geometry_builder.h"
 
 #include "shrooms_screen.hpp"
 #include "shrooms_texture_sizing.hpp"
@@ -27,11 +31,13 @@ struct Config {
   glm::vec2 panel_reference_size = glm::vec2(0.0f, 0.0f);
   glm::vec2 face_reference_size = glm::vec2(0.0f, 0.0f);
   glm::vec2 face_offset = glm::vec2(-0.05f, -0.11f);
-  glm::vec2 score_offset = glm::vec2(-0.005f, -0.04f);
+  glm::vec2 score_offset = glm::vec2(-0.005f, -0.075f);
   float score_font_px = 20.0f;
   glm::vec4 score_color = glm::vec4(1.0f);
   int layer = 1;
 } config;
+
+inline constexpr size_t kMaxLifeHearts = 3;
 
 inline ecs::Entity* face_icon = nullptr;
 inline ecs::Entity* panel = nullptr;
@@ -39,11 +45,10 @@ inline ecs::Entity* score_text_entity = nullptr;
 inline transform::NoRotationTransform* score_text_transform = nullptr;
 inline text::TextObject* score_text = nullptr;
 inline color::OneColor* score_text_color = nullptr;
-inline ecs::Entity* lives_text_entity = nullptr;
-inline transform::NoRotationTransform* lives_text_transform = nullptr;
-inline text::TextObject* lives_text = nullptr;
-inline color::OneColor* lives_text_color = nullptr;
-inline hidden::HiddenObject* lives_text_hidden = nullptr;
+inline std::array<ecs::Entity*, kMaxLifeHearts> life_heart_entities{};
+inline std::array<transform::NoRotationTransform*, kMaxLifeHearts> life_heart_transforms{};
+inline std::array<render_system::SpriteRenderable*, kMaxLifeHearts> life_heart_sprites{};
+inline std::array<hidden::HiddenObject*, kMaxLifeHearts> life_heart_hidden{};
 inline int current_score = 0;
 inline int current_lives = 0;
 inline bool lives_visible = false;
@@ -83,7 +88,7 @@ inline glm::vec2 score_anchor_px() {
 }
 
 inline glm::vec2 lives_anchor_px() {
-  return score_anchor_px() + shrooms::screen::scale_to_pixels(glm::vec2{0.0f, 0.045f});
+  return score_anchor_px() + shrooms::screen::scale_to_pixels(glm::vec2{0.0f, 0.047f});
 }
 
 inline void update_score_layout() {
@@ -96,12 +101,32 @@ inline void update_score_layout() {
 }
 
 inline void update_lives_layout() {
-  if (!lives_text || !lives_text_transform) return;
-  const std::string value = "Lives " + std::to_string(current_lives);
-  lives_text->text = value;
-  const auto layout = engine::text::layout_text(value, 0.0f, 0.0f, config.score_font_px * 0.72f);
-  const glm::vec2 size{layout.width, layout.height};
-  lives_text_transform->pos = lives_anchor_px() - size * 0.5f;
+  const float heart_width =
+      shrooms::screen::scale_to_pixels(glm::vec2{0.024f, 0.0f}).x;
+  const glm::vec2 heart_size = shrooms::texture_sizing::from_width_px("heart", heart_width);
+  const float gap = std::max(2.0f, heart_width * 0.18f);
+  const float total_width =
+      heart_size.x * static_cast<float>(kMaxLifeHearts) + gap * static_cast<float>(kMaxLifeHearts - 1);
+  const glm::vec2 row_start = lives_anchor_px() - glm::vec2{total_width * 0.5f, 0.0f};
+  const int visible_hearts =
+      std::clamp(current_lives, 0, static_cast<int>(kMaxLifeHearts));
+
+  for (size_t i = 0; i < kMaxLifeHearts; ++i) {
+    if (life_heart_transforms[i]) {
+      const glm::vec2 center =
+          row_start + glm::vec2{heart_size.x * 0.5f + static_cast<float>(i) * (heart_size.x + gap),
+                                0.0f};
+      life_heart_transforms[i]->pos = shrooms::screen::center_to_top_left(center, heart_size);
+    }
+    if (life_heart_sprites[i]) {
+      life_heart_sprites[i]->size = heart_size;
+      life_heart_sprites[i]->geometry = engine::geometry::make_quad(heart_size.x, heart_size.y);
+      life_heart_sprites[i]->uploaded = false;
+    }
+    if (life_heart_hidden[i]) {
+      life_heart_hidden[i]->set_visible(lives_visible && static_cast<int>(i) < visible_hearts);
+    }
+  }
 }
 
 inline void set_score(int score_value) {
@@ -118,9 +143,7 @@ inline void set_lives(int lives_value) {
 
 inline void set_lives_visible(bool visible) {
   lives_visible = visible;
-  if (lives_text_hidden) {
-    lives_text_hidden->set_visible(visible);
-  }
+  update_lives_layout();
 }
 
 inline void reset_hud() {
@@ -180,20 +203,22 @@ inline void reset_hud() {
   score_text_entity->add(arena::create<scene::SceneObject>("main"));
   update_score_layout();
 
-  if (lives_text_entity) {
-    lives_text_entity->mark_deleted();
+  for (size_t i = 0; i < kMaxLifeHearts; ++i) {
+    if (life_heart_entities[i]) {
+      life_heart_entities[i]->mark_deleted();
+    }
+    life_heart_entities[i] = arena::create<ecs::Entity>();
+    life_heart_transforms[i] = arena::create<transform::NoRotationTransform>();
+    life_heart_entities[i]->add(life_heart_transforms[i]);
+    life_heart_entities[i]->add(arena::create<layers::ConstLayer>(config.layer + 1));
+    const engine::TextureId tex_id = engine::resources::register_texture("heart");
+    const glm::vec2 size = shrooms::texture_sizing::from_width_px("heart", 18.0f);
+    life_heart_sprites[i] = arena::create<render_system::SpriteRenderable>(tex_id, size);
+    life_heart_entities[i]->add(life_heart_sprites[i]);
+    life_heart_hidden[i] = arena::create<hidden::HiddenObject>();
+    life_heart_entities[i]->add(life_heart_hidden[i]);
+    life_heart_entities[i]->add(arena::create<scene::SceneObject>("main"));
   }
-  lives_text_entity = arena::create<ecs::Entity>();
-  lives_text_transform = arena::create<transform::NoRotationTransform>();
-  lives_text_entity->add(lives_text_transform);
-  lives_text_entity->add(arena::create<layers::ConstLayer>(config.layer + 1));
-  lives_text = arena::create<text::TextObject>("Lives 0", config.score_font_px * 0.72f);
-  lives_text_entity->add(lives_text);
-  lives_text_color = arena::create<color::OneColor>(config.score_color);
-  lives_text_entity->add(lives_text_color);
-  lives_text_hidden = arena::create<hidden::HiddenObject>();
-  lives_text_entity->add(lives_text_hidden);
-  lives_text_entity->add(arena::create<scene::SceneObject>("main"));
   update_lives_layout();
   set_lives_visible(lives_visible);
 }
